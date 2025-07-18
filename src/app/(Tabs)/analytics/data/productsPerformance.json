@@ -1,0 +1,110 @@
+[
+  {
+    "name": "Wireless Earbuds Pro",
+    "icon": "/avatar.png",
+    "views": 2845,
+    "conversionRate": 6.2,
+    "delta": 0.8,
+    "revenue": 5490,
+    "rating": 4.0
+  },
+  {
+    "name": "Smart Watch X1",
+    "icon": "/avatar.png",
+    "views": 2124,
+    "conversionRate": 5.8,
+    "delta": 0.5,
+    "revenue": 7842,
+    "rating": 4.2
+  },
+  {
+    "name": "Bluetooth Speaker Mini",
+    "icon": "/avatar.png",
+    "views": 3170,
+    "conversionRate": 7.1,
+    "delta": 1.2,
+    "revenue": 6230,
+    "rating": 4.5
+  },
+  {
+    "name": "Gaming Headset Z",
+    "icon": "/avatar.png",
+    "views": 2890,
+    "conversionRate": 5.5,
+    "delta": 0.3,
+    "revenue": 5120,
+    "rating": 3.9
+  },
+  {
+    "name": "4K Action Camera",
+    "icon": "avatar.png",
+    "views": 2505,
+    "conversionRate": 6.8,
+    "delta": 0.9,
+    "revenue": 9720,
+    "rating": 4.6
+  },
+  {
+    "name": "Fitness Tracker FitPlus",
+    "icon": "/avatar.png",
+    "views": 4120,
+    "conversionRate": 4.9,
+    "delta": 0.4,
+    "revenue": 8320,
+    "rating": 4.3
+  },
+  {
+    "name": "Portable Charger 20000mAh",
+    "icon": "/avatar.png",
+    "views": 3790,
+    "conversionRate": 5.3,
+    "delta": 0.6,
+    "revenue": 6420,
+    "rating": 4.1
+  },
+  {
+    "name": "Noise Cancelling Headphones",
+    "icon": "/avatar.png",
+    "views": 1980,
+    "conversionRate": 7.4,
+    "delta": 1.0,
+    "revenue": 7980,
+    "rating": 4.7
+  },
+  {
+    "name": "Smart Home Hub",
+    "icon": "/avatar.png",
+    "views": 2250,
+    "conversionRate": 5.1,
+    "delta": 0.2,
+    "revenue": 5800,
+    "rating": 4.0
+  },
+  {
+    "name": "Wireless Keyboard K2",
+    "icon": "/avatar.png",
+    "views": 3410,
+    "conversionRate": 6.0,
+    "delta": 0.7,
+    "revenue": 4370,
+    "rating": 3.8
+  },
+  {
+    "name": "Smart Door Lock Pro",
+    "icon": "/avatar.png",
+    "views": 1760,
+    "conversionRate": 6.9,
+    "delta": 0.9,
+    "revenue": 7120,
+    "rating": 4.4
+  },
+  {
+    "name": "Robot Vacuum Cleaner",
+    "icon": "/avatar.png",
+    "views": 2980,
+    "conversionRate": 5.6,
+    "delta": 0.5,
+    "revenue": 10500,
+    "rating": 4.5
+  }
+]

@@ -1,0 +1,133 @@
+[
+  {
+    "id": "#ORD-528",
+    "date": "May 26, 2023",
+    "customer": "Sophia Chen",
+    "email": "sophia.chen@example.com",
+    "phone": "+1 (555) 123-4567",
+    "shipping": "123 Main Street Apt 4B, San Francisco, CA",
+    "billing": "123 Main Street Apt 4B, San Francisco, CA",
+    "status" : "Processing",
+    "userAvatar": "https://i.pravatar.cc/150?u=${order.customer}",
+    "product": {
+      "name": "Bluetooth Speaker",
+      "image": "https://i.pravatar.cc/150?u=${order.product.name}",
+      "sku": "SP-BT2000-BLK",
+      "qty": 1,
+      "price": 124.00
+    },
+    "subtotal": 124.00,
+    "shippingCost" : 10.00,
+    "tax": 10.54,
+    "total": 134.54,
+    "card": "4242",
+    "timeline": [
+      {
+        "label": "Order Placed",
+        "time": "May 26, 2023 \u2013 10:24 AM",
+        "status": "done"
+      },
+      {
+        "label": "Payment Confirmed",
+        "time": "May 26, 2023 \u2013 10:30 AM",
+        "status": "done"
+      },
+      {
+        "label": "Processing",
+        "time": "May 26, 2023 \u2013 11:45 AM",
+        "status": "current"
+      },
+      {
+        "label": "Shipped",
+        "status": "pending"
+      }
+    ]
+  },
+  {
+    "id": "#ORD-527",
+    "date": "May 26, 2023",
+    "customer": "Sophia Chen",
+    "email": "sophia.chen@example.com",
+    "phone": "+1 (555) 123-4567",
+    "shipping": "123 Main Street Apt 4B, San Francisco, CA",
+    "billing": "123 Main Street Apt 4B, San Francisco, CA",
+    "status" : "Processing",
+    "userAvatar": "https://i.pravatar.cc/150?u=${order.customer}",
+    "product": {
+      "name": "Bluetooth Speaker",
+      "image": "https://i.pravatar.cc/150?u=${order.product.name}",
+      "sku": "SP-BT2000-BLK",
+      "qty": 1,
+      "price": 124.00
+    },
+    "subtotal": 124.00,
+    "shippingCost" : 10.00,
+    "tax": 10.54,
+    "total": 134.54,
+    "card": "4242",
+    "timeline": [
+      {
+        "label": "Order Placed",
+        "time": "May 26, 2023 \u2013 10:24 AM",
+        "status": "done"
+      },
+      {
+        "label": "Payment Confirmed",
+        "time": "May 26, 2023 \u2013 10:30 AM",
+        "status": "done"
+      },
+      {
+        "label": "Processing",
+        "time": "May 26, 2023 \u2013 11:45 AM",
+        "status": "current"
+      },
+      {
+        "label": "Shipped",
+        "status": "pending"
+      }
+    ]
+  },
+  {
+    "id": "#ORD-5287",
+    "date": "May 26, 2023",
+    "customer": "Sophia Chen",
+    "email": "sophia.chen@example.com",
+    "phone": "+1 (555) 123-4567",
+    "shipping": "123 Main Street Apt 4B, San Francisco, CA",
+    "billing": "123 Main Street Apt 4B, San Francisco, CA",
+    "status" : "Pending",
+    "userAvatar": "https://i.pravatar.cc/150?u=${order.customer}",
+    "product": {
+      "name": "Bluetooth Speaker",
+      "image": "https://i.pravatar.cc/150?u=${order.product.name}",
+      "sku": "SP-BT2000-BLK",
+      "qty": 1,
+      "price": 124
+    },
+    "subtotal": 124,
+    "shippingCost" : 10.00,
+    "tax": 10.54,
+    "total": 134.54,
+    "card": "4242",
+    "timeline": [
+      {
+        "label": "Order Placed",
+        "time": "May 26, 2023 \u2013 10:24 AM",
+        "status": "done"
+      },
+      {
+        "label": "Payment Confirmed",
+        "time": "May 26, 2023 \u2013 10:30 AM",
+        "status": "done"
+      },
+      {
+        "label": "Processing",
+        "time": "May 26, 2023 \u2013 11:45 AM",
+        "status": "done"
+      },
+      {
+        "label": "Shipped"
+      }
+    ]
+  }
+]

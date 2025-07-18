@@ -1,0 +1,12 @@
+[
+  {
+    "type": "Paypal",
+    "label": "alex.johnson@email.com",
+    "default": true
+  },
+  {
+    "type": "Bank Transfer",
+    "label": "**** **** **** 4528",
+    "default": false
+  }
+]

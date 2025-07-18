@@ -1,0 +1,178 @@
+[
+  {
+    "id": 1,
+    "name": "SmartPhone Pro X",
+    "description": "Latest smartphone with 6.5\" display, 128GB storage and 8GB RAM",
+    "image": "/products/phone.png",
+    "rating": 4.8,
+    "price": 799.99,
+    "oldPrice": 899.99,
+    "stock": 24,
+    "tags": ["Featured", "In Stock"]
+  },
+  {
+    "id": 2,
+    "name": "Wireless Earbuds",
+    "description": "Bluetooth 5.0 earbuds with noise cancellation and 20hr battery",
+    "image": "/products/bluetooth.png",
+    "rating": 4.6,
+    "price": 129.99,
+    "oldPrice": 149.99,
+    "stock": 42,
+    "tags": ["In Stock"]
+  },
+  {
+    "id": 3,
+    "name": "Smart Watch X1",
+    "description": "Fitness tracker with heart rate monitor, sleep tracking and 7-day battery",
+    "image": "/products/watch.png",
+    "rating": 4.7,
+    "price": 199.99,
+    "oldPrice": 249.99,
+    "stock": 18,
+    "tags": ["Featured", "In Stock"]
+  },
+  {
+    "id": 4,
+    "name": "Portable Speaker",
+    "description": "Waterproof bluetooth speaker with 360° sound and 12hr battery",
+    "image": "/products/speaker.png",
+    "rating": 4.5,
+    "price": 89.99,
+    "oldPrice": 109.99,
+    "stock": 0,
+    "tags": ["Out of Stock"]
+  },
+  {
+    "id": 5,
+    "name": "Wireless Charger",
+    "description": "Fast wireless charging pad compatible with all Qi-enabled devices",
+    "image": "/products/charger.png",
+    "rating": 4.3,
+    "price": 39.99,
+    "oldPrice": 49.99,
+    "stock": 31,
+    "tags": ["In Stock"]
+  },
+  {
+    "id": 6,
+    "name": "Tablet Pro 11\"",
+    "description": "11-inch tablet with keyboard case, 256GB storage and 10hr battery life",
+    "image": "/products/phone.png",
+    "rating": 4.9,
+    "price": 549.99,
+    "oldPrice": 649.99,
+    "stock": 12,
+    "tags": ["Featured", "In Stock"]
+  },
+  {
+    "id": 7,
+    "name": "Power Bank 20000mAh",
+    "description": "High capacity power bank with USB-C and fast charging",
+    "image": "/products/powerbank.png",
+    "rating": 4.4,
+    "price": 89.99,
+    "oldPrice": 99.99,
+    "stock": 0,
+    "tags": ["Out of Stock"]
+  },
+  {
+    "id": 8,
+    "name": "Gaming Headset",
+    "description": "Surround sound gaming headset with noise-cancelling mic",
+    "image": "/products/headphones.png",
+    "rating": 4.7,
+    "price": 79.99,
+    "oldPrice": 99.99,
+    "stock": 15,
+    "tags": ["In Stock"]
+  },
+  {
+    "id": 12,
+    "name": "Portable Speaker",
+    "description": "Waterproof bluetooth speaker with 360° sound and 12hr battery",
+    "image": "/products/speaker.png",
+    "rating": 4.5,
+    "price": 89.99,
+    "oldPrice": 109.99,
+    "stock": 0,
+    "tags": ["Out of Stock"]
+  },
+  {
+    "id": 9,
+    "name": "SmartPhone Pro X",
+    "description": "Latest smartphone with 6.5\" display, 128GB storage and 8GB RAM",
+    "image": "/products/phone.png",
+    "rating": 4.8,
+    "price": 799.99,
+    "oldPrice": 899.99,
+    "stock": 24,
+    "tags": ["Featured", "In Stock"]
+  },
+  {
+    "id": 10,
+    "name": "Wireless Earbuds",
+    "description": "Bluetooth 5.0 earbuds with noise cancellation and 20hr battery",
+    "image": "/products/bluetooth.png",
+    "rating": 4.6,
+    "price": 129.99,
+    "oldPrice": 149.99,
+    "stock": 42,
+    "tags": ["In Stock"]
+  },
+  {
+    "id": 11,
+    "name": "Smart Watch X1",
+    "description": "Fitness tracker with heart rate monitor, sleep tracking and 7-day battery",
+    "image": "/products/watch.png",
+    "rating": 4.7,
+    "price": 199.99,
+    "oldPrice": 249.99,
+    "stock": 18,
+    "tags": ["Featured", "In Stock"]
+  },
+  {
+    "id": 13,
+    "name": "Wireless Charger",
+    "description": "Fast wireless charging pad compatible with all Qi-enabled devices",
+    "image": "/products/charger.png",
+    "rating": 4.3,
+    "price": 39.99,
+    "oldPrice": 49.99,
+    "stock": 31,
+    "tags": ["In Stock"]
+  },
+  {
+    "id": 15,
+    "name": "Power Bank 20000mAh",
+    "description": "High capacity power bank with USB-C and fast charging",
+    "image": "/products/powerbank.png",
+    "rating": 4.4,
+    "price": 89.99,
+    "oldPrice": 99.99,
+    "stock": 0,
+    "tags": ["Out of Stock"]
+  },
+  {
+    "id": 16,
+    "name": "Gaming Headset",
+    "description": "Surround sound gaming headset with noise-cancelling mic",
+    "image": "/products/headphones.png",
+    "rating": 4.7,
+    "price": 79.99,
+    "oldPrice": 99.99,
+    "stock": 15,
+    "tags": ["In Stock"]
+  },
+  {
+    "id": 14,
+    "name": "Tablet Pro 11\"",
+    "description": "11-inch tablet with keyboard case, 256GB storage and 10hr battery life",
+    "image": "/products/phone.png",
+    "rating": 4.9,
+    "price": 549.99,
+    "oldPrice": 649.99,
+    "stock": 12,
+    "tags": ["Featured", "In Stock"]
+  }
+]
