@@ -1,4 +1,5 @@
 import LoginCard from "./components/LoginCard";
+import AuthRedirect from "@/components/AuthRedirect";
 import { FaChartLine } from "react-icons/fa6";
 import { FaShieldAlt } from "react-icons/fa";
 import { IoIosPeople } from "react-icons/io";
@@ -7,8 +8,9 @@ import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="bg-white shadow-lg flex flex-col md:flex-row w-full overflow-hidden min-h-screen">
+    <AuthRedirect>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="bg-white shadow-lg flex flex-col md:flex-row w-full overflow-hidden min-h-screen">
         {/* Left Panel */}
         <div className="w-full bg-gradient-to-b from-[#10B981] to-[#03835a] lg:bg-gradient-to-br lg:from-[#10B981] lg:to-[#03835a] p-8 md:p-10 text-white flex flex-col justify-center relative">
           <div className="absolute bottom-6 left-10 md:left-20 w-10 h-10 md:w-12 md:h-12 bg-white/10 rounded-full"></div>
@@ -20,7 +22,7 @@ export default function HomePage() {
                 <AiFillShop size={25} />
               </div>
               <h2 className="text-3xl font-bold mb-4">
-                <Link href={"/dashboard"}>Vendor Portal</Link>
+                Vendor Portal
               </h2>
               <p className="mb-8 text-md opacity-90 max-w-xs md:max-w-80 text-center">
                 Join thousands of successful vendors and grow your business with
@@ -75,7 +77,8 @@ export default function HomePage() {
             <LoginCard />
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </AuthRedirect>
   );
 }

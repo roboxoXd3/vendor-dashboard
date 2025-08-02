@@ -1,10 +1,12 @@
 "use client";
-import { FiMenu, FiSearch } from "react-icons/fi";
+import { FiMenu, FiSearch, FiLogOut } from "react-icons/fi";
 import { FaBell } from "react-icons/fa";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Topbar({ onToggleSidebar }) {
   const pathname = usePathname().split("/");
+  const { user, vendor, signOut } = useAuth();
   let heading;
 
   if (pathname.includes("dashboard")) heading = "Vendor Dashboard";
@@ -54,13 +56,34 @@ export default function Topbar({ onToggleSidebar }) {
           )}
         </div>
 
-        {/* Avatar */}
-        <img
-          src="/avatar.png"
-          alt="avatar"
-          className="w-8 h-8 rounded-full border-2 cursor-pointer"
-          style={{ borderColor: "var(--color-theme)" }}
-        />
+        {/* User Info & Logout */}
+        <div className="flex items-center gap-3">
+          <div className="text-right hidden sm:block">
+            <p className="text-sm font-medium text-gray-700">
+              {vendor?.business_name || 'Vendor'}
+            </p>
+            <p className="text-xs text-gray-500">
+              {user?.email}
+            </p>
+          </div>
+          
+          {/* Avatar */}
+          <img
+            src="/avatar.png"
+            alt="avatar"
+            className="w-8 h-8 rounded-full border-2 cursor-pointer"
+            style={{ borderColor: "var(--color-theme)" }}
+          />
+          
+          {/* Logout Button */}
+          <button
+            onClick={signOut}
+            className="text-gray-600 hover:text-red-600 transition-colors p-1"
+            title="Sign Out"
+          >
+            <FiLogOut className="text-lg" />
+          </button>
+        </div>
       </div>
     </div>
   );

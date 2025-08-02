@@ -1,10 +1,62 @@
 "use client";
 import { useState } from "react";
 import { Mail, Phone } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginCard() {
   const [activeTab, setActiveTab] = useState("login");
   const [method, setMethod] = useState("email");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [localError, setLocalError] = useState("");
+  
+  const router = useRouter();
+  const { signIn, error: authError, clearError } = useAuth();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (activeTab === "register") {
+      // For now, just show a message about registration
+      setLocalError("Registration is not yet implemented. Please use existing vendor credentials.");
+      return;
+    }
+
+    if (method === "phone") {
+      setLocalError("Phone login is not yet implemented. Please use email login.");
+      return;
+    }
+
+    if (!email || !password) {
+      setLocalError("Please enter both email and password.");
+      return;
+    }
+
+    setLoading(true);
+    setLocalError("");
+    clearError();
+
+    try {
+      console.log("🔄 Attempting login for:", email, "Remember me:", rememberMe);
+      const { data, error } = await signIn(email, password, rememberMe);
+      
+      if (error) {
+        console.error("❌ Login failed:", error);
+        setLocalError(error.message || "Login failed. Please check your credentials.");
+      } else if (data?.user) {
+        console.log("✅ Login successful, redirecting...");
+        router.push("/dashboard");
+      }
+    } catch (err) {
+      console.error("❌ Login exception:", err);
+      setLocalError("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-md w-full max-w-sm">
@@ -69,18 +121,33 @@ export default function LoginCard() {
           </button>
         </div>
 
+        {/* Error Display */}
+        {(localError || authError) && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-600 text-sm">
+              {localError || authError?.message}
+            </p>
+          </div>
+        )}
+
+
+
         {/* Form */}
-        <form className="mt-6 space-y-4">
+        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <div>
             <label className="block text-sm font-medium mb-1">
               {method === "email" ? "Email Address" : "Phone Number"}
             </label>
             <input
               type={method === "email" ? "email" : "tel"}
+              value={method === "email" ? email : ""}
+              onChange={(e) => method === "email" && setEmail(e.target.value)}
               placeholder={
-                method === "email" ? "your@email.com" : "+91 9876543210"
+                method === "email" ? "admin@besmartmall.com" : "+91 9876543210"
               }
-              className="w-full px-6 py-2 border-1 border-gray-300 rounded-lg focus:outline-none"
+              className="w-full px-6 py-2 border-1 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              disabled={loading}
+              required={activeTab === "login"}
             />
           </div>
 
@@ -101,8 +168,12 @@ export default function LoginCard() {
             <label className="block text-sm font-medium mb-1">Password</label>
             <input
               type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-6 py-2 border-1 border-gray-300 rounded-lg focus:outline-none"
+              className="w-full px-6 py-2 border-1 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              disabled={loading}
+              required={activeTab === "login"}
             />
           </div>
 
@@ -120,21 +191,43 @@ export default function LoginCard() {
           )}
 
           {activeTab === "login" && (
-            <div className="text-right">
-              <a
-                href="#"
-                className="text-sm font-medium text-[var(--color-theme)] hover:underline"
-              >
-                Forgot password?
-              </a>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                  Remember me
+                </label>
+              </div>
+              <div className="text-right">
+                <a
+                  href="#"
+                  className="text-sm font-medium text-[var(--color-theme)] hover:underline"
+                >
+                  Forgot password?
+                </a>
+              </div>
             </div>
           )}
 
           <button
             type="submit"
-            className="w-full bg-[var(--color-theme)] text-white py-2 rounded-md font-semibold cursor-pointer"
+            disabled={loading}
+            className="w-full bg-[var(--color-theme)] hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-2 rounded-md font-semibold transition-colors flex items-center justify-center"
           >
-            {activeTab === "login" ? "Sign In" : "Register"}
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Signing In...
+              </>
+            ) : (
+              activeTab === "login" ? "Sign In" : "Register"
+            )}
           </button>
         </form>
 
