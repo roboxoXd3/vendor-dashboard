@@ -5,11 +5,16 @@ export function getSupabase() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  console.log('🔧 Supabase URL:', supabaseUrl)
-  console.log('🔧 Supabase Key (first 50 chars):', supabaseAnonKey?.substring(0, 50) + '...')
+  // Only log in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔧 Supabase URL:', supabaseUrl)
+    console.log('🔧 Supabase Key (first 50 chars):', supabaseAnonKey?.substring(0, 50) + '...')
+  }
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing Supabase environment variables')
+    const errorMsg = `Missing Supabase environment variables: ${!supabaseUrl ? 'NEXT_PUBLIC_SUPABASE_URL' : ''} ${!supabaseAnonKey ? 'NEXT_PUBLIC_SUPABASE_ANON_KEY' : ''}`.trim()
+    console.error('❌ Supabase Configuration Error:', errorMsg)
+    throw new Error(errorMsg)
   }
 
   return createClient(supabaseUrl, supabaseAnonKey, {
