@@ -1,25 +1,39 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// Function to get Supabase client - only creates when called
+export function getSupabase() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-console.log('🔧 Supabase URL:', supabaseUrl)
-console.log('🔧 Supabase Key (first 50 chars):', supabaseAnonKey?.substring(0, 50) + '...')
+  console.log('🔧 Supabase URL:', supabaseUrl)
+  console.log('🔧 Supabase Key (first 50 chars):', supabaseAnonKey?.substring(0, 50) + '...')
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Missing Supabase environment variables')
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false, // Prevent URL detection issues
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      storageKey: 'vendor-dashboard-auth-token', // Custom storage key for vendor dashboard
+      flowType: 'pkce' // Use PKCE flow for better security
+    }
+  })
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false, // Prevent URL detection issues
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    storageKey: 'vendor-dashboard-auth-token', // Custom storage key for vendor dashboard
-    flowType: 'pkce' // Use PKCE flow for better security
-  }
-})
+// Legacy export for backward compatibility - creates client when accessed
+let _supabaseInstance = null
+export const supabase = {
+  get auth() { return getSupabase().auth },
+  get from() { return getSupabase().from },
+  get storage() { return getSupabase().storage },
+  get rpc() { return getSupabase().rpc },
+  get channel() { return getSupabase().channel },
+  get realtime() { return getSupabase().realtime }
+}
 
 // Database table helpers for easy reference
 export const tables = {
@@ -43,7 +57,8 @@ export const getCurrentVendor = async (userId) => {
   if (!userId) return null
   
   try {
-    const { data, error } = await supabase
+    const supabaseClient = getSupabase()
+    const { data, error } = await supabaseClient
       .from(tables.vendors)
       .select('*')
       .eq('user_id', userId)
@@ -60,7 +75,8 @@ export const getCurrentVendor = async (userId) => {
 // Helper function to check if user is authenticated vendor
 export const isAuthenticatedVendor = async () => {
   try {
-    const { data: { user }, error } = await supabase.auth.getUser()
+    const supabaseClient = getSupabase()
+    const { data: { user }, error } = await supabaseClient.auth.getUser()
     if (error || !user) return false
     
     const vendor = await getCurrentVendor(user.id)
