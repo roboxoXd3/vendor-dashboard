@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 import CryptoJS from 'crypto-js'
 
 class TokenAuthService {
@@ -34,6 +34,7 @@ class TokenAuthService {
       await this.cleanupUserSessions(user.id)
 
       // Create new session in database
+      const supabase = getSupabase()
       const { data: sessionData, error } = await supabase
         .from('vendor_sessions')
         .insert({
@@ -81,6 +82,7 @@ class TokenAuthService {
       console.log('🔍 Validating session token...')
 
       // Query session from database
+      const supabase = getSupabase()
       const { data: sessionData, error } = await supabase
         .from('vendor_sessions')
         .select(`
@@ -148,6 +150,7 @@ class TokenAuthService {
       console.log('🔄 Refreshing session token...')
 
       // Find session by refresh token
+      const supabase = getSupabase()
       const { data: sessionData, error } = await supabase
         .from('vendor_sessions')
         .select('*')
@@ -199,6 +202,7 @@ class TokenAuthService {
   // Clean up user sessions
   async cleanupUserSessions(userId) {
     try {
+      const supabase = getSupabase()
       await supabase
         .from('vendor_sessions')
         .delete()
@@ -216,6 +220,7 @@ class TokenAuthService {
       const sessionToken = this.getStoredToken()
       
       if (sessionToken) {
+        const supabase = getSupabase()
         await supabase
           .from('vendor_sessions')
           .update({ is_active: false })

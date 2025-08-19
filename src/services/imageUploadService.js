@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 import { imageCleanupService } from './imageCleanupService'
 
 export const imageUploadService = {
@@ -72,6 +72,7 @@ export const imageUploadService = {
       const bucketName = isVideo ? 'product-videos' : 'products'
 
       // Upload to Supabase Storage
+      const supabase = getSupabase()
       const { data, error } = await supabase.storage
         .from(bucketName)
         .upload(storagePath, file, {
@@ -181,6 +182,7 @@ export const imageUploadService = {
       
       console.log('🗑️ Deleting image:', filePath)
 
+      const supabase = getSupabase()
       const { error } = await supabase.storage
         .from('products')
         .remove([filePath])

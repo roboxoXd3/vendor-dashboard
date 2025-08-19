@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 import { tokenAuthService } from '@/services/tokenAuthService'
 
 export async function POST(request) {
@@ -14,6 +14,9 @@ export async function POST(request) {
     }
 
     console.log('🔐 Vendor login attempt for:', email)
+
+    // Get Supabase client
+    const supabase = getSupabase()
 
     // Authenticate with Supabase
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({

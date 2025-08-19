@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 
 export default function VendorApplicationForm({ onSuccess, onCancel }) {
   const { user } = useAuth()
@@ -70,6 +70,7 @@ export default function VendorApplicationForm({ onSuccess, onCancel }) {
     try {
       // Get the current session token
       console.log('🔄 Getting session for API call...')
+      const supabase = getSupabase()
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       
       console.log('🔍 Session data:', { 

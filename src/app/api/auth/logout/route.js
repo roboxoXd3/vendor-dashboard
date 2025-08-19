@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { tokenAuthService } from '@/services/tokenAuthService'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 
 export async function POST(request) {
   try {
@@ -10,6 +10,7 @@ export async function POST(request) {
     await tokenAuthService.invalidateSession()
 
     // Sign out from Supabase
+    const supabase = getSupabase()
     const { error } = await supabase.auth.signOut()
     
     if (error) {

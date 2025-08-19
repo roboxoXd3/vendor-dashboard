@@ -1,6 +1,6 @@
 'use client'
 import { createContext, useContext, useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { tokenAuthService } from '@/services/tokenAuthService'
 
@@ -53,6 +53,7 @@ export function AuthProvider({ children }) {
           console.log('ℹ️ No stored session token found')
           
           // Check if there's a Supabase session (fallback)
+          const supabase = getSupabase()
           const { data: { session } } = await supabase.auth.getSession()
           
           if (session?.user) {
@@ -99,7 +100,8 @@ export function AuthProvider({ children }) {
     initializeAuth()
 
     // Listen for auth changes (fallback)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const supabaseForListener = getSupabase()
+    const { data: { subscription } } = supabaseForListener.auth.onAuthStateChange(async (event, session) => {
       console.log('🔄 Supabase auth state changed:', event)
       
       if (event === 'SIGNED_OUT') {

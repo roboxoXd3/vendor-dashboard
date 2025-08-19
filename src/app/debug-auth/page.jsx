@@ -1,6 +1,6 @@
 'use client'
 import { useAuth } from '@/contexts/AuthContext'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 import { useState } from 'react'
 
 export default function DebugAuth() {
@@ -10,6 +10,7 @@ export default function DebugAuth() {
 
   const checkSession = async () => {
     try {
+      const supabase = getSupabase()
       const { data: { session }, error } = await supabase.auth.getSession()
       setSessionInfo({
         hasSession: !!session,
@@ -28,6 +29,7 @@ export default function DebugAuth() {
 
   const testVendorProfile = async () => {
     try {
+      const supabase = getSupabase()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         setTestResult({ error: 'No session found' })

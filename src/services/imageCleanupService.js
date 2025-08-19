@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 
 /**
  * Service for managing temporary image uploads and cleanup
@@ -64,6 +64,7 @@ export const imageCleanupService = {
         const { bucket, path } = this.parseImagePath(imagePath)
         
         if (bucket && path) {
+          const supabase = getSupabase()
           const { error } = await supabase.storage
             .from(bucket)
             .remove([path])

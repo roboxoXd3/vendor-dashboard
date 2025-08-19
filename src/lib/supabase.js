@@ -29,16 +29,7 @@ export function getSupabase() {
   })
 }
 
-// Legacy export for backward compatibility - creates client when accessed
-let _supabaseInstance = null
-export const supabase = {
-  get auth() { return getSupabase().auth },
-  get from() { return getSupabase().from },
-  get storage() { return getSupabase().storage },
-  get rpc() { return getSupabase().rpc },
-  get channel() { return getSupabase().channel },
-  get realtime() { return getSupabase().realtime }
-}
+// Legacy export removed - use getSupabase() instead
 
 // Database table helpers for easy reference
 export const tables = {

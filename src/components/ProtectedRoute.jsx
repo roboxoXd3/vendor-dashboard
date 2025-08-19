@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import VendorApplicationForm from './VendorApplicationForm'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 
 export default function ProtectedRoute({ children }) {
   const { user, vendor, loading, error, sessionToken, validateCurrentSession } = useAuth()
@@ -165,6 +165,7 @@ export function VendorPendingPage() {
   const checkApplicationStatus = async () => {
     try {
       // Get the current session token
+      const supabase = getSupabase()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         console.error('No active session found for status check')
