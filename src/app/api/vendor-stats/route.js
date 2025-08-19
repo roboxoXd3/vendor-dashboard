@@ -1,14 +1,10 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+import { getSupabaseClient } from '@/lib/supabase-server'
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
     const vendorId = searchParams.get('vendorId')
+    const supabase = getSupabaseClient()
     
     if (!vendorId) {
       return Response.json({ 
