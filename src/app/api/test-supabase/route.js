@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseClient } from '@/lib/supabase-server'
 
 export async function GET() {
   try {
@@ -17,7 +17,7 @@ export async function GET() {
       }, { status: 500 })
     }
     
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    const supabase = getSupabaseClient()
     
     // Test simple query
     const { data, error } = await supabase
