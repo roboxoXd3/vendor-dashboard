@@ -6,50 +6,80 @@ import VendorApplicationForm from './VendorApplicationForm'
 import { supabase } from '@/lib/supabase'
 
 export default function ProtectedRoute({ children }) {
-  const { user, vendor, loading, error } = useAuth()
+  const { user, vendor, loading, error, sessionToken, validateCurrentSession } = useAuth()
   const router = useRouter()
+  const [isClient, setIsClient] = useState(false)
+
+  // Prevent hydration mismatches
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   useEffect(() => {
-    if (!loading) {
-      console.log('🔄 ProtectedRoute: Checking access...', {
+    if (!loading && isClient) {
+      console.log('🔄 ProtectedRoute: Checking token-based access...', {
         user: !!user,
         vendor: !!vendor,
-        vendorStatus: vendor?.status
+        vendorStatus: vendor?.status,
+        hasSessionToken: !!sessionToken,
+        error: !!error,
+        currentPath: window.location.pathname
       })
 
-      // No user - redirect to login
-      if (!user) {
-        console.log('❌ No user - redirecting to login')
+      // No user or session token - redirect to login
+      if (!user || !sessionToken) {
+        console.log('❌ No user or session token - redirecting to login', {
+          hasUser: !!user,
+          hasSessionToken: !!sessionToken,
+          userEmail: user?.email
+        })
         router.push('/')
         return
       }
       
+      // If vendor is approved but on pending page, redirect to dashboard
+      if (vendor && vendor.status === 'approved' && window.location.pathname === '/vendor-pending') {
+        console.log('🔄 Approved vendor on pending page, redirecting to dashboard')
+        router.push('/dashboard')
+        return
+      }
+
       // User exists but no vendor profile - show pending page
       if (!vendor) {
         console.log('❌ No vendor profile - redirecting to pending')
-        router.push('/vendor-pending')
+        if (window.location.pathname !== '/vendor-pending') {
+          router.push('/vendor-pending')
+        }
         return
       }
 
       // Vendor exists but not approved - show pending page
       if (vendor.status !== 'approved') {
-        console.log('❌ Vendor not approved - redirecting to pending')
-        router.push('/vendor-pending')
+        console.log('❌ Vendor not approved - status:', vendor.status, '- redirecting to pending')
+        if (window.location.pathname !== '/vendor-pending') {
+          router.push('/vendor-pending')
+        }
         return
       }
 
-      console.log('✅ Access granted for vendor:', vendor.business_name)
+      console.log('✅ Token-based access granted for vendor:', vendor.business_name)
     }
-  }, [user, vendor, loading, router])
+  }, [user, vendor, loading, router, error, isClient, sessionToken, validateCurrentSession])
 
   // Show loading spinner while checking auth
-  if (loading) {
+  if (loading || !isClient) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-emerald-500 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold text-gray-700 mb-2">Loading...</h2>
-          <p className="text-gray-500">Checking your vendor access</p>
+          <p className="text-gray-500">Please wait while we verify your access</p>
+          {isClient && error && (
+            <div className="mt-4 p-3 bg-yellow-100 border border-yellow-400 rounded-lg text-sm text-yellow-800">
+              <p>⚠️ Connection issue detected. Retrying...</p>
+            </div>
+          )}
+
         </div>
       </div>
     )
@@ -76,13 +106,21 @@ export default function ProtectedRoute({ children }) {
     )
   }
 
-  // If no user, show nothing (redirect is happening)
-  if (!user) {
+  // If no user or session token, show nothing (redirect is happening)
+  if (!user || !sessionToken) {
     return null
   }
 
   // If no vendor or not approved, show nothing (redirect is happening)
-  if (!vendor || vendor.status !== 'approved') {
+  // But don't redirect if we're already on the vendor-pending page and vendor is approved
+  if (!vendor || (vendor.status !== 'approved' && window.location.pathname !== '/vendor-pending')) {
+    return null
+  }
+  
+  // If vendor is approved but we're on pending page, redirect immediately
+  if (vendor && vendor.status === 'approved' && window.location.pathname === '/vendor-pending') {
+    console.log('🔄 Approved vendor detected on pending page, redirecting...')
+    router.push('/dashboard')
     return null
   }
 
@@ -92,14 +130,37 @@ export default function ProtectedRoute({ children }) {
 
 // Vendor Pending Page Component
 export function VendorPendingPage() {
-  const { user, vendor, signOut, fetchVendorProfile } = useAuth()
+  const { user, vendor, signOut, fetchVendorProfile, loading: authLoading } = useAuth()
   const [showApplication, setShowApplication] = useState(false)
   const [applicationStatus, setApplicationStatus] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    checkApplicationStatus()
-  }, [])
+    console.log('🔄 VendorPendingPage: Checking vendor status', {
+      vendor: !!vendor,
+      status: vendor?.status,
+      authLoading,
+      user: !!user
+    })
+
+    // Don't do anything if auth is still loading
+    if (authLoading) {
+      console.log('⏳ Auth still loading, waiting...')
+      return
+    }
+
+    // If vendor is already approved, redirect immediately
+    if (vendor?.status === 'approved') {
+      console.log('✅ Vendor already approved, redirecting to dashboard')
+      window.location.href = '/dashboard'
+      return
+    }
+
+    // If we have a user but no vendor, or vendor is not approved, check application status
+    if (user) {
+      checkApplicationStatus()
+    }
+  }, [vendor, authLoading, user])
 
   const checkApplicationStatus = async () => {
     try {
@@ -167,12 +228,21 @@ export function VendorPendingPage() {
     }
   }
 
-  if (loading) {
+  // If vendor is approved while we're loading, redirect immediately
+  if (vendor?.status === 'approved') {
+    console.log('🚀 Approved vendor detected in VendorPendingPage, redirecting immediately')
+    window.location.href = '/dashboard'
+    return null
+  }
+
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-emerald-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Checking application status...</p>
+          <p className="text-gray-600">
+            {authLoading ? 'Loading your account...' : 'Checking application status...'}
+          </p>
         </div>
       </div>
     )

@@ -16,47 +16,34 @@ export const productsService = {
 
       console.log('📦 Fetching products for vendor:', vendorId, { page, limit, search })
 
-      let query = supabase
-        .from('products')
-        .select(`
-          *,
-          categories(name)
-        `)
-        .eq('vendor_id', vendorId)
+      // Build query parameters
+      const params = new URLSearchParams({
+        vendorId,
+        page: page.toString(),
+        limit: limit.toString(),
+        sortBy,
+        sortOrder
+      })
 
-      // Add filters
-      if (search) {
-        query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
+      if (search) params.append('search', search)
+      if (category) params.append('category', category)
+      if (status) params.append('status', status)
+
+      const response = await fetch(`/api/products?${params}`)
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch products')
       }
 
-      if (category) {
-        query = query.eq('category_id', category)
-      }
-
-      if (status) {
-        query = query.eq('status', status)
-      }
-
-      // Add sorting
-      query = query.order(sortBy, { ascending: sortOrder === 'asc' })
-
-      // Add pagination
-      const from = (page - 1) * limit
-      const to = from + limit - 1
-      query = query.range(from, to)
-
-      const { data, error, count } = await query
-
-      if (error) throw error
-
-      console.log(`✅ Retrieved ${data?.length || 0} products`)
+      console.log(`✅ Retrieved ${result.data?.length || 0} products via API`)
       return {
-        data: data || [],
-        pagination: {
+        data: result.data || [],
+        pagination: result.pagination || {
           page,
           limit,
-          total: count,
-          totalPages: Math.ceil((count || 0) / limit)
+          total: 0,
+          totalPages: 0
         },
         error: null
       }
@@ -69,19 +56,17 @@ export const productsService = {
   // Get single product
   async getProduct(productId) {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select(`
-          *,
-          categories(name),
-          reviews(rating, comment, created_at, profiles(full_name))
-        `)
-        .eq('id', productId)
-        .single()
+      console.log('📦 Fetching single product:', productId)
+      
+      const response = await fetch(`/api/products/${productId}`)
+      const result = await response.json()
 
-      if (error) throw error
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch product')
+      }
 
-      return { data, error: null }
+      console.log('✅ Product fetched successfully')
+      return { data: result.data, error: null }
     } catch (error) {
       console.error('❌ Error fetching product:', error)
       return { data: null, error }
@@ -93,43 +78,25 @@ export const productsService = {
     try {
       console.log('➕ Creating new product for vendor:', vendorId)
 
-      const newProduct = {
-        vendor_id: vendorId,
-        name: productData.name,
-        description: productData.description,
-        price: productData.price,
-        images: productData.images || null,
-        sizes: productData.sizes || [],
-        colors: productData.colors || [],
-        category_id: productData.category_id,
-        brand: productData.brand || '',
-        stock_quantity: productData.stock_quantity || 0,
-        sku: productData.sku || `SKU-${Date.now()}`,
-        status: 'active',
-        approval_status: 'pending',
-        in_stock: productData.stock_quantity > 0,
-        is_featured: false,
-        is_new_arrival: true,
-        shipping_required: productData.shipping_required !== false,
-        weight: productData.weight || null,
-        dimensions: productData.dimensions || null,
-        tags: productData.tags || null,
-        meta_title: productData.meta_title || null,
-        meta_description: productData.meta_description || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          vendorId,
+          productData
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create product')
       }
 
-      const { data, error } = await supabase
-        .from('products')
-        .insert([newProduct])
-        .select()
-        .single()
-
-      if (error) throw error
-
-      console.log('✅ Product created successfully:', data.id)
-      return { data, error: null }
+      console.log('✅ Product created successfully via API:', result.data?.id)
+      return { data: result.data, error: null }
     } catch (error) {
       console.error('❌ Error creating product:', error)
       return { data: null, error }
@@ -141,27 +108,22 @@ export const productsService = {
     try {
       console.log('✏️ Updating product:', productId)
 
-      const updateData = {
-        ...updates,
-        updated_at: new Date().toISOString()
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ updates })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update product')
       }
 
-      // Update stock status based on quantity
-      if (updates.stock_quantity !== undefined) {
-        updateData.in_stock = updates.stock_quantity > 0
-      }
-
-      const { data, error } = await supabase
-        .from('products')
-        .update(updateData)
-        .eq('id', productId)
-        .select()
-        .single()
-
-      if (error) throw error
-
-      console.log('✅ Product updated successfully')
-      return { data, error: null }
+      console.log('✅ Product updated successfully via API:', result.data?.name)
+      return { data: result.data, error: null }
     } catch (error) {
       console.error('❌ Error updating product:', error)
       return { data: null, error }
@@ -173,21 +135,21 @@ export const productsService = {
     try {
       console.log('🗑️ Deleting product:', productId)
 
-      // Soft delete by updating status
-      const { data, error } = await supabase
-        .from('products')
-        .update({
-          status: 'deleted',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', productId)
-        .select()
-        .single()
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
 
-      if (error) throw error
+      const result = await response.json()
 
-      console.log('✅ Product deleted successfully')
-      return { data, error: null }
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete product')
+      }
+
+      console.log('✅ Product deleted successfully via API')
+      return { data: result.data, error: null }
     } catch (error) {
       console.error('❌ Error deleting product:', error)
       return { data: null, error }

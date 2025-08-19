@@ -6,6 +6,12 @@ export const vendorService = {
     try {
       console.log('📊 Fetching dashboard stats for vendor:', vendorId)
 
+      // Check if vendorId is provided
+      if (!vendorId) {
+        console.warn('⚠️ No vendor ID provided for getDashboardStats')
+        return { data: null, error: null }
+      }
+
       // Get total products
       const { count: productCount } = await supabase
         .from('products')
@@ -13,62 +19,81 @@ export const vendorService = {
         .eq('vendor_id', vendorId)
         .eq('status', 'active')
 
-      // Get total orders
-      const { count: orderCount } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('vendor_id', vendorId)
+      // Initialize default values for orders-related stats
+      let orderCount = 0
+      let totalSales = 0
+      let pendingOrders = 0
+      let monthlyRevenue = {}
+      let recentOrders = []
 
-      // Get total sales (completed orders)
-      const { data: salesData } = await supabase
-        .from('orders')
-        .select('total')
-        .eq('vendor_id', vendorId)
-        .in('status', ['completed', 'delivered'])
+      try {
+        // Get total orders
+        const { count: orderCountResult } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('vendor_id', vendorId)
+        orderCount = orderCountResult || 0
 
-      const totalSales = salesData?.reduce((sum, order) => sum + parseFloat(order.total), 0) || 0
+        // Get total sales (completed orders)
+        const { data: salesData } = await supabase
+          .from('orders')
+          .select('total')
+          .eq('vendor_id', vendorId)
+          .in('status', ['completed', 'delivered'])
+        totalSales = salesData?.reduce((sum, order) => sum + parseFloat(order.total), 0) || 0
 
-      // Get pending orders
-      const { count: pendingOrders } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('vendor_id', vendorId)
-        .eq('status', 'pending')
+        // Get pending orders
+        const { count: pendingOrdersResult } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('vendor_id', vendorId)
+          .eq('status', 'pending')
+        pendingOrders = pendingOrdersResult || 0
 
-      // Get recent orders for chart data
-      const { data: recentOrders } = await supabase
-        .from('orders')
-        .select('created_at, total, status')
-        .eq('vendor_id', vendorId)
-        .order('created_at', { ascending: false })
-        .limit(30)
+        // Get recent orders for chart data
+        const { data: recentOrdersResult } = await supabase
+          .from('orders')
+          .select('created_at, total, status')
+          .eq('vendor_id', vendorId)
+          .order('created_at', { ascending: false })
+          .limit(30)
+        recentOrders = recentOrdersResult || []
 
-      // Get monthly revenue for last 6 months
-      const sixMonthsAgo = new Date()
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+        // Get monthly revenue for last 6 months
+        const sixMonthsAgo = new Date()
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
 
-      const { data: monthlyData } = await supabase
-        .from('orders')
-        .select('created_at, total')
-        .eq('vendor_id', vendorId)
-        .in('status', ['completed', 'delivered'])
-        .gte('created_at', sixMonthsAgo.toISOString())
-        .order('created_at', { ascending: true })
+        const { data: monthlyData } = await supabase
+          .from('orders')
+          .select('created_at, total')
+          .eq('vendor_id', vendorId)
+          .in('status', ['completed', 'delivered'])
+          .gte('created_at', sixMonthsAgo.toISOString())
+          .order('created_at', { ascending: true })
 
-      // Process monthly revenue data
-      const monthlyRevenue = {}
-      monthlyData?.forEach(order => {
-        const month = new Date(order.created_at).toISOString().slice(0, 7) // YYYY-MM
-        monthlyRevenue[month] = (monthlyRevenue[month] || 0) + parseFloat(order.total)
-      })
+        // Process monthly revenue data
+        monthlyRevenue = {}
+        monthlyData?.forEach(order => {
+          const month = new Date(order.created_at).toISOString().slice(0, 7) // YYYY-MM
+          monthlyRevenue[month] = (monthlyRevenue[month] || 0) + parseFloat(order.total)
+        })
+
+      } catch (ordersError) {
+        // If orders table doesn't exist, log warning but continue with default values
+        if (ordersError.code === 'PGRST116' || ordersError.message?.includes('relation') || ordersError.message?.includes('does not exist')) {
+          console.warn('⚠️ Orders table not found, using default values for order statistics')
+        } else {
+          console.warn('⚠️ Error fetching order statistics:', ordersError.message)
+        }
+      }
 
       const stats = {
         totalProducts: productCount || 0,
-        totalOrders: orderCount || 0,
+        totalOrders: orderCount,
         totalSales: totalSales,
-        pendingOrders: pendingOrders || 0,
+        pendingOrders: pendingOrders,
         monthlyRevenue: monthlyRevenue,
-        recentOrders: recentOrders || []
+        recentOrders: recentOrders
       }
 
       console.log('✅ Dashboard stats retrieved:', stats)
@@ -83,6 +108,12 @@ export const vendorService = {
   // Get recent orders for dashboard
   async getRecentOrders(vendorId, limit = 5) {
     try {
+      // Check if vendorId is provided
+      if (!vendorId) {
+        console.warn('⚠️ No vendor ID provided for getRecentOrders')
+        return { data: [], error: null }
+      }
+
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -98,12 +129,20 @@ export const vendorService = {
         .order('created_at', { ascending: false })
         .limit(limit)
 
-      if (error) throw error
+      if (error) {
+        // If the table doesn't exist or there's a schema error, return empty data
+        if (error.code === 'PGRST116' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
+          console.warn('⚠️ Orders table not found, returning empty data')
+          return { data: [], error: null }
+        }
+        throw error
+      }
 
       return { data: data || [], error: null }
     } catch (error) {
       console.error('❌ Error fetching recent orders:', error)
-      return { data: [], error }
+      // Return empty data instead of error to prevent UI crashes
+      return { data: [], error: null }
     }
   },
 

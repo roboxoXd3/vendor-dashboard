@@ -14,7 +14,7 @@ export default function LoginCard() {
   const [localError, setLocalError] = useState("");
   
   const router = useRouter();
-  const { signIn, error: authError, clearError } = useAuth();
+  const { signInWithToken, error: authError } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,18 +37,20 @@ export default function LoginCard() {
 
     setLoading(true);
     setLocalError("");
-    clearError();
 
     try {
-      console.log("🔄 Attempting login for:", email, "Remember me:", rememberMe);
-      const { data, error } = await signIn(email, password, rememberMe);
+      console.log("🔄 Attempting token-based login for:", email);
+      const result = await signInWithToken(email, password);
       
-      if (error) {
-        console.error("❌ Login failed:", error);
-        setLocalError(error.message || "Login failed. Please check your credentials.");
-      } else if (data?.user) {
+      if (result.success) {
         console.log("✅ Login successful, redirecting...");
         router.push("/dashboard");
+      } else if (result.requiresApproval) {
+        console.log("⚠️ Vendor requires approval, redirecting to pending page");
+        router.push("/vendor-pending");
+      } else {
+        console.error("❌ Login failed:", result.error);
+        setLocalError(result.error || "Login failed. Please check your credentials.");
       }
     } catch (err) {
       console.error("❌ Login exception:", err);

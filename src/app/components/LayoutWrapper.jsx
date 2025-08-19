@@ -8,8 +8,11 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 export default function LayoutWrapper({ children }) {
   const pathname = usePathname();
   const noLayoutRoutes = ["/", "/vendor-pending", "/test-connection"];
+  const productFormRoutes = ["/products/create"];
 
-  const isPlainPage = noLayoutRoutes.includes(pathname);
+  const isPlainPage = noLayoutRoutes.includes(pathname) || 
+                     productFormRoutes.includes(pathname) ||
+                     pathname.startsWith("/products/edit/");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (isPlainPage) {

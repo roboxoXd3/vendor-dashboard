@@ -14,9 +14,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false, // Changed to false to prevent URL detection issues
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined
-    // Removed custom storageKey and flowType to use defaults
+    detectSessionInUrl: false, // Prevent URL detection issues
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    storageKey: 'vendor-dashboard-auth-token', // Custom storage key for vendor dashboard
+    flowType: 'pkce' // Use PKCE flow for better security
   }
 })
 

@@ -226,6 +226,12 @@ export const ordersService = {
   // Get recent orders
   async getRecentOrders(vendorId, limit = 10) {
     try {
+      // Check if vendorId is provided
+      if (!vendorId) {
+        console.warn('⚠️ No vendor ID provided for getRecentOrders')
+        return { data: [], error: null }
+      }
+
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -240,12 +246,20 @@ export const ordersService = {
         .order('created_at', { ascending: false })
         .limit(limit)
 
-      if (error) throw error
+      if (error) {
+        // If the table doesn't exist or there's a schema error, return empty data
+        if (error.code === 'PGRST116' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
+          console.warn('⚠️ Orders table not found, returning empty data')
+          return { data: [], error: null }
+        }
+        throw error
+      }
 
       return { data: data || [], error: null }
     } catch (error) {
       console.error('❌ Error fetching recent orders:', error)
-      return { data: [], error }
+      // Return empty data instead of error to prevent UI crashes
+      return { data: [], error: null }
     }
   },
 

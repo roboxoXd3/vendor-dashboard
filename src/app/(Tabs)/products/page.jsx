@@ -1,13 +1,30 @@
+'use client'
+import { useState } from "react";
 import FeaturedProductsSection from "./components/FeaturedProductsSection";
 import ProductsFilterBar from "./components/ProductsFilterBar";
 import ProductPageCards from "./components/ProductsPageCards";
 
 export default function Products() {
+  const [filters, setFilters] = useState({});
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleFiltersChange = (newFilters) => {
+    setFilters(newFilters);
+  };
+
+  const handleProductUpdate = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
   return (
     <div className="p-4 space-y-6">
-      <ProductsFilterBar />
+      <ProductsFilterBar onFiltersChange={handleFiltersChange} />
       <ProductPageCards />
-      <FeaturedProductsSection />
+      <FeaturedProductsSection 
+        filters={filters} 
+        refreshKey={refreshKey}
+        onProductUpdate={handleProductUpdate}
+      />
     </div>
   );
 }
