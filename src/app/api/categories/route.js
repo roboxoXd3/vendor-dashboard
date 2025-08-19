@@ -1,15 +1,11 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+import { getSupabaseClient } from '@/lib/supabase-server'
 
 // GET /api/categories - Get all categories
 export async function GET(request) {
   try {
     console.log('📂 Fetching categories')
 
+    const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('categories')
       .select('*')

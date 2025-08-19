@@ -1,6 +1,4 @@
-import { supabaseServer } from '@/lib/supabase-server'
-
-const supabase = supabaseServer
+import { getSupabaseServer } from '@/lib/supabase-server'
 
 // GET /api/products - List vendor products with filters and pagination
 export async function GET(request) {
@@ -21,8 +19,9 @@ export async function GET(request) {
       }, { status: 400 })
     }
 
-    // Fetching products for vendor
-
+        // Fetching products for vendor
+    
+    const supabase = getSupabaseServer()
     let query = supabase
       .from('products')
       .select(`
@@ -123,6 +122,7 @@ export async function POST(request) {
     }
 
     // Creating new product for vendor
+    const supabase = getSupabaseServer()
 
     const newProduct = {
       vendor_id: vendorId,

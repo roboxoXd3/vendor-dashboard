@@ -1,6 +1,4 @@
-import { supabaseServer } from '@/lib/supabase-server'
-
-const supabase = supabaseServer
+import { getSupabaseServer } from '@/lib/supabase-server'
 
 // GET /api/products/[id] - Get single product
 export async function GET(request, { params }) {
@@ -8,6 +6,7 @@ export async function GET(request, { params }) {
     const { id } = await params
 
     // Fetching product
+    const supabase = getSupabaseServer()
 
     const { data, error } = await supabase
       .from('products')
@@ -80,6 +79,7 @@ export async function PUT(request, { params }) {
     }
 
     // Updating product
+    const supabase = getSupabaseServer()
 
     // Prepare updates with proper data types
     const productUpdates = {
@@ -173,6 +173,7 @@ export async function DELETE(request, { params }) {
     const { id } = await params
 
     // Deleting product
+    const supabase = getSupabaseServer()
 
     // First check if product exists
     const { data: existingProduct, error: fetchError } = await supabase
