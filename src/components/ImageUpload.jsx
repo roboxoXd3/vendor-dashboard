@@ -21,6 +21,8 @@ export default function ImageUpload({
   const [uploadProgress, setUploadProgress] = useState([])
   const [images, setImages] = useState(existingImages)
   const fileInputRef = useRef(null)
+  
+
 
   // Update images when existingImages prop changes
   useEffect(() => {
@@ -97,7 +99,7 @@ export default function ImageUpload({
     setImages(newImages)
     
     // Track for cleanup if it's a temp image
-    if (imageUrl.includes('/temp/')) {
+    if (typeof imageUrl === 'string' && imageUrl.includes('/temp/')) {
       imageCleanupService.trackTempImage(imageUrl)
     }
     
@@ -134,7 +136,7 @@ export default function ImageUpload({
       {/* Existing Images Display */}
       {images.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {images.map((imageUrl, index) => (
+          {images.filter(img => typeof img === 'string').map((imageUrl, index) => (
             <div key={index} className="relative group">
               <img
                 src={imageUrl}
@@ -152,7 +154,7 @@ export default function ImageUpload({
               </button>
               <div className="absolute bottom-2 left-2 right-2">
                 <div className="bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded truncate">
-                  {imageUrl.includes('/temp/') ? '🟡 Temporary' : '🟢 Saved'}
+                  {(typeof imageUrl === 'string' && imageUrl.includes('/temp/')) ? '🟡 Temporary' : '🟢 Saved'}
                 </div>
               </div>
             </div>
@@ -229,13 +231,13 @@ export default function ImageUpload({
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
               <span className="text-green-700">
-                {images.filter(img => !img.includes('/temp/')).length} Saved
+                {images.filter(img => typeof img === 'string' && !img.includes('/temp/')).length} Saved
               </span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
               <span className="text-yellow-700">
-                {images.filter(img => img.includes('/temp/')).length} Temporary
+                {images.filter(img => typeof img === 'string' && img.includes('/temp/')).length} Temporary
               </span>
             </div>
           </div>
@@ -251,7 +253,7 @@ export default function ImageUpload({
           <p className="font-medium mb-2">Debug - Image URLs:</p>
           {images.map((url, index) => (
             <div key={index} className="mb-1 break-all">
-              {index + 1}. {url}
+              {index + 1}. {typeof url === 'string' ? url : `[Object: ${typeof url}]`}
             </div>
           ))}
         </div>
@@ -269,6 +271,11 @@ export function MainImageUpload({
   onRemoveImage,
   existingImages = [] 
 }) {
+  // Ensure existingImages is always an array
+  const safeExistingImages = Array.isArray(existingImages) ? existingImages : [];
+  
+
+  
   return (
     <ImageUpload
       vendorId={vendorId}
@@ -277,7 +284,7 @@ export function MainImageUpload({
       onUploadSuccess={onUploadSuccess}
       onUploadError={onUploadError}
       onRemoveImage={onRemoveImage}
-      existingImages={existingImages}
+      existingImages={safeExistingImages}
       multiple={true}
       className="w-full"
     />
@@ -293,6 +300,9 @@ export function ColorImageUpload({
   onRemoveImage,
   existingImages = [] 
 }) {
+  // Ensure existingImages is always an array
+  const safeExistingImages = Array.isArray(existingImages) ? existingImages : [];
+  
   return (
     <ImageUpload
       vendorId={vendorId}
@@ -301,7 +311,7 @@ export function ColorImageUpload({
       onUploadSuccess={onUploadSuccess}
       onUploadError={onUploadError}
       onRemoveImage={onRemoveImage}
-      existingImages={existingImages}
+      existingImages={safeExistingImages}
       multiple={true}
       className="w-full"
     />

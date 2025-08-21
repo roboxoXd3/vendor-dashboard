@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FaEdit, FaChartBar, FaTrash, FaStar, FaVideo } from "react-icons/fa";
+import { FaEdit, FaChartBar, FaTrash, FaStar, FaVideo, FaImage } from "react-icons/fa";
 import { useDeleteProduct } from "@/hooks/useProducts";
+import { useAuth } from "@/contexts/AuthContext";
 import Tag from "./Tag";
 
 export default function ProductCard({ product, onUpdate }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const router = useRouter();
+  const { vendor } = useAuth();
   const deleteProductMutation = useDeleteProduct();
   const getTagColor = (tag) => {
     switch (tag) {
@@ -37,10 +40,70 @@ export default function ProductCard({ product, onUpdate }) {
   const tags = generateTags();
   
   // Handle image - use first image from array or default
-  const productImage = product.images && product.images.length > 0 
-    ? (Array.isArray(product.images) ? product.images[0] : 
-       typeof product.images === 'string' ? product.images.split(',')[0]?.trim() : product.images)
-    : '/products/default-product.png';
+  const getProductImage = () => {
+    // If we've already had an error, use default immediately
+    if (imageError) {
+      return 'https://via.placeholder.com/300x200?text=No+Image';
+    }
+
+
+    
+    // Try to get the first valid image
+    if (product.images) {
+      try {
+        // Handle array format
+        if (Array.isArray(product.images) && product.images.length > 0) {
+          const firstImage = product.images[0];
+          const imageUrl = typeof firstImage === 'string' ? firstImage : 'https://via.placeholder.com/300x200?text=No+Image';
+          
+
+          
+          return imageUrl;
+        }
+        
+        // Handle JSON string format
+        if (typeof product.images === 'string') {
+          // Try to parse as JSON first
+          try {
+            const parsed = JSON.parse(product.images);
+            
+
+            
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const firstImage = parsed[0];
+              const imageUrl = typeof firstImage === 'string' ? firstImage : 'https://via.placeholder.com/300x200?text=No+Image';
+              
+
+              
+              return imageUrl;
+            } else if (parsed && typeof parsed === 'object' && parsed.main && Array.isArray(parsed.main) && parsed.main.length > 0) {
+              const firstImage = parsed.main[0];
+              const imageUrl = typeof firstImage === 'string' ? firstImage : 'https://via.placeholder.com/300x200?text=No+Image';
+              
+
+              
+              return imageUrl;
+            }
+          } catch (parseError) {
+            // If JSON parsing fails, treat as comma-separated string
+            const firstImage = product.images.split(',')[0]?.trim();
+            return firstImage || 'https://via.placeholder.com/300x200?text=No+Image';
+          }
+        }
+        
+        // Handle direct string
+        if (typeof product.images === 'string' && product.images.trim() !== '') {
+          return product.images;
+        }
+      } catch (error) {
+        console.warn('Error processing product image:', error);
+      }
+    }
+    
+    return 'https://via.placeholder.com/300x200?text=No+Image';
+  };
+
+  const productImage = getProductImage();
 
   // Check if product has video
   const hasVideo = product.video_url && product.video_url.trim().length > 0;
@@ -56,17 +119,27 @@ export default function ProductCard({ product, onUpdate }) {
     }
   };
 
+
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col gap-3">
                 <div className="relative">
-            <img
-              src={productImage}
-              alt={product.name}
-              className="w-full h-40 object-cover rounded-lg"
-              onError={(e) => {
-                e.target.src = '/products/default-product.png';
-              }}
-            />
+            {productImage === 'https://via.placeholder.com/300x200?text=No+Image' || imageError ? (
+              <div className="w-full h-40 bg-gray-100 rounded-lg flex flex-col items-center justify-center text-gray-500">
+                <FaImage className="w-8 h-8 mb-2 text-gray-300" />
+                <span className="text-sm font-medium">No Image</span>
+                <span className="text-xs">Click Images to add</span>
+              </div>
+            ) : (
+              <img
+                src={productImage}
+                alt={product.name}
+                className="w-full h-40 object-cover rounded-lg"
+                onError={() => {
+                  setImageError(true);
+                }}
+              />
+            )}
             <div className="absolute top-2 right-2 flex flex-wrap gap-2">
               {tags.map((tag) => (
                 <Tag key={tag} label={tag} color={getTagColor(tag)} />
@@ -116,12 +189,13 @@ export default function ProductCard({ product, onUpdate }) {
       </div>
 
       <div className="flex justify-between items-center text-sm text-gray-600 border-t p-2 pt-3">
-                      <button
-                onClick={() => router.push(`/products/edit/${product.id}`)}
-                className="flex items-center gap-1 hover:text-emerald-600 cursor-pointer transition-colors"
-              >
-                <FaEdit className="h-4 w-4" /> Edit
-              </button>
+        <button
+          onClick={() => router.push(`/products/edit/${product.id}`)}
+          className="flex items-center gap-1 hover:text-emerald-600 cursor-pointer transition-colors"
+        >
+          <FaEdit className="h-4 w-4" /> Edit
+        </button>
+
         <button className="flex items-center gap-1 hover:text-blue-600 cursor-pointer transition-colors">
           <FaChartBar className="h-4 w-4" /> Stats
         </button>
@@ -163,6 +237,8 @@ export default function ProductCard({ product, onUpdate }) {
           </div>
         </div>
       )}
+
+
     </div>
   );
 }

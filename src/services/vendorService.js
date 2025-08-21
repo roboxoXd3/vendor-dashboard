@@ -12,6 +12,9 @@ export const vendorService = {
         return { data: null, error: null }
       }
 
+      // Initialize Supabase client
+      const supabase = getSupabase()
+
       // Get total products
       const { count: productCount } = await supabase
         .from('products')
@@ -114,6 +117,7 @@ export const vendorService = {
         return { data: [], error: null }
       }
 
+      const supabase = getSupabase()
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -149,6 +153,7 @@ export const vendorService = {
   // Get vendor profile
   async getVendorProfile(vendorId) {
     try {
+      const supabase = getSupabase()
       const { data, error } = await supabase
         .from('vendors')
         .select('*')
@@ -167,6 +172,7 @@ export const vendorService = {
   // Update vendor profile
   async updateVendorProfile(vendorId, updates) {
     try {
+      const supabase = getSupabase()
       const { data, error } = await supabase
         .from('vendors')
         .update({
@@ -209,6 +215,7 @@ export const vendorService = {
           startDate.setDate(startDate.getDate() - 30)
       }
 
+      const supabase = getSupabase()
       const { data: analyticsData } = await supabase
         .from('orders')
         .select('created_at, total, status')

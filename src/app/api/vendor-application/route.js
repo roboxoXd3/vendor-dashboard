@@ -1,9 +1,9 @@
-import { getSupabaseClient } from '@/lib/supabase-server'
+import { getSupabaseServer } from '@/lib/supabase-server'
 
 export async function POST(request) {
   try {
     const body = await request.json()
-    const supabase = getSupabaseClient()
+    const supabase = getSupabaseServer()
     
     // Get the authorization header
     const authHeader = request.headers.get('authorization')
@@ -130,6 +130,7 @@ export async function GET(request) {
 
     // Get the token and verify it with Supabase
     const token = authHeader.replace('Bearer ', '')
+    const supabase = getSupabaseServer()
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     
     if (authError || !user) {

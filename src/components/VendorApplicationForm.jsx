@@ -14,7 +14,7 @@ export default function VendorApplicationForm({ onSuccess, onCancel }) {
     businessEmail: user?.email || '',
     businessPhone: '',
     businessAddress: '',
-    businessType: 'retail',
+    businessType: 'individual',
     businessRegistrationNumber: '',
     taxId: '',
     paymentMethodPreference: 'bank_transfer',
@@ -27,13 +27,10 @@ export default function VendorApplicationForm({ onSuccess, onCancel }) {
   })
 
   const businessTypes = [
-    { value: 'retail', label: 'Retail Store' },
-    { value: 'wholesale', label: 'Wholesale' },
-    { value: 'manufacturer', label: 'Manufacturer' },
-    { value: 'dropshipper', label: 'Dropshipper' },
-    { value: 'digital', label: 'Digital Products' },
-    { value: 'services', label: 'Services' },
-    { value: 'other', label: 'Other' }
+    { value: 'individual', label: 'Individual/Sole Proprietorship' },
+    { value: 'company', label: 'Company/Corporation' },
+    { value: 'partnership', label: 'Partnership' },
+    { value: 'llc', label: 'LLC (Limited Liability Company)' }
   ]
 
   const paymentMethods = [

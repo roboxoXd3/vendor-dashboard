@@ -4,7 +4,7 @@ import { getSupabase } from '@/lib/supabase'
 import { useState } from 'react'
 
 export default function DebugAuth() {
-  const { user, vendor, loading, error, signIn, signOut } = useAuth()
+  const { user, vendor, loading, error, signInWithToken, signOut } = useAuth()
   const [testResult, setTestResult] = useState(null)
   const [sessionInfo, setSessionInfo] = useState(null)
 
@@ -54,7 +54,16 @@ export default function DebugAuth() {
   const testLogin = async () => {
     try {
       setTestResult({ loading: true })
-      const result = await signIn('testvendor@gmail.com', 'testpass123')
+      // Remove hardcoded test credentials - user should provide their own
+      const email = prompt('Enter email to test login:')
+      const password = prompt('Enter password to test login:')
+      
+      if (!email || !password) {
+        setTestResult({ error: 'Email and password required for test login' })
+        return
+      }
+      
+      const result = await signInWithToken(email, password)
       setTestResult({ loginResult: result })
     } catch (err) {
       setTestResult({ error: err.message })
@@ -141,12 +150,12 @@ export default function DebugAuth() {
             </button>
             <button 
               onClick={() => {
-                localStorage.clear()
+                // Just reload since we're using cookies now
                 window.location.reload()
               }}
               className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
             >
-              Clear & Reload
+              🔄 Reload Page
             </button>
           </div>
         </div>

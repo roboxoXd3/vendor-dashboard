@@ -9,6 +9,7 @@ import { BiSupport } from "react-icons/bi";
 import { IoMdSettings } from "react-icons/io";
 import { FiLogOut, FiX } from "react-icons/fi";
 import Image from "next/image";
+import { useAuth } from "@/contexts/AuthContext";
 
 const menu = [
   { name: "Dashboard", icon: <FaChartLine />, href: "/dashboard" },
@@ -22,6 +23,7 @@ const menu = [
 
 export default function Sidebar({ onClose, isOpen }) {
   const pathname = usePathname();
+  const { user, vendor, signOut } = useAuth();
 
   return (
     <aside
@@ -100,11 +102,15 @@ export default function Sidebar({ onClose, isOpen }) {
             height={24}
           />
           <div className="text-sm">
-            <div className="font-medium">TechGear Shop</div>
-            <div className="text-gray-500 text-xs">Verified Vendor</div>
+            <div className="font-medium">{vendor?.business_name || 'Vendor'}</div>
+            <div className="text-gray-500 text-xs">{vendor?.status === 'approved' ? 'Verified Vendor' : vendor?.status || 'Pending'}</div>
           </div>
         </div>
-        <div className="cursor-pointer text-xl text-gray-500 hover:text-black">
+        <div 
+          className="cursor-pointer text-xl text-gray-500 hover:text-black"
+          onClick={signOut}
+          title="Sign Out"
+        >
           <FiLogOut />
         </div>
       </div>

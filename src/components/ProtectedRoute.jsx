@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import VendorApplicationForm from './VendorApplicationForm'
+import QuickVendorApplication from './QuickVendorApplication'
 import { getSupabase } from '@/lib/supabase'
 
 export default function ProtectedRoute({ children }) {
@@ -26,13 +27,22 @@ export default function ProtectedRoute({ children }) {
         currentPath: window.location.pathname
       })
 
-      // No user or session token - redirect to login
-      if (!user || !sessionToken) {
-        console.log('❌ No user or session token - redirecting to login', {
-          hasUser: !!user,
-          hasSessionToken: !!sessionToken,
-          userEmail: user?.email
-        })
+      // No user - redirect to login
+      if (!user) {
+        console.log('❌ No user - redirecting to login')
+        router.push('/')
+        return
+      }
+
+      // User exists but no session token - allow for new users applying for vendor status
+      if (!sessionToken && vendor && vendor.status !== 'approved') {
+        console.log('ℹ️ User without session token but has unapproved vendor profile')
+        // Allow access to pending page
+      } else if (!sessionToken && !vendor) {
+        console.log('ℹ️ User without session token and no vendor profile - can apply')
+        // Allow access to apply for vendor status
+      } else if (!sessionToken) {
+        console.log('❌ No session token for approved vendor - redirecting to login')
         router.push('/')
         return
       }
@@ -44,9 +54,9 @@ export default function ProtectedRoute({ children }) {
         return
       }
 
-      // User exists but no vendor profile - show pending page
+      // User exists but no vendor profile - show pending page to apply
       if (!vendor) {
-        console.log('❌ No vendor profile - redirecting to pending')
+        console.log('ℹ️ No vendor profile - redirecting to pending to apply')
         if (window.location.pathname !== '/vendor-pending') {
           router.push('/vendor-pending')
         }
@@ -55,7 +65,7 @@ export default function ProtectedRoute({ children }) {
 
       // Vendor exists but not approved - show pending page
       if (vendor.status !== 'approved') {
-        console.log('❌ Vendor not approved - status:', vendor.status, '- redirecting to pending')
+        console.log('ℹ️ Vendor not approved - status:', vendor.status, '- redirecting to pending')
         if (window.location.pathname !== '/vendor-pending') {
           router.push('/vendor-pending')
         }
@@ -106,13 +116,13 @@ export default function ProtectedRoute({ children }) {
     )
   }
 
-  // If no user or session token, show nothing (redirect is happening)
-  if (!user || !sessionToken) {
+  // If no user, show nothing (redirect is happening)
+  if (!user) {
     return null
   }
 
   // If no vendor or not approved, show nothing (redirect is happening)
-  // But don't redirect if we're already on the vendor-pending page and vendor is approved
+  // But allow access to vendor-pending page for applications and status checks
   if (!vendor || (vendor.status !== 'approved' && window.location.pathname !== '/vendor-pending')) {
     return null
   }
@@ -199,7 +209,8 @@ export function VendorPendingPage() {
         title: "Vendor Application Required",
         message: "Join thousands of successful vendors and start selling on Be Smart Mall. Complete your application to get started.",
         action: "Apply as Vendor",
-        showApplyButton: true
+        showApplyButton: true,
+        useQuickApplication: true
       }
     }
 
@@ -250,12 +261,20 @@ export function VendorPendingPage() {
   }
 
   if (showApplication) {
+    const status = getStatusMessage()
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <VendorApplicationForm
-          onSuccess={handleApplicationSuccess}
-          onCancel={() => setShowApplication(false)}
-        />
+      <div className="min-h-screen bg-gray-50 py-8 flex items-center justify-center">
+        {status.useQuickApplication ? (
+          <QuickVendorApplication
+            onSuccess={handleApplicationSuccess}
+            onCancel={() => setShowApplication(false)}
+          />
+        ) : (
+          <VendorApplicationForm
+            onSuccess={handleApplicationSuccess}
+            onCancel={() => setShowApplication(false)}
+          />
+        )}
       </div>
     )
   }

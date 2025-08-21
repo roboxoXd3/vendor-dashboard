@@ -1,5 +1,5 @@
 'use client'
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import FeaturedProductsSection from "./components/FeaturedProductsSection";
 import ProductsFilterBar from "./components/ProductsFilterBar";
 import ProductPageCards from "./components/ProductsPageCards";
@@ -8,9 +8,10 @@ export default function Products() {
   const [filters, setFilters] = useState({});
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleFiltersChange = (newFilters) => {
+  const handleFiltersChange = useCallback((newFilters) => {
+    console.log('🔄 Products page - Filters changed:', newFilters);
     setFilters(newFilters);
-  };
+  }, []);
 
   const handleProductUpdate = () => {
     setRefreshKey(prev => prev + 1);

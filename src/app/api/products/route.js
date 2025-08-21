@@ -19,9 +19,23 @@ export async function GET(request) {
       }, { status: 400 })
     }
 
-        // Fetching products for vendor
+    console.log('📦 Fetching products for vendor:', vendorId, 'with filters:', { search, category, status, sortBy, sortOrder })
     
     const supabase = getSupabaseServer()
+    
+    // Debug: Check current role and auth context
+    console.log('🔍 Debug: Checking Supabase client configuration...')
+    
+    // First check if vendor exists
+    const { data: vendorCheck, error: vendorCheckError } = await supabase
+      .from('vendors')
+      .select('id, business_name, status, is_active')
+      .eq('id', vendorId)
+      .single()
+    
+    console.log('👤 Vendor check result:', vendorCheck)
+    console.log('👤 Vendor check error:', vendorCheckError)
+    
     let query = supabase
       .from('products')
       .select(`
@@ -29,6 +43,8 @@ export async function GET(request) {
         categories(name)
       `, { count: 'exact' })
       .eq('vendor_id', vendorId)
+    
+    console.log('🔍 Base query created for vendor_id:', vendorId)
 
     // Add filters
     if (search) {
@@ -52,6 +68,13 @@ export async function GET(request) {
     query = query.range(from, to)
 
     const { data, error, count } = await query
+
+    console.log('📊 Query results:', { 
+      count, 
+      dataLength: data?.length, 
+      error: error?.message,
+      sampleData: data?.slice(0, 2)?.map(p => ({ id: p.id, name: p.name, vendor_id: p.vendor_id }))
+    })
 
     if (error) {
       console.error('❌ Error fetching products:', error)
@@ -124,6 +147,33 @@ export async function POST(request) {
     // Creating new product for vendor
     const supabase = getSupabaseServer()
 
+    // Check vendor approval status to determine product approval status
+    const { data: vendor, error: vendorError } = await supabase
+      .from('vendors')
+      .select('status, is_active')
+      .eq('id', vendorId)
+      .single()
+
+    if (vendorError) {
+      console.error('❌ Error fetching vendor status:', vendorError)
+      return Response.json({ 
+        error: 'Failed to verify vendor status' 
+      }, { status: 500 })
+    }
+
+    if (!vendor) {
+      return Response.json({ 
+        error: 'Vendor not found' 
+      }, { status: 404 })
+    }
+
+    // Determine approval status based on vendor status
+    const approvalStatus = (vendor.status === 'approved' && vendor.is_active) 
+      ? 'approved' 
+      : 'pending'
+
+    console.log(`📦 Creating product for vendor with status: ${vendor.status}, product approval_status: ${approvalStatus}`)
+
     const newProduct = {
       vendor_id: vendorId,
       name: productData.name,
@@ -139,7 +189,7 @@ export async function POST(request) {
       stock_quantity: Number(productData.stock_quantity) || 0,
       sku: productData.sku || `SKU-${Date.now()}`,
       status: productData.status || 'active',
-      approval_status: 'pending',
+      approval_status: approvalStatus,
       in_stock: Number(productData.stock_quantity) > 0,
       is_featured: productData.is_featured || false,
       is_new_arrival: true,

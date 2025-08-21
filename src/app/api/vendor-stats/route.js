@@ -1,10 +1,10 @@
-import { getSupabaseClient } from '@/lib/supabase-server'
+import { getSupabaseServer } from '@/lib/supabase-server'
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
     const vendorId = searchParams.get('vendorId')
-    const supabase = getSupabaseClient()
+    const supabase = getSupabaseServer()
     
     if (!vendorId) {
       return Response.json({ 

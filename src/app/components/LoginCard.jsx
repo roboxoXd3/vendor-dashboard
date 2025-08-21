@@ -1,53 +1,80 @@
 "use client";
 import { useState } from "react";
-import { Mail, Phone } from "lucide-react";
+import { Mail, Phone, Eye, EyeOff, User, Building } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { getSupabase } from "@/lib/supabase";
 
 export default function LoginCard() {
   const [activeTab, setActiveTab] = useState("login");
   const [method, setMethod] = useState("email");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  
+  // Login form state
+  const [loginData, setLoginData] = useState({
+    email: "",
+    password: "",
+    rememberMe: true
+  });
+
+  // Registration form state
+  const [registerData, setRegisterData] = useState({
+    email: "",
+    password: "",
+    confirmPassword: "",
+    fullName: "",
+    businessName: "",
+    businessType: "individual",
+    phone: "",
+    agreeToTerms: false
+  });
   
   const router = useRouter();
-  const { signInWithToken, error: authError } = useAuth();
+  const { signInWithToken } = useAuth();
 
-  const handleSubmit = async (e) => {
+  const businessTypes = [
+    { value: 'individual', label: 'Individual/Sole Proprietorship' },
+    { value: 'company', label: 'Company/Corporation' },
+    { value: 'partnership', label: 'Partnership' },
+    { value: 'llc', label: 'LLC (Limited Liability Company)' }
+  ];
+
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    
-    if (activeTab === "register") {
-      // For now, just show a message about registration
-      setLocalError("Registration is not yet implemented. Please use existing vendor credentials.");
-      return;
-    }
 
     if (method === "phone") {
       setLocalError("Phone login is not yet implemented. Please use email login.");
       return;
     }
 
-    if (!email || !password) {
+    if (!loginData.email || !loginData.password) {
       setLocalError("Please enter both email and password.");
       return;
     }
 
     setLoading(true);
     setLocalError("");
+    setSuccessMessage("");
 
     try {
-      console.log("🔄 Attempting token-based login for:", email);
-      const result = await signInWithToken(email, password);
+      console.log("🔄 Attempting login for:", loginData.email);
+      const result = await signInWithToken(loginData.email, loginData.password);
       
-      if (result.success) {
+      if (result.success && !result.requiresApproval && !result.requiresApplication) {
         console.log("✅ Login successful, redirecting...");
-        router.push("/dashboard");
+        setSuccessMessage("Login successful! Redirecting to dashboard...");
+        setTimeout(() => router.push("/dashboard"), 1000);
       } else if (result.requiresApproval) {
         console.log("⚠️ Vendor requires approval, redirecting to pending page");
-        router.push("/vendor-pending");
+        setSuccessMessage("Login successful! Redirecting to application status...");
+        setTimeout(() => router.push("/vendor-pending"), 1000);
+      } else if (result.requiresApplication) {
+        console.log("ℹ️ User needs to complete vendor application");
+        setSuccessMessage("Login successful! Please complete your vendor application...");
+        setTimeout(() => router.push("/vendor-pending"), 1000);
       } else {
         console.error("❌ Login failed:", result.error);
         setLocalError(result.error || "Login failed. Please check your credentials.");
@@ -60,202 +87,485 @@ export default function LoginCard() {
     }
   };
 
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!registerData.email || !registerData.password || !registerData.fullName || !registerData.businessName) {
+      setLocalError("Please fill in all required fields.");
+      return;
+    }
+
+    if (registerData.password !== registerData.confirmPassword) {
+      setLocalError("Passwords do not match.");
+      return;
+    }
+
+    if (registerData.password.length < 6) {
+      setLocalError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    if (!registerData.agreeToTerms) {
+      setLocalError("Please agree to the terms and conditions.");
+      return;
+    }
+
+    setLoading(true);
+    setLocalError("");
+    setSuccessMessage("");
+
+    try {
+      console.log("🔄 Creating new vendor account for:", registerData.email);
+      
+      // Create user account with Supabase Auth
+      const supabase = getSupabase();
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: registerData.email,
+        password: registerData.password,
+        options: {
+          data: {
+            full_name: registerData.fullName,
+            business_name: registerData.businessName,
+            business_type: registerData.businessType,
+            phone: registerData.phone
+          }
+        }
+      });
+
+      if (authError) {
+        throw new Error(authError.message);
+      }
+
+      if (authData.user) {
+        console.log("✅ User account created successfully");
+        setSuccessMessage("Account created successfully! Please check your email to verify your account, then you can login.");
+        
+        // Reset form
+        setRegisterData({
+          email: "",
+          password: "",
+          confirmPassword: "",
+          fullName: "",
+          businessName: "",
+          businessType: "individual",
+          phone: "",
+          agreeToTerms: false
+        });
+        
+        // Switch to login tab after 3 seconds
+        setTimeout(() => {
+          setActiveTab("login");
+          setLoginData(prev => ({ ...prev, email: registerData.email }));
+        }, 3000);
+      }
+    } catch (err) {
+      console.error("❌ Registration error:", err);
+      setLocalError(err.message || "Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-md w-full max-w-sm">
+    <div className="bg-white rounded-xl shadow-md w-full max-w-md">
       {/* Tab Switch: Login / Register */}
-      <div className="flex border-b-1 border-gray-200">
+      <div className="flex border-b border-gray-200">
         <button
-          className={`flex-1 py-3 text-sm rounded-tl-xl font-medium cursor-pointer ${
+          onClick={() => {
+            setActiveTab("login");
+            setLocalError("");
+            setSuccessMessage("");
+          }}
+          className={`flex-1 py-4 text-center font-medium transition-colors ${
             activeTab === "login"
-              ? "text-[var(--color-theme)] border-b-2 border-[var(--color-theme)] bg-[var(--color-theme-light)]"
-              : "text-gray-500"
+              ? "text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50"
+              : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
           }`}
-          onClick={() => setActiveTab("login")}
         >
-          Login
+          Sign In
         </button>
         <button
-          className={`flex-1 py-3 text-sm rounded-tr-xl font-medium cursor-pointer ${
+          onClick={() => {
+            setActiveTab("register");
+            setLocalError("");
+            setSuccessMessage("");
+          }}
+          className={`flex-1 py-4 text-center font-medium transition-colors ${
             activeTab === "register"
-              ? "text-[var(--color-theme)] border-b-2 border-[var(--color-theme)] bg-[var(--color-theme-light)]"
-              : "text-gray-500"
+              ? "text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50"
+              : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
           }`}
-          onClick={() => setActiveTab("register")}
         >
-          Register
+          Sign Up
         </button>
       </div>
 
-      <div className="px-6 pb-6 pt-4">
+      <div className="p-6">
         {/* Header */}
-        <h2 className="text-xl font-bold text-center">
-          {activeTab === "login" ? "Welcome Back" : "Create Account"}
-        </h2>
-        <p className="text-sm text-gray-500 text-center mt-1">
-          {activeTab === "login"
-            ? "Sign in to your vendor account"
-            : "Join as a vendor to start selling"}
-        </p>
-
-        {/* Method Toggle (Email / Phone) */}
-        <div className="flex bg-gray-100 rounded-lg mt-6 overflow-hidden text-sm font-medium p-1">
-          <button
-            className={`w-1/2 py-2 flex items-center justify-center rounded-lg cursor-pointer gap-1 ${
-              method === "email"
-                ? "bg-white shadow text-black"
-                : "text-gray-500"
-            }`}
-            onClick={() => setMethod("email")}
-          >
-            <Mail size={16} />
-            Email
-          </button>
-          <button
-            className={`w-1/2 py-2 flex items-center justify-center rounded-lg cursor-pointer gap-1 ${
-              method === "phone"
-                ? "bg-white shadow text-black"
-                : "text-gray-500"
-            }`}
-            onClick={() => setMethod("phone")}
-          >
-            <Phone size={16} />
-            Phone
-          </button>
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">
+            {activeTab === "login" ? "Welcome Back" : "Join Be Smart Mall"}
+          </h2>
+          <p className="text-gray-600 mt-1">
+            {activeTab === "login"
+              ? "Sign in to your vendor account"
+              : "Start selling with us today"}
+          </p>
         </div>
 
-        {/* Error Display */}
-        {(localError || authError) && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600 text-sm">
-              {localError || authError?.message}
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-green-600 text-sm font-medium flex items-center">
+              <span className="mr-2">✅</span>
+              {successMessage}
             </p>
           </div>
         )}
 
-
-
-        {/* Form */}
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              {method === "email" ? "Email Address" : "Phone Number"}
-            </label>
-            <input
-              type={method === "email" ? "email" : "tel"}
-              value={method === "email" ? email : ""}
-              onChange={(e) => method === "email" && setEmail(e.target.value)}
-              placeholder={
-                method === "email" ? "admin@besmartmall.com" : "+91 9876543210"
-              }
-              className="w-full px-6 py-2 border-1 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              disabled={loading}
-              required={activeTab === "login"}
-            />
+        {/* Error Message */}
+        {localError && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-600 text-sm font-medium flex items-center">
+              <span className="mr-2">❌</span>
+              {localError}
+            </p>
           </div>
+        )}
 
-          {activeTab === "register" && (
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Full Name
-              </label>
-              <input
-                type="text"
-                placeholder="John Doe"
-                className="w-full px-6 py-2 border-1 border-gray-300 rounded-lg focus:outline-none"
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-6 py-2 border-1 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              disabled={loading}
-              required={activeTab === "login"}
-            />
+        {/* Login Method Toggle */}
+        {activeTab === "login" && (
+          <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
+            <button
+              type="button"
+              onClick={() => setMethod("email")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                method === "email"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <Mail size={16} />
+              Email
+            </button>
+            <button
+              type="button"
+              onClick={() => setMethod("phone")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                method === "phone"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <Phone size={16} />
+              Phone
+            </button>
           </div>
+        )}
 
-          {activeTab === "register" && (
+        {/* Login Form */}
+        {activeTab === "login" && (
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">
-                Confirm Password
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {method === "email" ? "Email Address" : "Phone Number"}
               </label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                className="w-full px-6 py-2 border-1 border-gray-300 rounded-lg focus:outline-none"
-              />
-            </div>
-          )}
-
-          {activeTab === "login" && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
+              <div className="relative">
                 <input
-                  id="remember-me"
+                  type={method === "email" ? "email" : "tel"}
+                  value={method === "email" ? loginData.email : ""}
+                  onChange={(e) => method === "email" && setLoginData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder={method === "email" ? "vendor@example.com" : "+1 (555) 123-4567"}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                  disabled={loading}
+                  required
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  {method === "email" ? (
+                    <Mail className="h-5 w-5 text-gray-400" />
+                  ) : (
+                    <Phone className="h-5 w-5 text-gray-400" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={loginData.password}
+                  onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Enter your password"
+                  className="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                  disabled={loading}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <label className="flex items-center">
+                <input
                   type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
+                  checked={loginData.rememberMe}
+                  onChange={(e) => setLoginData(prev => ({ ...prev, rememberMe: e.target.checked }))}
                   className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                  Remember me
+                <span className="ml-2 text-sm text-gray-600">Remember me</span>
+              </label>
+              <button
+                type="button"
+                className="text-sm text-emerald-600 hover:text-emerald-500 font-medium"
+              >
+                Forgot password?
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-semibold transition-colors flex items-center justify-center"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Signing In...
+                </>
+              ) : (
+                "Sign In"
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* Registration Form */}
+        {activeTab === "register" && (
+          <form onSubmit={handleRegisterSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Name *
                 </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={registerData.fullName}
+                    onChange={(e) => setRegisterData(prev => ({ ...prev, fullName: e.target.value }))}
+                    placeholder="John Doe"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    disabled={loading}
+                    required
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className="h-5 w-5 text-gray-400" />
+                  </div>
+                </div>
               </div>
-              <div className="text-right">
-                <a
-                  href="#"
-                  className="text-sm font-medium text-[var(--color-theme)] hover:underline"
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Business Name *
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={registerData.businessName}
+                    onChange={(e) => setRegisterData(prev => ({ ...prev, businessName: e.target.value }))}
+                    placeholder="Your Business Name"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    disabled={loading}
+                    required
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Building className="h-5 w-5 text-gray-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Business Type *
+                </label>
+                <select
+                  value={registerData.businessType}
+                  onChange={(e) => setRegisterData(prev => ({ ...prev, businessType: e.target.value }))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                  disabled={loading}
+                  required
                 >
-                  Forgot password?
-                </a>
+                  {businessTypes.map(type => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address *
+                </label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={registerData.email}
+                    onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="vendor@example.com"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    disabled={loading}
+                    required
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-gray-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    value={registerData.phone}
+                    onChange={(e) => setRegisterData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="+1 (555) 123-4567"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    disabled={loading}
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Phone className="h-5 w-5 text-gray-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password *
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={registerData.password}
+                    onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="Create a strong password"
+                    className="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    disabled={loading}
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    ) : (
+                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirm Password *
+                </label>
+                <input
+                  type="password"
+                  value={registerData.confirmPassword}
+                  onChange={(e) => setRegisterData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  placeholder="Confirm your password"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                  disabled={loading}
+                  required
+                />
               </div>
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[var(--color-theme)] hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-2 rounded-md font-semibold transition-colors flex items-center justify-center"
-          >
-            {loading ? (
+            <div className="flex items-start">
+              <input
+                type="checkbox"
+                id="agreeToTerms"
+                checked={registerData.agreeToTerms}
+                onChange={(e) => setRegisterData(prev => ({ ...prev, agreeToTerms: e.target.checked }))}
+                className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded mt-1"
+                required
+              />
+              <label htmlFor="agreeToTerms" className="ml-3 text-sm text-gray-600">
+                I agree to the{" "}
+                <button type="button" className="text-emerald-600 hover:text-emerald-500 font-medium">
+                  Terms of Service
+                </button>{" "}
+                and{" "}
+                <button type="button" className="text-emerald-600 hover:text-emerald-500 font-medium">
+                  Privacy Policy
+                </button>
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-semibold transition-colors flex items-center justify-center"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Creating Account...
+                </>
+              ) : (
+                "Create Account"
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* Additional Info */}
+        <div className="mt-6 text-center">
+          <p className="text-xs text-gray-500">
+            {activeTab === "login" ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Signing In...
+                Don't have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("register")}
+                  className="text-emerald-600 hover:text-emerald-500 font-medium"
+                >
+                  Sign up here
+                </button>
               </>
             ) : (
-              activeTab === "login" ? "Sign In" : "Register"
+              <>
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("login")}
+                  className="text-emerald-600 hover:text-emerald-500 font-medium"
+                >
+                  Sign in here
+                </button>
+              </>
             )}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-gray-500 mt-4">
-          {activeTab === "login" ? (
-            <>
-              Don’t have an account?{" "}
-              <button
-                className="cursor-pointer text-[var(--color-theme)] font-semibold hover:underline"
-                onClick={() => setActiveTab("register")}
-              >
-                Register now
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <button
-                className="cursor-pointer text-[var(--color-theme)] font-semibold hover:underline"
-                onClick={() => setActiveTab("login")}
-              >
-                Login
-              </button>
-            </>
-          )}
-        </p>
+          </p>
+        </div>
       </div>
     </div>
   );

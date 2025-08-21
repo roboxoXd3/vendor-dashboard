@@ -74,6 +74,11 @@ export function useCreateProduct() {
       queryClient.invalidateQueries({
         queryKey: ['vendor', 'dashboard-stats', vendor?.id]
       })
+      
+      // Invalidate product stats
+      queryClient.invalidateQueries({
+        queryKey: ['product-stats', vendor?.id]
+      })
     },
     onError: (error) => {
       console.error('Failed to create product:', error)
@@ -129,6 +134,11 @@ export function useDeleteProduct() {
       // Invalidate dashboard stats
       queryClient.invalidateQueries({
         queryKey: ['vendor', 'dashboard-stats', vendor?.id]
+      })
+      
+      // Invalidate product stats
+      queryClient.invalidateQueries({
+        queryKey: ['product-stats', vendor?.id]
       })
     },
     onError: (error) => {

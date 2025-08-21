@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { FaDownload } from "react-icons/fa";
+import { FaUpload } from "react-icons/fa";
 
 export default function ProductsFilterBar({ onFiltersChange }) {
   const router = useRouter();
@@ -42,19 +42,28 @@ export default function ProductsFilterBar({ onFiltersChange }) {
   };
 
   const handleFilterChange = useCallback((key, value) => {
-    const newFilters = { ...filters, [key]: value };
-    setFilters(newFilters);
-    onFiltersChange?.(newFilters);
-  }, [filters, onFiltersChange]);
+    setFilters(prevFilters => {
+      const newFilters = { ...prevFilters, [key]: value };
+      return newFilters;
+    });
+  }, []);
 
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
-      handleFilterChange('search', searchInput);
+      setFilters(prevFilters => {
+        const newFilters = { ...prevFilters, search: searchInput };
+        return newFilters;
+      });
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchInput, handleFilterChange]);
+  }, [searchInput]);
+
+  // Separate effect to notify parent of filter changes
+  useEffect(() => {
+    onFiltersChange?.(filters);
+  }, [filters, onFiltersChange]);
   return (
     <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-4">
       {/* Left Actions */}
@@ -67,9 +76,12 @@ export default function ProductsFilterBar({ onFiltersChange }) {
                 + Add New Product
               </button>
 
-        <button className="flex items-center justify-center gap-2 bg-white text-black px-4 py-2 rounded-md transition text-sm shadow w-full sm:w-auto cursor-pointer">
-          <FaDownload className="h-4 w-4" />
-          Import Products
+        <button 
+          onClick={() => router.push('/products/bulk-upload')}
+          className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md transition text-sm shadow w-full sm:w-auto cursor-pointer hover:bg-blue-700"
+        >
+          <FaUpload className="h-4 w-4" />
+          Bulk Upload
         </button>
       </div>
 

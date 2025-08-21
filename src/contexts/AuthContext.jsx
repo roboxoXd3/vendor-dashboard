@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { getSupabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { tokenAuthService } from '@/services/tokenAuthService'
+import { cookieAuthService } from '@/services/cookieAuthService'
 
 const AuthContext = createContext()
 
@@ -24,60 +24,39 @@ export function AuthProvider({ children }) {
     // Only run auth logic on client side
     if (!isClient) return
     
-    console.log('🔄 AuthProvider: Initializing token-based authentication...')
+    console.log('🔄 AuthProvider: Initializing cookie-based authentication...')
     
     const initializeAuth = async () => {
       try {
-        // Check if we have a stored session token
-        const storedToken = tokenAuthService.getStoredToken()
+        // Validate session from cookies
+        const validation = await cookieAuthService.validateSessionFromCookies()
         
-        if (storedToken) {
-          console.log('🔍 Found stored session token, validating...')
+        if (validation.valid) {
+          console.log('✅ Cookie session is valid for:', validation.vendor?.business_name)
+          console.log('🔍 DEBUG - Setting user:', validation.user?.email)
+          console.log('🔍 DEBUG - Setting vendor:', validation.vendor?.business_name)
+          setUser(validation.user)
+          setVendor(validation.vendor)
+          setSessionToken('cookie_based') // Placeholder since token is in HTTP-only cookie
+          setError(null)
           
-          const validation = await tokenAuthService.validateSession(storedToken)
-          
-          if (validation.valid) {
-            console.log('✅ Stored session is valid for:', validation.vendor.business_name)
-            setUser(validation.user)
-            setVendor(validation.vendor)
-            setSessionToken(storedToken)
-            setError(null)
-          } else {
-            console.log('❌ Stored session is invalid, clearing...')
-            tokenAuthService.clearStoredTokens()
-            setUser(null)
-            setVendor(null)
-            setSessionToken(null)
+          // Start session refresh timer for approved vendors
+          if (validation.vendor?.status === 'approved') {
+            startSessionRefreshTimer()
           }
         } else {
-          console.log('ℹ️ No stored session token found')
+          console.log('❌ No valid cookie session found')
           
-          // Check if there's a Supabase session (fallback)
+          // Check if there's a Supabase session (fallback for first-time login)
           const supabase = getSupabase()
           const { data: { session } } = await supabase.auth.getSession()
           
           if (session?.user) {
-            console.log('🔄 Found Supabase session, migrating to token-based auth...')
-            
-            // Get vendor profile
-            const { data: vendor } = await supabase
-              .from('vendors')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .single()
-            
-            if (vendor && vendor.status === 'approved') {
-              // Create new token session
-              const { sessionToken: newToken } = await tokenAuthService.createVendorSession(session.user, vendor)
-              setUser(session.user)
-              setVendor(vendor)
-              setSessionToken(newToken)
-              console.log('✅ Migrated to token-based auth successfully')
-            } else {
-              console.log('⚠️ Vendor not approved or not found')
-              setUser(session.user)
-              setVendor(vendor)
-            }
+            console.log('🔄 Found Supabase session, but no cookie session - user needs to login again')
+            // Don't auto-migrate, let user login again to set cookies properly
+            setUser(null)
+            setVendor(null)
+            setSessionToken(null)
           } else {
             console.log('ℹ️ No active session found')
             setUser(null)
@@ -88,7 +67,6 @@ export function AuthProvider({ children }) {
       } catch (err) {
         console.error('❌ Error initializing auth:', err)
         setError(err.message)
-        tokenAuthService.clearStoredTokens()
         setUser(null)
         setVendor(null)
         setSessionToken(null)
@@ -119,19 +97,20 @@ export function AuthProvider({ children }) {
     }
   }, [isClient])
 
-  // Token-based login function
+  // Cookie-based login function
   const signInWithToken = async (email, password) => {
     try {
       setLoading(true)
       setError(null)
       
-      console.log('🔐 Attempting token-based login for:', email)
+      console.log('🔐 Attempting cookie-based login for:', email)
       
       const response = await fetch('/api/auth/vendor-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies in request
         body: JSON.stringify({ email, password })
       })
       
@@ -142,24 +121,37 @@ export function AuthProvider({ children }) {
       }
       
       if (data.requiresApproval) {
-        // Vendor exists but not approved
+        // Vendor exists but not approved - still set session for limited access
         setUser(data.user || null)
         setVendor(data.vendor || null)
+        setSessionToken('cookie_based')
+        return { success: true, requiresApproval: true, vendor: data.vendor }
+      }
+
+      if (data.requiresApplication) {
+        // User exists but no vendor profile - allow login to apply
+        setUser(data.user || null)
+        setVendor(null)
         setSessionToken(null)
-        return { success: false, requiresApproval: true, vendor: data.vendor }
+        return { success: true, requiresApplication: true }
       }
       
-      // Successful login
+      // Successful login - cookies are set by the server
       setUser(data.user)
       setVendor(data.vendor)
-      setSessionToken(data.sessionToken)
+      setSessionToken('cookie_based') // Placeholder since token is in HTTP-only cookie
       
-      console.log('✅ Token-based login successful for:', data.vendor.business_name)
+      console.log('✅ Cookie-based login successful for:', data.vendor.business_name)
+      
+      // Start session refresh timer for approved vendors
+      if (data.vendor?.status === 'approved') {
+        startSessionRefreshTimer()
+      }
       
       return { success: true, user: data.user, vendor: data.vendor }
       
     } catch (err) {
-      console.error('❌ Token-based login error:', err)
+      console.error('❌ Cookie-based login error:', err)
       setError(err.message)
       return { success: false, error: err.message }
     } finally {
@@ -170,10 +162,9 @@ export function AuthProvider({ children }) {
   // Refresh session token
   const refreshSession = async () => {
     try {
-      const result = await tokenAuthService.refreshSession()
+      const result = await cookieAuthService.refreshSession()
       
       if (result.success) {
-        setSessionToken(result.sessionToken)
         console.log('✅ Session refreshed successfully')
         return true
       } else {
@@ -193,12 +184,10 @@ export function AuthProvider({ children }) {
     try {
       console.log('🚪 Signing out...')
       
-      // Call logout API
+      // Call logout API (cookies will be cleared by server)
       await fetch('/api/auth/logout', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${sessionToken}`
-        }
+        credentials: 'include' // Include cookies
       })
       
       // Clear local state
@@ -218,7 +207,6 @@ export function AuthProvider({ children }) {
       setUser(null)
       setVendor(null)
       setSessionToken(null)
-      tokenAuthService.clearStoredTokens()
       router.push('/')
     }
   }
@@ -231,7 +219,15 @@ export function AuthProvider({ children }) {
       const validation = await tokenAuthService.validateSession(sessionToken)
       
       if (!validation.valid) {
-        console.log('⚠️ Session validation failed, but not forcing logout')
+        console.log('⚠️ Session validation failed, attempting refresh...')
+        
+        // Try to refresh the session
+        const refreshResult = await refreshSession()
+        if (refreshResult) {
+          console.log('✅ Session refreshed successfully')
+          return true
+        }
+        
         return false
       }
       
@@ -241,6 +237,20 @@ export function AuthProvider({ children }) {
       // Don't force logout on validation errors - could be network issues
       return true // Assume valid if we can't validate
     }
+  }
+
+  // Auto-refresh session periodically (simplified for cookies)
+  const startSessionRefreshTimer = () => {
+    // Refresh session every 45 minutes (tokens typically expire in 1 hour)
+    const refreshInterval = setInterval(async () => {
+      console.log('🔄 Auto-refreshing session...')
+      const success = await refreshSession()
+      if (!success) {
+        clearInterval(refreshInterval)
+      }
+    }, 45 * 60 * 1000) // 45 minutes
+
+    return refreshInterval
   }
 
   const value = {

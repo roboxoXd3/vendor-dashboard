@@ -22,10 +22,23 @@ export default function FeaturedProductsSection({ filters = {}, refreshKey = 0, 
     }
   }, [refreshKey, refetch]);
 
-  // Reset to page 1 when filters change
+  // Reset to page 1 when filters change (but not on initial load)
+  const [previousFilters, setPreviousFilters] = React.useState(filters);
   React.useEffect(() => {
-    setCurrentPage(1);
-  }, [filters]);
+    // Only reset if filters actually changed (deep comparison for key filter properties)
+    const filtersChanged = 
+      previousFilters.search !== filters.search ||
+      previousFilters.category !== filters.category ||
+      previousFilters.status !== filters.status ||
+      previousFilters.sortBy !== filters.sortBy ||
+      previousFilters.sortOrder !== filters.sortOrder;
+    
+    if (filtersChanged) {
+      console.log('🔄 Filters changed, resetting to page 1');
+      setCurrentPage(1);
+      setPreviousFilters(filters);
+    }
+  }, [filters, previousFilters]);
 
   if (isLoading) {
     return (
@@ -61,7 +74,15 @@ export default function FeaturedProductsSection({ filters = {}, refreshKey = 0, 
   const products = productsData?.data || [];
   const totalPages = productsData?.pagination?.totalPages || 1;
 
+  console.log('🔍 Pagination Debug:', {
+    currentPage,
+    totalPages,
+    productsCount: products.length,
+    pagination: productsData?.pagination
+  });
+
   const handlePageClick = (pageNum) => {
+    console.log('📄 Page clicked:', pageNum, 'Current filters:', filters);
     setCurrentPage(pageNum);
   };
 
@@ -97,44 +118,51 @@ export default function FeaturedProductsSection({ filters = {}, refreshKey = 0, 
         </>
       )}
 
-      <div className="flex justify-center mt-6 text-md rounded-md border-1 border-gray-300 w-fit mx-auto">
-        <button
-          onClick={handlePrevious}
-          disabled={currentPage === 1}
-          className={`px-4 py-2 rounded ${
-            currentPage === 1
-              ? "text-gray-300 cursor-not-allowed"
-              : "hover:bg-gray-100 text-gray-700"
-          }`}
-        >
-          &lt;
-        </button>
-
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+      {totalPages > 1 && (
+        <div className="flex justify-center mt-6 text-md rounded-md border border-gray-300 w-fit mx-auto bg-white p-2">
           <button
-            key={num}
-            onClick={() => handlePageClick(num)}
+            onClick={handlePrevious}
+            disabled={currentPage === 1}
+            className={`px-4 py-2 rounded ${
+              currentPage === 1
+                ? "text-gray-300 cursor-not-allowed"
+                : "hover:bg-gray-100 text-gray-700"
+            }`}
+          >
+            &lt;
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+            <button
+              key={num}
+              onClick={() => handlePageClick(num)}
+              className={`px-4 py-2 cursor-pointer ${
+                currentPage === num
+                  ? "bg-emerald-600 text-white"
+                  : "hover:bg-gray-200 text-gray-700"
+              }`}
+            >
+              {num}
+            </button>
+          ))}
+
+          <button
+            onClick={handleNext}
+            disabled={currentPage === totalPages}
             className={`px-4 py-2 cursor-pointer ${
-              currentPage === num
-                ? "bg-[var(--color-theme)] text-white"
+              currentPage === totalPages
+                ? "text-gray-300 cursor-not-allowed"
                 : "hover:bg-gray-200 text-gray-700"
             }`}
           >
-            {num}
+            &gt;
           </button>
-        ))}
-
-        <button
-          onClick={handleNext}
-          disabled={currentPage === totalPages}
-          className={`px-4 py-1 cursor-pointer ${
-            currentPage === totalPages
-              ? "text-gray-300 cursor-not-allowed"
-              : "hover:bg-gray-200 text-gray-700"
-          }`}
-        >
-          &gt;
-        </button>
+        </div>
+      )}
+      
+      {/* Debug info */}
+      <div className="text-center mt-2 text-sm text-gray-500">
+        Page {currentPage} of {totalPages} | {products.length} products shown
       </div>
     </div>
   );

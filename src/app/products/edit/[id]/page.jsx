@@ -28,6 +28,34 @@ export default function EditProductPage({ params }) {
 
         const product = result.data
         
+        // Parse images from JSON format
+        let parsedImages = []
+        try {
+          if (typeof product.images === 'string') {
+            const parsed = JSON.parse(product.images)
+            if (Array.isArray(parsed)) {
+              // Simple array format
+              parsedImages = parsed.filter(img => typeof img === 'string' && img.trim() !== '')
+            } else if (parsed && typeof parsed === 'object' && parsed.main) {
+              // Object format with main and colors
+              parsedImages = (parsed.main || []).filter(img => typeof img === 'string' && img.trim() !== '')
+            }
+          } else if (Array.isArray(product.images)) {
+            parsedImages = product.images.filter(img => typeof img === 'string' && img.trim() !== '')
+          }
+        } catch (error) {
+          console.warn('Failed to parse product images:', error)
+          // Fallback to comma-separated string parsing
+          if (typeof product.images === 'string') {
+            parsedImages = product.images.split(',').filter(Boolean).map(img => img.trim())
+          }
+        }
+        
+        console.log('🔍 Parsed images for edit form:', {
+          original: product.images,
+          parsed: parsedImages
+        })
+        
         // Transform the data to match form structure
         const formData = {
           name: product.name || '',
@@ -44,8 +72,7 @@ export default function EditProductPage({ params }) {
           stock_quantity: product.stock_quantity?.toString() || '',
           weight: product.weight?.toString() || '',
           
-          images: Array.isArray(product.images) ? product.images : 
-                  (typeof product.images === 'string' ? product.images.split(',').filter(Boolean) : []),
+          images: parsedImages,
           video_url: product.video_url || '',
           
           sizes: product.sizes || [],
