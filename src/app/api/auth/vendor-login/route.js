@@ -33,26 +33,67 @@ export async function POST(request) {
     }
 
     // Get vendor profile (optional - user can exist without vendor profile)
-    const { data: vendor, error: vendorError } = await supabase
+    let { data: vendor, error: vendorError } = await supabase
       .from('vendors')
       .select('*')
       .eq('user_id', authData.user.id)
       .single()
 
-    // If no vendor profile exists, allow login but redirect to application
+    // If no vendor profile exists, create one automatically with 'pending' status
     if (vendorError && vendorError.code === 'PGRST116') {
-      console.log('ℹ️ No vendor profile found - new user can apply for vendor status')
-      return NextResponse.json({
-        success: true,
-        user: {
-          id: authData.user.id,
-          email: authData.user.email
-        },
-        vendor: null,
-        sessionToken: null,
-        requiresApplication: true,
-        message: 'Login successful - please complete your vendor application'
-      })
+      console.log('ℹ️ No vendor profile found - creating default pending profile')
+      
+      try {
+        // Create a default vendor profile with pending status
+        const defaultVendorData = {
+          user_id: authData.user.id,
+          business_name: 'Pending Setup',
+          business_description: 'Please complete your vendor application',
+          business_email: authData.user.email,
+          business_phone: null,
+          business_address: 'Address to be updated',
+          business_type: 'individual',
+          business_registration_number: null,
+          tax_id: null,
+          status: 'pending',
+          verification_status: 'unverified',
+          is_featured: false,
+          average_rating: 0,
+          total_reviews: 0,
+          total_sales: 0,
+          total_orders: 0,
+          commission_rate: 10.00,
+          payout_schedule: 'monthly',
+          payment_method_preference: 'bank_transfer',
+          bank_account_info: null,
+          is_active: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+
+        const { data: newVendor, error: createError } = await supabase
+          .from('vendors')
+          .insert([defaultVendorData])
+          .select()
+          .single()
+
+        if (createError) {
+          console.error('❌ Error creating default vendor profile:', createError)
+          throw createError
+        }
+
+        console.log('✅ Default vendor profile created:', newVendor.id)
+        
+        // Set vendor to the newly created profile
+        vendor = newVendor
+        
+      } catch (error) {
+        console.error('❌ Failed to create default vendor profile:', error)
+        return NextResponse.json(
+          { error: 'Failed to create vendor profile' },
+          { status: 500 }
+        )
+      }
     }
 
     if (vendorError) {
@@ -63,68 +104,8 @@ export async function POST(request) {
       )
     }
 
-    // Check vendor status - allow all statuses to login, but handle differently
-    if (vendor.status !== 'approved') {
-      console.log('⚠️ Vendor not approved - status:', vendor.status)
-      
-      // Still allow login but with limited access
-      let sessionToken = null
-      try {
-        // Clean up old sessions for this user first
-        await supabase
-          .from('vendor_sessions')
-          .delete()
-          .eq('user_id', authData.user.id)
-          .lt('expires_at', new Date().toISOString())
-        
-        // Create session using server-side Supabase client (bypasses RLS)
-        const sessionTokenValue = `vendor_${Date.now()}_${Math.random().toString(36).substr(2, 16)}`
-        const refreshTokenValue = `refresh_${Date.now()}_${Math.random().toString(36).substr(2, 16)}`
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-        
-        const { data: sessionData, error: sessionError } = await supabase
-          .from('vendor_sessions')
-          .insert({
-            vendor_id: vendor.id,
-            user_id: authData.user.id,
-            session_token: sessionTokenValue,
-            refresh_token: refreshTokenValue,
-            expires_at: expiresAt.toISOString(),
-            is_active: true,
-            device_info: {
-              userAgent: request.headers.get('user-agent'),
-              ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip')
-            }
-          })
-          .select()
-          .single()
-
-        if (sessionError) {
-          console.warn('⚠️ Database session creation failed:', sessionError.message)
-          throw sessionError
-        }
-        
-        sessionToken = sessionTokenValue
-        console.log('✅ Limited vendor session created in database')
-      } catch (sessionError) {
-        console.warn('⚠️ Token session creation failed, using fallback auth:', sessionError.message)
-        sessionToken = `fallback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      }
-
-      return NextResponse.json(
-        { 
-          success: true,
-          user: {
-            id: authData.user.id,
-            email: authData.user.email
-          },
-          vendor: vendor,
-          sessionToken: sessionToken,
-          requiresApproval: true,
-          message: `Login successful - vendor status: ${vendor.status}`
-        }
-      )
-    }
+    // Create proper vendor session regardless of status
+    console.log('🔐 Creating vendor session for:', vendor.business_name, '- Status:', vendor.status)
 
     // Try to create vendor session with tokens, fallback to simple auth if table doesn't exist
     let sessionToken = null
@@ -178,7 +159,7 @@ export async function POST(request) {
       sessionToken = `fallback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     }
 
-    // Set HTTP-only cookies for approved vendors
+    // Set HTTP-only cookies
     const cookieStore = await cookies()
     
     console.log('🔍 Debug - Setting cookie with token:', sessionToken)
@@ -191,10 +172,14 @@ export async function POST(request) {
       maxAge: 24 * 60 * 60, // 24 hours
       path: '/'
     })
-    
-    console.log('✅ Vendor login successful for:', vendor.business_name)
 
-    return NextResponse.json({
+    // Clear any old application auth cookies
+    cookieStore.delete('vendor_application_auth')
+    
+    console.log('✅ Vendor login successful for:', vendor.business_name, '- Status:', vendor.status)
+
+    // Determine response based on vendor status
+    const responseData = {
       success: true,
       user: {
         id: authData.user.id,
@@ -202,8 +187,17 @@ export async function POST(request) {
       },
       vendor: vendor,
       sessionToken: 'stored_in_cookie', // Don't send actual token to client
-      message: 'Login successful'
-    })
+      message: `Login successful - vendor status: ${vendor.status}`
+    }
+
+    // Add flags based on vendor status
+    if (vendor.status === 'pending') {
+      responseData.requiresApproval = true
+    } else if (vendor.status === 'approved') {
+      responseData.approved = true
+    }
+
+    return NextResponse.json(responseData)
 
   } catch (error) {
     console.error('❌ Vendor login error:', error)

@@ -68,27 +68,19 @@ export const imageUploadService = {
         fileType: file.type
       })
 
-      // Choose the appropriate bucket based on file type
-      const bucketName = isVideo ? 'product-videos' : 'products'
+      // Route uploads through our API (bypasses RLS via service role)
+      const formData = new FormData()
+      formData.append('file', file)
+      if (productId) formData.append('productId', productId)
+      formData.append('type', type)
 
-      // Upload to Supabase Storage
-      const supabase = getSupabase()
-      const { data, error } = await supabase.storage
-        .from(bucketName)
-        .upload(storagePath, file, {
-          cacheControl: '3600',
-          upsert: false // Don't overwrite existing files
-        })
-
-      if (error) {
-        console.error('❌ Upload error:', error)
-        throw new Error(`Upload failed: ${error.message}`)
+      const res = await fetch('/api/storage/upload', { method: 'POST', body: formData })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Upload failed')
       }
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(storagePath)
+      const publicUrl = json.url
 
       console.log(`✅ ${isVideo ? 'Video' : 'Image'} uploaded successfully:`, publicUrl)
 

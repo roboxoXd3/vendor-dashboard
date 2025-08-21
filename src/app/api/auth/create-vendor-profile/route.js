@@ -4,34 +4,94 @@ import { getSupabaseServer } from '@/lib/supabase-server'
 export async function POST(request) {
   try {
     const body = await request.json()
-    
-    // Get the authorization header
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ 
-        error: 'Authorization header required' 
-      }, { status: 401 })
-    }
-
-    // Get the token and verify it with server-side Supabase
-    const token = authHeader.replace('Bearer ', '')
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get('vendor_session_token')?.value
     const supabase = getSupabaseServer()
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+    console.log('🔍 Creating vendor profile with cookie auth...')
     
-    if (authError || !user) {
-      console.error('❌ Authentication failed:', authError)
+    // Check for regular session token first
+    if (!sessionToken) {
+      // Check for application auth cookie (for new users applying)
+      const applicationAuth = cookieStore.get('vendor_application_auth')?.value
+      
+      if (!applicationAuth) {
+        console.log('❌ No session token or application auth found in cookies for profile creation')
+        return NextResponse.json({ 
+          error: 'Authentication required - please login first' 
+        }, { status: 401 })
+      }
+
+      try {
+        const authData = JSON.parse(applicationAuth)
+        
+        // Check if application auth is expired
+        if (new Date(authData.expiresAt) < new Date()) {
+          console.log('❌ Application auth expired')
+          return NextResponse.json({ 
+            error: 'Session expired - please login again' 
+          }, { status: 401 })
+        }
+
+        const userId = authData.userId
+        const userEmail = authData.email
+        console.log('✅ Valid application auth found for profile creation, user:', userId)
+
+        // Process profile creation using application auth
+        return await processProfileCreation(supabase, userId, userEmail, body)
+
+      } catch (error) {
+        console.log('❌ Invalid application auth cookie for profile creation')
+        return NextResponse.json({ 
+          error: 'Invalid authentication - please login again' 
+        }, { status: 401 })
+      }
+    }
+
+    
+    // Find active session in database
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('vendor_sessions')
+      .select('*')
+      .eq('session_token', sessionToken)
+      .eq('is_active', true)
+      .gt('expires_at', new Date().toISOString())
+      .single()
+    
+    if (sessionError || !sessionData) {
+      console.log('❌ Invalid or expired session for profile creation')
       return NextResponse.json({ 
-        error: 'Authentication required' 
+        error: 'Invalid or expired session' 
       }, { status: 401 })
     }
 
-    console.log('📝 Creating vendor profile for user:', user.email)
+    // Get user ID from session
+    const userId = sessionData.user_id
+    const userEmail = sessionData.user_email || body.businessEmail || 'unknown@example.com'
+    console.log('✅ Valid session found for user:', userId)
+
+    // Process profile creation using regular session auth
+    return await processProfileCreation(supabase, userId, userEmail, body)
+
+  } catch (error) {
+    console.error('❌ Create vendor profile API error:', error)
+    return NextResponse.json({ 
+      error: 'Internal server error' 
+    }, { status: 500 })
+  }
+}
+
+// Helper function to process profile creation
+async function processProfileCreation(supabase, userId, userEmail, body) {
+  try {
+    console.log('📝 Creating vendor profile for user:', userId)
 
     // Check if user already has a vendor profile
     const { data: existingVendor, error: checkError } = await supabase
       .from('vendors')
       .select('id, status')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
     if (checkError && checkError.code !== 'PGRST116') {
@@ -49,10 +109,10 @@ export async function POST(request) {
 
     // Prepare vendor data with minimal required fields
     const vendorData = {
-      user_id: user.id,
+      user_id: userId,
       business_name: body.businessName,
       business_description: body.businessDescription || 'No description provided',
-      business_email: body.businessEmail || user.email,
+      business_email: body.businessEmail || userEmail,
       business_phone: body.businessPhone || null,
       business_address: body.businessAddress || 'Address to be updated',
       business_type: body.businessType || 'retail',
@@ -109,7 +169,7 @@ export async function POST(request) {
     })
 
   } catch (error) {
-    console.error('❌ Create vendor profile API error:', error)
+    console.error('❌ Vendor profile creation error:', error)
     return NextResponse.json({ 
       error: 'Internal server error' 
     }, { status: 500 })

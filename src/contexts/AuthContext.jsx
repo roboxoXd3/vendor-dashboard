@@ -84,7 +84,7 @@ export function AuthProvider({ children }) {
       
       if (event === 'SIGNED_OUT') {
         console.log('🚪 User signed out, clearing tokens...')
-        await tokenAuthService.invalidateSession()
+        // Clear local state - cookies will be cleared by logout API
         setUser(null)
         setVendor(null)
         setSessionToken(null)
@@ -132,7 +132,7 @@ export function AuthProvider({ children }) {
         // User exists but no vendor profile - allow login to apply
         setUser(data.user || null)
         setVendor(null)
-        setSessionToken(null)
+        setSessionToken(data.sessionToken ? 'cookie_based' : null)
         return { success: true, requiresApplication: true }
       }
       
@@ -216,7 +216,7 @@ export function AuthProvider({ children }) {
     if (!sessionToken) return false
     
     try {
-      const validation = await tokenAuthService.validateSession(sessionToken)
+      const validation = await cookieAuthService.validateSessionFromCookies()
       
       if (!validation.valid) {
         console.log('⚠️ Session validation failed, attempting refresh...')
@@ -253,6 +253,28 @@ export function AuthProvider({ children }) {
     return refreshInterval
   }
 
+  // Fetch vendor profile (for refreshing after application submission)
+  const fetchVendorProfile = async (userId) => {
+    try {
+      console.log('🔄 Fetching updated vendor profile...')
+      
+      const validation = await cookieAuthService.validateSessionFromCookies()
+      
+      if (validation.valid && validation.vendor) {
+        console.log('✅ Updated vendor profile fetched:', validation.vendor.business_name)
+        setVendor(validation.vendor)
+        return validation.vendor
+      } else {
+        console.log('❌ No vendor profile found during refresh')
+        setVendor(null)
+        return null
+      }
+    } catch (error) {
+      console.error('❌ Error fetching vendor profile:', error)
+      return null
+    }
+  }
+
   const value = {
     user,
     vendor,
@@ -263,6 +285,7 @@ export function AuthProvider({ children }) {
     signOut,
     refreshSession,
     validateCurrentSession,
+    fetchVendorProfile,
     isAuthenticated: !!user,
     isVendor: !!vendor,
     isApprovedVendor: vendor?.status === 'approved',

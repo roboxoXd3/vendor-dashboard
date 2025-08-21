@@ -3,34 +3,226 @@ import { getSupabaseServer } from '@/lib/supabase-server'
 export async function POST(request) {
   try {
     const body = await request.json()
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get('vendor_session_token')?.value
     const supabase = getSupabaseServer()
+
+    console.log('🔍 Processing vendor application with cookie auth...')
     
-    // Get the authorization header
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Check for regular session token first
+    if (!sessionToken) {
+      // Check for application auth cookie (for new users applying)
+      const applicationAuth = cookieStore.get('vendor_application_auth')?.value
+      
+      if (!applicationAuth) {
+        console.log('❌ No session token or application auth found in cookies for submission')
+        return Response.json({ 
+          error: 'Authentication required - please login first' 
+        }, { status: 401 })
+      }
+
+      try {
+        const authData = JSON.parse(applicationAuth)
+        
+        // Check if application auth is expired
+        if (new Date(authData.expiresAt) < new Date()) {
+          console.log('❌ Application auth expired')
+          return Response.json({ 
+            error: 'Session expired - please login again' 
+          }, { status: 401 })
+        }
+
+        const userId = authData.userId
+        console.log('✅ Valid application auth found for submission, user:', userId)
+
+        // Process application submission using application auth
+        return await processApplicationSubmission(supabase, userId, body)
+
+      } catch (error) {
+        console.log('❌ Invalid application auth cookie for submission')
+        return Response.json({ 
+          error: 'Invalid authentication - please login again' 
+        }, { status: 401 })
+      }
+    }
+
+    
+    // Find active session in database
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('vendor_sessions')
+      .select('*')
+      .eq('session_token', sessionToken)
+      .eq('is_active', true)
+      .gt('expires_at', new Date().toISOString())
+      .single()
+    
+    if (sessionError || !sessionData) {
+      console.log('❌ Invalid or expired session for application submission')
       return Response.json({ 
-        error: 'Authorization header required' 
+        error: 'Invalid or expired session' 
       }, { status: 401 })
     }
 
-    // Get the token and verify it with Supabase
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    // Get user ID from session
+    const userId = sessionData.user_id
+    console.log('✅ Valid session found for user:', userId)
+
+    // Process application submission using regular session auth
+    return await processApplicationSubmission(supabase, userId, body)
+
+  } catch (error) {
+    console.error('❌ Vendor application API error:', error)
+    return Response.json({ 
+      error: 'Internal server error' 
+    }, { status: 500 })
+  }
+}
+
+// Get vendor application status
+export async function GET(request) {
+  try {
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get('vendor_session_token')?.value
+    const supabase = getSupabaseServer()
+
+    console.log('🔍 Checking vendor application status with cookie auth...')
     
-    if (authError || !user) {
-      console.error('❌ Authentication failed:', authError)
+    // Check for regular session token first
+    if (!sessionToken) {
+      // Check for application auth cookie (for new users applying)
+      const applicationAuth = cookieStore.get('vendor_application_auth')?.value
+      
+      if (!applicationAuth) {
+        console.log('❌ No session token or application auth found in cookies')
+        return Response.json({ 
+          error: 'Authentication required - please login first' 
+        }, { status: 401 })
+      }
+
+      try {
+        const authData = JSON.parse(applicationAuth)
+        
+        // Check if application auth is expired
+        if (new Date(authData.expiresAt) < new Date()) {
+          console.log('❌ Application auth expired')
+          return Response.json({ 
+            error: 'Session expired - please login again' 
+          }, { status: 401 })
+        }
+
+        const userId = authData.userId
+        console.log('✅ Valid application auth found for user:', userId)
+
+        // Check for vendor application using application auth
+        const { data: vendor, error: vendorError } = await supabase
+          .from('vendors')
+          .select('id, business_name, status, verification_status, created_at, updated_at')
+          .eq('user_id', userId)
+          .single()
+
+        if (vendorError && vendorError.code !== 'PGRST116') {
+          return Response.json({ 
+            error: 'Database error' 
+          }, { status: 500 })
+        }
+
+        if (!vendor) {
+          return Response.json({ 
+            hasApplication: false 
+          })
+        }
+
+        return Response.json({
+          hasApplication: true,
+          vendor: {
+            id: vendor.id,
+            business_name: vendor.business_name,
+            status: vendor.status,
+            verification_status: vendor.verification_status,
+            created_at: vendor.created_at,
+            updated_at: vendor.updated_at
+          }
+        })
+
+      } catch (error) {
+        console.log('❌ Invalid application auth cookie')
+        return Response.json({ 
+          error: 'Invalid authentication - please login again' 
+        }, { status: 401 })
+      }
+    }
+
+    
+    // Find active session in database
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('vendor_sessions')
+      .select('*')
+      .eq('session_token', sessionToken)
+      .eq('is_active', true)
+      .gt('expires_at', new Date().toISOString())
+      .single()
+    
+    if (sessionError || !sessionData) {
+      console.log('❌ Invalid or expired session for application status check')
       return Response.json({ 
-        error: 'Authentication required' 
+        error: 'Invalid or expired session' 
       }, { status: 401 })
     }
 
-    console.log('📝 Processing vendor application for user:', user.email)
+    // Get user ID from session
+    const userId = sessionData.user_id
+    console.log('✅ Valid session found for user:', userId)
+
+    const { data: vendor, error: vendorError } = await supabase
+      .from('vendors')
+      .select('id, business_name, status, verification_status, created_at, updated_at')
+      .eq('user_id', userId)
+      .single()
+
+    if (vendorError && vendorError.code !== 'PGRST116') {
+      return Response.json({ 
+        error: 'Database error' 
+      }, { status: 500 })
+    }
+
+    if (!vendor) {
+      return Response.json({ 
+        hasApplication: false 
+      })
+    }
+
+    return Response.json({
+      hasApplication: true,
+      vendor: {
+        id: vendor.id,
+        business_name: vendor.business_name,
+        status: vendor.status,
+        verification_status: vendor.verification_status,
+        created_at: vendor.created_at,
+        updated_at: vendor.updated_at
+      }
+    })
+
+  } catch (error) {
+    console.error('❌ Get vendor application error:', error)
+    return Response.json({ 
+      error: 'Internal server error' 
+    }, { status: 500 })
+  }
+}
+
+// Helper function to process application submission
+async function processApplicationSubmission(supabase, userId, body) {
+  try {
+    console.log('📝 Processing vendor application for user:', userId)
 
     // Check if user already has a vendor application
     const { data: existingVendor, error: checkError } = await supabase
       .from('vendors')
       .select('id, status')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
     if (checkError && checkError.code !== 'PGRST116') {
@@ -48,7 +240,7 @@ export async function POST(request) {
 
     // Prepare vendor data
     const vendorData = {
-      user_id: user.id,
+      user_id: userId,
       business_name: body.businessName,
       business_description: body.businessDescription,
       business_email: body.businessEmail,
@@ -95,9 +287,6 @@ export async function POST(request) {
 
     console.log('✅ Vendor application created successfully:', newVendor.id)
 
-    // TODO: Send notification to admins about new vendor application
-    // TODO: Send confirmation email to vendor
-
     return Response.json({
       success: true,
       message: 'Vendor application submitted successfully',
@@ -110,68 +299,7 @@ export async function POST(request) {
     })
 
   } catch (error) {
-    console.error('❌ Vendor application API error:', error)
-    return Response.json({ 
-      error: 'Internal server error' 
-    }, { status: 500 })
-  }
-}
-
-// Get vendor application status
-export async function GET(request) {
-  try {
-    // Get the authorization header
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return Response.json({ 
-        error: 'Authorization header required' 
-      }, { status: 401 })
-    }
-
-    // Get the token and verify it with Supabase
-    const token = authHeader.replace('Bearer ', '')
-    const supabase = getSupabaseServer()
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    
-    if (authError || !user) {
-      console.error('❌ Authentication failed in GET:', authError)
-      return Response.json({ 
-        error: 'Authentication required' 
-      }, { status: 401 })
-    }
-
-    const { data: vendor, error: vendorError } = await supabase
-      .from('vendors')
-      .select('id, business_name, status, verification_status, created_at, updated_at')
-      .eq('user_id', user.id)
-      .single()
-
-    if (vendorError && vendorError.code !== 'PGRST116') {
-      return Response.json({ 
-        error: 'Database error' 
-      }, { status: 500 })
-    }
-
-    if (!vendor) {
-      return Response.json({ 
-        hasApplication: false 
-      })
-    }
-
-    return Response.json({
-      hasApplication: true,
-      vendor: {
-        id: vendor.id,
-        business_name: vendor.business_name,
-        status: vendor.status,
-        verification_status: vendor.verification_status,
-        created_at: vendor.created_at,
-        updated_at: vendor.updated_at
-      }
-    })
-
-  } catch (error) {
-    console.error('❌ Get vendor application error:', error)
+    console.error('❌ Vendor application processing error:', error)
     return Response.json({ 
       error: 'Internal server error' 
     }, { status: 500 })

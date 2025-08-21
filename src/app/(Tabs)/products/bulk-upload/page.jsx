@@ -1,6 +1,8 @@
 'use client'
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+import { categoriesService } from '@/services/categoriesService'
 import { useBulkUpload } from '@/hooks/useBulkUpload'
 import { zipUploadService } from '@/services/zipUploadService'
 import { bulkUploadService } from '@/services/bulkUploadService'
@@ -19,6 +21,21 @@ export default function BulkUploadPage() {
   const [uploadType, setUploadType] = useState('csv') // 'csv' or 'zip'
   const [zipData, setZipData] = useState(null)
   const [zipProgress, setZipProgress] = useState(null)
+  const [categories, setCategories] = useState([])
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [selectedCategories, setSelectedCategories] = useState(new Set())
+
+  useEffect(() => {
+    // Load categories for reference/download
+    ;(async () => {
+      try {
+        const list = await categoriesService.fetchAll()
+        setCategories(list)
+      } catch (e) {
+        console.warn('Failed to load categories:', e.message)
+      }
+    })()
+  }, [])
 
   const handleFileSelect = async (event) => {
     const selectedFile = event.target.files[0]
@@ -254,6 +271,68 @@ export default function BulkUploadPage() {
                 </button>
               </div>
               
+              {/* Categories helper panel */}
+              <div className="mt-8 text-left bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <FaInfoCircle className="text-gray-700" />
+                    <h4 className="font-medium text-gray-900">Available Categories</h4>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                      placeholder="Search categories..."
+                      className="border border-gray-300 rounded px-3 py-1 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => categoriesService.downloadCSV(categories)}
+                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center gap-2"
+                    >
+                      <FaDownload size={14} /> Download Categories CSV
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-48 overflow-y-auto border border-gray-200 rounded">
+                  <ul className="divide-y divide-gray-100">
+                    {categories
+                      .filter(c => !categoryFilter || c.name.toLowerCase().includes(categoryFilter.toLowerCase()))
+                      .map(c => {
+                        const checked = selectedCategories.has(c.id)
+                        return (
+                          <li key={c.id} className="flex items-center justify-between px-3 py-2">
+                            <div>
+                              <p className="text-sm font-medium text-gray-800">{c.name}</p>
+                              {c.description && (
+                                <p className="text-xs text-gray-500">{c.description}</p>
+                              )}
+                            </div>
+                            <label className="flex items-center gap-2 text-sm text-gray-700">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  setSelectedCategories(prev => {
+                                    const copy = new Set(prev)
+                                    if (e.target.checked) copy.add(c.id); else copy.delete(c.id)
+                                    return copy
+                                  })
+                                }}
+                              />
+                              Select
+                            </label>
+                          </li>
+                        )
+                      })}
+                  </ul>
+                </div>
+                <p className="text-xs text-gray-600 mt-2">
+                  Tip: Use the exact category name in your CSV under <code>category_name</code>.
+                </p>
+              </div>
+
               {/* Instructions - matches existing info boxes */}
               <div className="mt-8 text-left bg-blue-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">

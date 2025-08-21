@@ -43,7 +43,11 @@ export const useBulkUpload = () => {
       const result = await response.json()
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Upload failed')
+        // Bubble up detailed validation errors to help users fix their CSV
+        const details = Array.isArray(result.errors) && result.errors.length
+          ? `\nDetails: ${result.errors.slice(0, 10).join('\n')}${result.errors.length > 10 ? `\n...and ${result.errors.length - 10} more` : ''}`
+          : ''
+        throw new Error((result.error || 'Upload failed') + details)
       }
 
       console.log('✅ Bulk upload successful:', result)

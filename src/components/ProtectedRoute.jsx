@@ -2,8 +2,7 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import VendorApplicationForm from './VendorApplicationForm'
-import QuickVendorApplication from './QuickVendorApplication'
+import VendorApplication from './VendorApplication'
 import { getSupabase } from '@/lib/supabase'
 
 export default function ProtectedRoute({ children }) {
@@ -174,23 +173,27 @@ export function VendorPendingPage() {
 
   const checkApplicationStatus = async () => {
     try {
-      // Get the current session token
-      const supabase = getSupabase()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        console.error('No active session found for status check')
-        return
-      }
-
+      console.log('🔄 Checking application status with cookie-based auth...')
+      
+      // Use cookie-based authentication instead of session tokens
       const response = await fetch('/api/vendor-application', {
+        method: 'GET',
+        credentials: 'include', // Include cookies for authentication
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
         }
       })
+      
+      if (!response.ok) {
+        console.error('❌ Failed to check application status:', response.status)
+        return
+      }
+      
       const data = await response.json()
+      console.log('✅ Application status checked:', data)
       setApplicationStatus(data)
     } catch (error) {
-      console.error('Error checking application status:', error)
+      console.error('❌ Error checking application status:', error)
     } finally {
       setLoading(false)
     }
@@ -264,17 +267,11 @@ export function VendorPendingPage() {
     const status = getStatusMessage()
     return (
       <div className="min-h-screen bg-gray-50 py-8 flex items-center justify-center">
-        {status.useQuickApplication ? (
-          <QuickVendorApplication
-            onSuccess={handleApplicationSuccess}
-            onCancel={() => setShowApplication(false)}
-          />
-        ) : (
-          <VendorApplicationForm
-            onSuccess={handleApplicationSuccess}
-            onCancel={() => setShowApplication(false)}
-          />
-        )}
+        <VendorApplication
+          mode={status.useQuickApplication ? 'quick' : 'detailed'}
+          onSuccess={handleApplicationSuccess}
+          onCancel={() => setShowApplication(false)}
+        />
       </div>
     )
   }
