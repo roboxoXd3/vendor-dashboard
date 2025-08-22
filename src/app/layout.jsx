@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import LayoutWrapper from "./components/LayoutWrapper";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import QueryProvider from "@/providers/QueryProvider";
 
 const geistSans = Geist({
@@ -27,7 +28,9 @@ export default function RootLayout({ children }) {
       >
         <QueryProvider>
           <AuthProvider>
-            <LayoutWrapper>{children}</LayoutWrapper>
+            <CurrencyProvider>
+              <LayoutWrapper>{children}</LayoutWrapper>
+            </CurrencyProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

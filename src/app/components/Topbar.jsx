@@ -3,6 +3,7 @@ import { FiMenu, FiSearch, FiLogOut } from "react-icons/fi";
 import { FaBell } from "react-icons/fa";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import CurrencySelector from "@/components/CurrencySelector";
 
 export default function Topbar({ onToggleSidebar }) {
   const pathname = usePathname().split("/");
@@ -45,6 +46,9 @@ export default function Topbar({ onToggleSidebar }) {
             className="outline-none bg-transparent"
           />
         </div>
+
+        {/* Currency Selector */}
+        <CurrencySelector className="hidden md:block" />
 
         {/* Notification Bell with Badge */}
         <div className="relative">

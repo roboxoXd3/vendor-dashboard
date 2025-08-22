@@ -1,5 +1,6 @@
 'use client'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import currencyService from '@/services/currencyService'
 
 export const useProductForm = (initialData = {}) => {
   const [formData, setFormData] = useState({
@@ -16,6 +17,8 @@ export const useProductForm = (initialData = {}) => {
     mrp: '',
     sale_price: '',
     currency: 'USD',
+    base_currency: 'USD',
+    converted_prices: {},
     stock_quantity: '',
     weight: '',
     
@@ -50,8 +53,88 @@ export const useProductForm = (initialData = {}) => {
     ...initialData
   })
 
+  // Currency-related state
+  const [supportedCurrencies, setSupportedCurrencies] = useState([])
+  const [exchangeRates, setExchangeRates] = useState({})
+  const [isLoadingCurrencies, setIsLoadingCurrencies] = useState(false)
+  const [currencyError, setCurrencyError] = useState(null)
+
+  // Load currency data on mount
+  useEffect(() => {
+    loadCurrencyData()
+  }, [])
+
+  const loadCurrencyData = async () => {
+    setIsLoadingCurrencies(true)
+    setCurrencyError(null)
+    
+    try {
+      const data = await currencyService.getCurrencyData()
+      setSupportedCurrencies(data.currencies)
+      setExchangeRates(data.rates)
+    } catch (error) {
+      console.error('Error loading currency data:', error)
+      setCurrencyError('Failed to load currency data')
+    } finally {
+      setIsLoadingCurrencies(false)
+    }
+  }
+
+  // Convert prices when currency changes
+  const convertPrices = useCallback(async (newCurrency, fromCurrency) => {
+    // Don't convert if no price is set
+    if (!formData.price) return
+    
+    // Don't convert if it's the same currency
+    if (newCurrency === fromCurrency) return
+
+    try {
+      const prices = {
+        price: parseFloat(formData.price) || 0,
+        mrp: parseFloat(formData.mrp) || 0,
+        sale_price: parseFloat(formData.sale_price) || 0
+      }
+
+      const convertedPrices = await currencyService.convertProductPrices(
+        null, // No productId for preview
+        prices,
+        fromCurrency,
+        [newCurrency]
+      )
+
+      if (convertedPrices[newCurrency]) {
+        setFormData(prev => ({
+          ...prev,
+          price: convertedPrices[newCurrency].price?.toString() || prev.price,
+          mrp: convertedPrices[newCurrency].mrp?.toString() || prev.mrp,
+          sale_price: convertedPrices[newCurrency].sale_price?.toString() || prev.sale_price,
+          converted_prices: convertedPrices
+        }))
+      }
+    } catch (error) {
+      console.error('Error converting prices:', error)
+      // Currency is already updated in the UI, so we don't need to do anything here
+      // The user will see the currency change but prices won't convert
+    }
+  }, [formData.price, formData.mrp, formData.sale_price])
+
   const handleInputChange = useCallback((e) => {
     const { name, value, type, checked } = e.target
+    
+    // Handle currency change with immediate UI update
+    if (name === 'currency' && value !== formData.currency) {
+      const oldCurrency = formData.currency
+      
+      // Immediately update the currency in the UI
+      setFormData(prev => ({
+        ...prev,
+        currency: value
+      }))
+      
+      // Then trigger price conversion in the background
+      convertPrices(value, oldCurrency)
+      return
+    }
     
     setFormData(prev => {
       // Handle nested object properties (e.g., dimensions.length)
@@ -72,7 +155,7 @@ export const useProductForm = (initialData = {}) => {
         [name]: type === 'checkbox' ? checked : value
       }
     })
-  }, [])
+  }, [formData.currency, convertPrices])
 
   const addToArray = useCallback((arrayKey, item) => {
     setFormData(prev => ({
@@ -194,6 +277,13 @@ export const useProductForm = (initialData = {}) => {
     addColorImage,
     removeColorImage,
     resetForm,
-    updateFormData
+    updateFormData,
+    // Currency-related
+    supportedCurrencies,
+    exchangeRates,
+    isLoadingCurrencies,
+    currencyError,
+    convertPrices,
+    loadCurrencyData
   }
 }

@@ -3,6 +3,7 @@ import { useState, useCallback } from "react";
 import FeaturedProductsSection from "./components/FeaturedProductsSection";
 import ProductsFilterBar from "./components/ProductsFilterBar";
 import ProductPageCards from "./components/ProductsPageCards";
+import CurrencyDebug from "@/components/CurrencyDebug";
 
 export default function Products() {
   const [filters, setFilters] = useState({});
@@ -26,6 +27,7 @@ export default function Products() {
         refreshKey={refreshKey}
         onProductUpdate={handleProductUpdate}
       />
+      <CurrencyDebug />
     </div>
   );
 }

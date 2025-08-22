@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { FaEdit, FaChartBar, FaTrash, FaStar, FaVideo, FaImage } from "react-icons/fa";
 import { useDeleteProduct } from "@/hooks/useProducts";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCurrencyContext } from "@/contexts/CurrencyContext";
 import Tag from "./Tag";
 
 export default function ProductCard({ product, onUpdate }) {
@@ -11,6 +12,10 @@ export default function ProductCard({ product, onUpdate }) {
   const router = useRouter();
   const { vendor } = useAuth();
   const deleteProductMutation = useDeleteProduct();
+  const { formatProductPrice } = useCurrencyContext();
+  
+  // Get formatted prices in global currency
+  const formattedPrices = formatProductPrice(product);
   const getTagColor = (tag) => {
     switch (tag) {
       case "Featured":
@@ -169,11 +174,11 @@ export default function ProductCard({ product, onUpdate }) {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <span className="text-emerald-600">
-              ${Number(product.price || 0).toFixed(2)}
+              {formattedPrices.price}
             </span>
-            {product.sale_price && (
+            {formattedPrices.salePrice && (
               <span className="line-through text-gray-400 text-xs">
-                ${Number(product.sale_price).toFixed(2)}
+                {formattedPrices.salePrice}
               </span>
             )}
           </div>

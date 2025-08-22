@@ -43,7 +43,14 @@ export default function ProductForm({
     handleVideoRemoved,
     addColorImage,
     removeColorImage,
-    updateFormData
+    updateFormData,
+    // Currency-related
+    supportedCurrencies,
+    exchangeRates,
+    isLoadingCurrencies,
+    currencyError,
+    convertPrices,
+    loadCurrencyData
   } = useProductForm(initialData)
 
   const { categories } = useCategories()
@@ -108,7 +115,14 @@ export default function ProductForm({
           />
         )
       case 2:
-        return <PricingInventoryStep {...stepProps} />
+        return (
+          <PricingInventoryStep 
+            {...stepProps} 
+            supportedCurrencies={supportedCurrencies}
+            isLoadingCurrencies={isLoadingCurrencies}
+            currencyError={currencyError}
+          />
+        )
       case 3:
         return <VariantsOptionsStep {...stepProps} />
       case 4:

@@ -7,15 +7,24 @@ export default function PricingInventoryStep({
   formData, 
   handleInputChange, 
   onNext, 
-  onBack 
+  onBack,
+  supportedCurrencies = [],
+  isLoadingCurrencies = false,
+  currencyError = null
 }) {
-  const currencyOptions = [
-    { value: "USD", label: "USD ($)" },
-    { value: "EUR", label: "EUR (€)" },
-    { value: "GBP", label: "GBP (£)" },
-    { value: "INR", label: "INR (₹)" },
-    { value: "NGN", label: "NGN (₦)" }
-  ]
+  // Use global currencies if available, fallback to hardcoded list
+  const currencyOptions = supportedCurrencies.length > 0 
+    ? supportedCurrencies.map(currency => ({
+        value: currency.code,
+        label: `${currency.code} (${currency.symbol})`
+      }))
+    : [
+        { value: "USD", label: "USD ($)" },
+        { value: "EUR", label: "EUR (€)" },
+        { value: "GBP", label: "GBP (£)" },
+        { value: "INR", label: "INR (₹)" },
+        { value: "NGN", label: "NGN (₦)" }
+      ]
 
   return (
     <StepContainer
@@ -66,15 +75,24 @@ export default function PricingInventoryStep({
           tooltip="Special promotional price (optional)"
         />
 
-        <FormField
-          label="Currency"
-          name="currency"
-          type="select"
-          value={formData.currency}
-          onChange={handleInputChange}
-          options={currencyOptions}
-          tooltip="The currency for pricing"
-        />
+        <div>
+          <FormField
+            label="Currency"
+            name="currency"
+            type="select"
+            value={formData.currency}
+            onChange={handleInputChange}
+            options={currencyOptions}
+            tooltip="The currency for pricing"
+            disabled={isLoadingCurrencies}
+          />
+          {isLoadingCurrencies && (
+            <p className="text-sm text-gray-500 mt-1">Loading currencies...</p>
+          )}
+          {currencyError && (
+            <p className="text-sm text-red-500 mt-1">{currencyError}</p>
+          )}
+        </div>
 
         <FormField
           label="Stock Quantity"
