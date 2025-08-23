@@ -18,10 +18,10 @@ import {
   FiBarChart3
 } from "react-icons/fi";
 import Image from "next/image";
-import ReviewsTable from "../../../reviews/components/ReviewsTable";
-import QATable from "../../../questions/components/QATable";
-import ReviewResponseModal from "../../../reviews/components/ReviewResponseModal";
-import AnswerQuestionModal from "../../../questions/components/AnswerQuestionModal";
+import ReviewsTable from "../../reviews/components/ReviewsTable";
+import QATable from "../../questions/components/QATable";
+import ReviewResponseModal from "../../reviews/components/ReviewResponseModal";
+import AnswerQuestionModal from "../../questions/components/AnswerQuestionModal";
 
 export default function ProductDetailPage({ params }) {
   const router = useRouter();
