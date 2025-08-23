@@ -4,22 +4,18 @@ import { FaAddressCard } from "react-icons/fa";
 import { MdHome } from "react-icons/md";
 import { IoIosBusiness } from "react-icons/io";
 
-export default function UploadKYCDocumentsSection() {
-  const [uploads, setUploads] = useState({
-    idProof: null,
-    license: null,
-    address: null,
-  });
-
+export default function UploadKYCDocumentsSection({ documents, onChange, disabled = false }) {
   const handleFileUpload = (e, field) => {
     const file = e.target.files[0];
-    if (file) {
-      setUploads((prev) => ({ ...prev, [field]: file }));
+    if (file && onChange) {
+      onChange(field, file);
     }
   };
 
   const handleDelete = (field) => {
-    setUploads((prev) => ({ ...prev, [field]: null }));
+    if (onChange) {
+      onChange(field, null);
+    }
   };
 
   return (
@@ -35,11 +31,12 @@ export default function UploadKYCDocumentsSection() {
             <label className="block text-sm font-medium text-gray-700">
               ID Proof<span className="text-red-500">*</span>
             </label>
-            <label className="block border-2 border-gray-300 border-dotted rounded px-4 py-6 text-center text-sm cursor-pointer hover:bg-gray-50 mt-2">
+            <label className={`block border-2 border-gray-300 border-dotted rounded px-4 py-6 text-center text-sm mt-2 ${disabled ? 'cursor-not-allowed bg-gray-100' : 'cursor-pointer hover:bg-gray-50'}`}>
               <input
                 type="file"
                 className="hidden"
-                onChange={(e) => handleFileUpload(e, "idProof")}
+                disabled={disabled}
+                onChange={(e) => handleFileUpload(e, "id_proof")}
               />
               <FaAddressCard className="mx-auto" size={25} />
               <p className="text-gray-500">
@@ -52,12 +49,12 @@ export default function UploadKYCDocumentsSection() {
                 PDF, JPG, PNG up to 5MB
               </p>
             </label>
-            {uploads.idProof && (
+            {documents?.id_proof?.file && (
               <div className="mt-2 px-3 py-2 rounded flex justify-between items-center text-sm bg-green-50 border border-green-300">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">📎</span>
                   <div>
-                    <p className="font-medium">{uploads.idProof.name}</p>
+                    <p className="font-medium">{documents.id_proof.file.name}</p>
                     <p
                       className={`text-sm font ${"text-[var(--color-theme)]"}`}
                     >
@@ -65,12 +62,14 @@ export default function UploadKYCDocumentsSection() {
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDelete("idProof")}
-                  className="text-red-500 text-xl cursor-pointer"
-                >
-                  <FaTrash className="h-4 w-4" />
-                </button>
+                {!disabled && (
+                  <button
+                    onClick={() => handleDelete("id_proof")}
+                    className="text-red-500 text-xl cursor-pointer"
+                  >
+                    <FaTrash className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -80,11 +79,12 @@ export default function UploadKYCDocumentsSection() {
             <label className="block text-sm font-medium">
               Business License/Certificate
             </label>
-            <label className="block border-2 border-gray-300 border-dotted rounded px-4 py-6 text-center text-sm cursor-pointer hover:bg-gray-50 mt-2">
+            <label className={`block border-2 border-gray-300 border-dotted rounded px-4 py-6 text-center text-sm mt-2 ${disabled ? 'cursor-not-allowed bg-gray-100' : 'cursor-pointer hover:bg-gray-50'}`}>
               <input
                 type="file"
                 className="hidden"
-                onChange={(e) => handleFileUpload(e, "license")}
+                disabled={disabled}
+                onChange={(e) => handleFileUpload(e, "business_license")}
               />
               <IoIosBusiness className="mx-auto" size={25} />
               <p className="text-gray-500">
@@ -97,12 +97,12 @@ export default function UploadKYCDocumentsSection() {
                 PDF, JPG, PNG up to 5MB
               </p>
             </label>
-            {uploads.license && (
+            {documents?.business_license?.file && (
               <div className="mt-2 px-3 py-2 rounded flex justify-between items-center text-sm bg-green-50 border border-green-300">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">📎</span>
                   <div>
-                    <p className="font-medium">{uploads.license.name}</p>
+                    <p className="font-medium">{documents.business_license.file.name}</p>
                     <p
                       className={`text-sm font ${"text-[var(--color-theme)]"}`}
                     >
@@ -110,12 +110,14 @@ export default function UploadKYCDocumentsSection() {
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDelete("license")}
-                  className="text-red-500 text-xl cursor-pointer"
-                >
-                  <FaTrash className="h-4 w-4" />
-                </button>
+                {!disabled && (
+                  <button
+                    onClick={() => handleDelete("business_license")}
+                    className="text-red-500 text-xl cursor-pointer"
+                  >
+                    <FaTrash className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -125,11 +127,12 @@ export default function UploadKYCDocumentsSection() {
             <label className="block text-sm font-medium">
               Proof of Address (Optional)
             </label>
-            <label className="block border-2 border-gray-300 border-dotted rounded px-4 py-6 text-center text-sm cursor-pointer hover:bg-gray-50 mt-2">
+            <label className={`block border-2 border-gray-300 border-dotted rounded px-4 py-6 text-center text-sm mt-2 ${disabled ? 'cursor-not-allowed bg-gray-100' : 'cursor-pointer hover:bg-gray-50'}`}>
               <input
                 type="file"
                 className="hidden"
-                onChange={(e) => handleFileUpload(e, "address")}
+                disabled={disabled}
+                onChange={(e) => handleFileUpload(e, "address_proof")}
               />
               <MdHome className="mx-auto" size={25} />
               <p className="text-gray-500">
@@ -142,12 +145,12 @@ export default function UploadKYCDocumentsSection() {
                 PDF, JPG, PNG up to 5MB
               </p>
             </label>
-            {uploads.address && (
+            {documents?.address_proof?.file && (
               <div className="mt-2 px-3 py-2 rounded flex justify-between items-center text-sm bg-green-50 border border-green-300">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">📎</span>
                   <div>
-                    <p className="font-medium">{uploads.address.name}</p>
+                    <p className="font-medium">{documents.address_proof.file.name}</p>
                     <p
                       className={`text-sm font ${"text-[var(--color-theme)]"}`}
                     >
@@ -155,12 +158,14 @@ export default function UploadKYCDocumentsSection() {
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDelete("address")}
-                  className="text-red-500 text-xl cursor-pointer"
-                >
-                  <FaTrash className="h-4 w-4" />
-                </button>
+                {!disabled && (
+                  <button
+                    onClick={() => handleDelete("address_proof")}
+                    className="text-red-500 text-xl cursor-pointer"
+                  >
+                    <FaTrash className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             )}
           </div>
