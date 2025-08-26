@@ -1,11 +1,11 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, CheckCircle } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -16,7 +16,6 @@ export default function ResetPasswordPage() {
   const [validatingSession, setValidatingSession] = useState(true);
   
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     // Handle password reset tokens from URL
@@ -274,5 +273,20 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-md p-8 w-full max-w-md text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading reset page...</p>
+        </div>
+      </div>
+    }>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }
