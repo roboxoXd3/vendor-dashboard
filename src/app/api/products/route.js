@@ -167,10 +167,8 @@ export async function POST(request) {
       }, { status: 404 })
     }
 
-    // Determine approval status based on vendor status
-    const approvalStatus = (vendor.status === 'approved' && vendor.is_active) 
-      ? 'approved' 
-      : 'pending'
+    // All new products require admin approval
+    const approvalStatus = 'pending'
 
     console.log(`📦 Creating product for vendor with status: ${vendor.status}, product approval_status: ${approvalStatus}`)
 

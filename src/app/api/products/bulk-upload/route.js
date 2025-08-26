@@ -28,7 +28,7 @@ export async function POST(request) {
 
     const supabase = getSupabaseServer()
     
-    // Check vendor approval status to determine product approval status
+    // All new products require admin approval
     const { data: vendor, error: vendorError } = await supabase
       .from('vendors')
       .select('status, is_active')
@@ -51,10 +51,8 @@ export async function POST(request) {
       }, { status: 404 })
     }
 
-    // Determine approval status based on vendor status
-    const approvalStatus = (vendor.status === 'approved' && vendor.is_active) 
-      ? 'approved' 
-      : 'pending'
+    // All new products require admin approval
+    const approvalStatus = 'pending'
 
     console.log(`📦 Bulk upload for vendor with status: ${vendor.status}, products approval_status: ${approvalStatus}`)
     
