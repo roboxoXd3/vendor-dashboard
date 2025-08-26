@@ -23,13 +23,104 @@ function ResetPasswordContent() {
       try {
         const supabase = getSupabase();
         
-        // Check if we have tokens in the URL (from email link)
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const access_token = hashParams.get('access_token');
-        const refresh_token = hashParams.get('refresh_token');
-        const type = hashParams.get('type');
+        console.log('🔍 Current URL:', window.location.href);
+        console.log('🔍 Hash:', window.location.hash);
+        console.log('🔍 Search:', window.location.search);
         
-        console.log('🔍 URL params:', { access_token: !!access_token, refresh_token: !!refresh_token, type });
+        // Check for tokens in URL hash (implicit flow)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        let access_token = hashParams.get('access_token');
+        let refresh_token = hashParams.get('refresh_token');
+        let type = hashParams.get('type');
+        
+        // If not in hash, check query parameters (PKCE flow)
+        if (!access_token) {
+          const searchParams = new URLSearchParams(window.location.search);
+          access_token = searchParams.get('access_token');
+          refresh_token = searchParams.get('refresh_token');
+          type = searchParams.get('type');
+          
+          // Check for different PKCE flow parameters
+          const token_hash = searchParams.get('token_hash');
+          const code = searchParams.get('code');
+          
+          if (token_hash && !access_token) {
+            console.log('🔍 Found token_hash, attempting PKCE verification...');
+            
+            const { data, error } = await supabase.auth.verifyOtp({
+              token_hash,
+              type: 'recovery'
+            });
+            
+            if (error) {
+              console.error('❌ Error verifying OTP:', error);
+              setError("Invalid or expired reset link. Please request a new password reset.");
+              return;
+            }
+            
+            console.log('✅ PKCE verification successful:', data.session?.user?.email);
+            console.log('✅ Ready for password reset');
+            setValidatingSession(false);
+            return;
+          }
+          
+          // Handle 'code' parameter (another PKCE flow variant)
+          if (code && !access_token) {
+            console.log('🔍 Found code parameter, attempting code exchange...');
+            
+            try {
+              // Try to exchange the code for a session
+              const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+              
+              if (error) {
+                console.error('❌ Error exchanging code:', error);
+                setError("Invalid or expired reset link. Please request a new password reset.");
+                return;
+              }
+              
+              console.log('✅ Code exchange successful:', data.session?.user?.email);
+              console.log('✅ Ready for password reset');
+              setValidatingSession(false);
+              return;
+            } catch (codeError) {
+              console.error('❌ Code exchange failed:', codeError);
+              
+              // Fallback: try treating it as a recovery token
+              try {
+                console.log('🔄 Trying code as recovery token...');
+                const { data, error } = await supabase.auth.verifyOtp({
+                  token: code,
+                  type: 'recovery'
+                });
+                
+                if (error) {
+                  console.error('❌ Error verifying code as OTP:', error);
+                  setError("Invalid or expired reset link. Please request a new password reset.");
+                  return;
+                }
+                
+                console.log('✅ Code verification successful:', data.session?.user?.email);
+                console.log('✅ Ready for password reset');
+                setValidatingSession(false);
+                return;
+              } catch (otpError) {
+                console.error('❌ All code verification methods failed:', otpError);
+                setError("Invalid or expired reset link. Please request a new password reset.");
+                return;
+              }
+            }
+          }
+        }
+        
+        const searchParams = new URLSearchParams(window.location.search);
+        console.log('🔍 Token params:', { 
+          access_token: !!access_token, 
+          refresh_token: !!refresh_token, 
+          type,
+          code: searchParams.get('code'),
+          token_hash: searchParams.get('token_hash'),
+          source: access_token ? (window.location.hash ? 'hash' : 'search') : 'none'
+        });
         
         if (access_token && refresh_token && type === 'recovery') {
           console.log('🔄 Setting session from URL tokens...');
@@ -53,6 +144,9 @@ function ResetPasswordContent() {
           
           if (error || !session) {
             console.log('❌ No valid session or tokens found');
+            console.log('🔍 Available URL params:');
+            console.log('  - Hash params:', Object.fromEntries(hashParams));
+            console.log('  - Search params:', Object.fromEntries(new URLSearchParams(window.location.search)));
             setError("Invalid or expired reset link. Please request a new password reset.");
             return;
           }
