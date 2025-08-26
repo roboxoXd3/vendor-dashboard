@@ -4,6 +4,7 @@ import { Mail, Phone, Eye, EyeOff, User, Building } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSupabase } from "@/lib/supabase";
+import ForgotPasswordModal from "@/components/ForgotPasswordModal";
 
 export default function LoginCard() {
   const [activeTab, setActiveTab] = useState("login");
@@ -12,6 +13,7 @@ export default function LoginCard() {
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   
   // Login form state
   const [loginData, setLoginData] = useState({
@@ -330,6 +332,7 @@ export default function LoginCard() {
               </label>
               <button
                 type="button"
+                onClick={() => setShowForgotPasswordModal(true)}
                 className="text-sm text-emerald-600 hover:text-emerald-500 font-medium"
               >
                 Forgot password?
@@ -567,6 +570,12 @@ export default function LoginCard() {
           </p>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal 
+        isOpen={showForgotPasswordModal}
+        onClose={() => setShowForgotPasswordModal(false)}
+      />
     </div>
   );
 }

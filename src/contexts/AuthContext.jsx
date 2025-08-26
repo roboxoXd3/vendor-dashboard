@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { getSupabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { cookieAuthService } from '@/services/cookieAuthService'
+import toast from 'react-hot-toast'
 
 const AuthContext = createContext()
 
@@ -253,6 +254,49 @@ export function AuthProvider({ children }) {
     return refreshInterval
   }
 
+  // Forgot password function
+  const forgotPassword = async (email) => {
+    const loadingToast = toast.loading('Sending password reset email...')
+    
+    try {
+      setLoading(true)
+      setError(null)
+      
+      console.log('📧 Sending password reset email to:', email)
+      
+      const supabase = getSupabase()
+      
+      // Use the vendor dashboard's deployed URL
+      const vendorDashboardUrl = 'https://vendor-dashboard-production.up.railway.app'
+      const resetUrl = `${vendorDashboardUrl}/reset-password`
+      
+      console.log('🔗 Vendor Dashboard Reset URL:', resetUrl)
+      
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        email,
+        {
+          redirectTo: resetUrl
+        }
+      )
+      
+      if (resetError) {
+        throw new Error(resetError.message)
+      }
+      
+      console.log('✅ Password reset email sent successfully')
+      toast.dismiss(loadingToast)
+      return { success: true, message: 'Password reset link sent to your email' }
+      
+    } catch (err) {
+      console.error('❌ Forgot password error:', err)
+      toast.dismiss(loadingToast)
+      setError(err.message)
+      return { success: false, error: err.message }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Fetch vendor profile (for refreshing after application submission)
   const fetchVendorProfile = async (userId) => {
     try {
@@ -286,6 +330,7 @@ export function AuthProvider({ children }) {
     refreshSession,
     validateCurrentSession,
     fetchVendorProfile,
+    forgotPassword,
     isAuthenticated: !!user,
     isVendor: !!vendor,
     isApprovedVendor: vendor?.status === 'approved',
