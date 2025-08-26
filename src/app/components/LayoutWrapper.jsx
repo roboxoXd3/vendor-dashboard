@@ -7,7 +7,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function LayoutWrapper({ children }) {
   const pathname = usePathname();
-  const noLayoutRoutes = ["/", "/vendor-pending", "/test-connection"];
+  const noLayoutRoutes = ["/", "/vendor-pending", "/test-connection", "/reset-password"];
   const productFormRoutes = ["/products/create"];
 
   const isPlainPage = noLayoutRoutes.includes(pathname) || 

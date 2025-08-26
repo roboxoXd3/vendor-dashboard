@@ -19,27 +19,58 @@ export default function ResetPasswordPage() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Check if we have a valid session for password reset
-    const validateResetSession = async () => {
+    // Handle password reset tokens from URL
+    const handlePasswordReset = async () => {
       try {
         const supabase = getSupabase();
-        const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (error || !session) {
-          setError("Invalid or expired reset link. Please request a new password reset.");
-          return;
+        // Check if we have tokens in the URL (from email link)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const access_token = hashParams.get('access_token');
+        const refresh_token = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
+        
+        console.log('🔍 URL params:', { access_token: !!access_token, refresh_token: !!refresh_token, type });
+        
+        if (access_token && refresh_token && type === 'recovery') {
+          console.log('🔄 Setting session from URL tokens...');
+          
+          // Set the session using tokens from URL
+          const { data, error } = await supabase.auth.setSession({
+            access_token,
+            refresh_token
+          });
+          
+          if (error) {
+            console.error('❌ Error setting session:', error);
+            setError("Invalid or expired reset link. Please request a new password reset.");
+            return;
+          }
+          
+          console.log('✅ Session set successfully:', data.session?.user?.email);
+        } else {
+          // Check if we already have a valid session
+          const { data: { session }, error } = await supabase.auth.getSession();
+          
+          if (error || !session) {
+            console.log('❌ No valid session or tokens found');
+            setError("Invalid or expired reset link. Please request a new password reset.");
+            return;
+          }
+          
+          console.log('✅ Existing session found:', session.user?.email);
         }
         
-        console.log("✅ Valid reset session found");
+        console.log('✅ Ready for password reset');
       } catch (err) {
-        console.error("❌ Error validating reset session:", err);
+        console.error('❌ Error handling password reset:', err);
         setError("Unable to validate reset session. Please try again.");
       } finally {
         setValidatingSession(false);
       }
     };
 
-    validateResetSession();
+    handlePasswordReset();
   }, []);
 
   const handleSubmit = async (e) => {
