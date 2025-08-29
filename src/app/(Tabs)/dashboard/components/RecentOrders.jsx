@@ -2,6 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRecentOrders } from '@/hooks/useVendor';
+import { useCurrencyContext } from '@/contexts/CurrencyContext';
 
 const statusColor = {
   delivered: "bg-green-100 text-green-600",
@@ -13,6 +14,7 @@ const statusColor = {
 
 export default function RecentOrders() {
   const { data: ordersData, isLoading, error } = useRecentOrders(5);
+  const { formatPrice } = useCurrencyContext();
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -22,8 +24,11 @@ export default function RecentOrders() {
     });
   };
 
-  const formatPrice = (price) => {
-    return `$${parseFloat(price).toFixed(2)}`;
+  const formatOrderPrice = (price) => {
+    return formatPrice(price, 'USD', {
+      showSymbol: true,
+      decimals: 2
+    });
   };
 
   const capitalizeFirst = (str) => {
@@ -117,7 +122,7 @@ export default function RecentOrders() {
             </div>
             <div className="text-right text-sm">
               <p>{formatDate(order.created_at)}</p>
-              <p className="font-medium">{formatPrice(order.total)}</p>
+              <p className="font-medium">{formatOrderPrice(order.total)}</p>
             </div>
           </div>
           ))

@@ -1,10 +1,12 @@
 'use client'
-import { FaDollarSign, FaShoppingCart, FaTag, FaBox } from "react-icons/fa";
+import { FaDollarSign, FaShoppingCart, FaTag, FaBox, FaUsers } from "react-icons/fa";
 import { FaArrowUp, FaArrowDown } from "react-icons/fa6";
 import { useDashboardStats } from '@/hooks/useVendor';
+import { useCurrencyContext } from '@/contexts/CurrencyContext';
 
 export default function DashboardPageCards() {
   const { data: statsData, isLoading, error } = useDashboardStats();
+  const { formatPrice, globalCurrency, getCurrencySymbol } = useCurrencyContext();
 
   if (isLoading) {
     return (
@@ -34,10 +36,16 @@ export default function DashboardPageCards() {
   const stats = statsData?.data;
   const avgOrderValue = stats?.totalOrders > 0 ? stats.totalSales / stats.totalOrders : 0;
 
+  // Format revenue with proper currency
+  const formattedRevenue = formatPrice(stats?.totalSales || 0, 'USD', {
+    showSymbol: true,
+    decimals: 2
+  });
+
   const items = [
     {
       title: "Total Revenue",
-      value: `$${(stats?.totalSales || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      value: formattedRevenue,
       icon: <FaDollarSign size={20} color="green" />,
       color: "bg-green-200",
       percent: "12%",
@@ -63,19 +71,19 @@ export default function DashboardPageCards() {
       trend: "up"
     },
     {
-      title: "Avg. Order Value",
-      value: `$${avgOrderValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      icon: <FaTag size={16} color="orange" />,
-      color: "bg-orange-200",
-      percent: "3%",
-      label: "Per order average",
+      title: "Followers",
+      value: (stats?.followerCount || 0).toLocaleString(),
+      icon: <FaUsers size={20} color="indigo" />,
+      color: "bg-indigo-200",
+      percent: "15%",
+      label: "People following your store",
       trend: "up"
     },
   ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-      {items.map((item, index) => (
+        {items.map((item, index) => (
         <div
           key={index}
           className="bg-white shadow-sm rounded-lg p-6 flex items-center gap-4"

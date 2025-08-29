@@ -1,7 +1,7 @@
 import { getSupabase } from '@/lib/supabase'
 
 export const vendorService = {
-  // Get vendor dashboard stats
+  // Get vendor dashboard stats using server-side API
   async getDashboardStats(vendorId) {
     try {
       console.log('📊 Fetching dashboard stats for vendor:', vendorId)
@@ -12,103 +12,33 @@ export const vendorService = {
         return { data: null, error: null }
       }
 
-      // Initialize Supabase client
-      const supabase = getSupabase()
+      // Call server-side API endpoint
+      const response = await fetch(`/api/dashboard-stats?vendorId=${vendorId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for authentication
+      })
 
-      // Get total products
-      const { count: productCount } = await supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true })
-        .eq('vendor_id', vendorId)
-        .eq('status', 'active')
-
-      // Initialize default values for orders-related stats
-      let orderCount = 0
-      let totalSales = 0
-      let pendingOrders = 0
-      let monthlyRevenue = {}
-      let recentOrders = []
-
-      try {
-        // Get total orders
-        const { count: orderCountResult } = await supabase
-          .from('orders')
-          .select('*', { count: 'exact', head: true })
-          .eq('vendor_id', vendorId)
-        orderCount = orderCountResult || 0
-
-        // Get total sales (completed orders)
-        const { data: salesData } = await supabase
-          .from('orders')
-          .select('total')
-          .eq('vendor_id', vendorId)
-          .in('status', ['completed', 'delivered'])
-        totalSales = salesData?.reduce((sum, order) => sum + parseFloat(order.total), 0) || 0
-
-        // Get pending orders
-        const { count: pendingOrdersResult } = await supabase
-          .from('orders')
-          .select('*', { count: 'exact', head: true })
-          .eq('vendor_id', vendorId)
-          .eq('status', 'pending')
-        pendingOrders = pendingOrdersResult || 0
-
-        // Get recent orders for chart data
-        const { data: recentOrdersResult } = await supabase
-          .from('orders')
-          .select('created_at, total, status')
-          .eq('vendor_id', vendorId)
-          .order('created_at', { ascending: false })
-          .limit(30)
-        recentOrders = recentOrdersResult || []
-
-        // Get monthly revenue for last 6 months
-        const sixMonthsAgo = new Date()
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-
-        const { data: monthlyData } = await supabase
-          .from('orders')
-          .select('created_at, total')
-          .eq('vendor_id', vendorId)
-          .in('status', ['completed', 'delivered'])
-          .gte('created_at', sixMonthsAgo.toISOString())
-          .order('created_at', { ascending: true })
-
-        // Process monthly revenue data
-        monthlyRevenue = {}
-        monthlyData?.forEach(order => {
-          const month = new Date(order.created_at).toISOString().slice(0, 7) // YYYY-MM
-          monthlyRevenue[month] = (monthlyRevenue[month] || 0) + parseFloat(order.total)
-        })
-
-      } catch (ordersError) {
-        // If orders table doesn't exist, log warning but continue with default values
-        if (ordersError.code === 'PGRST116' || ordersError.message?.includes('relation') || ordersError.message?.includes('does not exist')) {
-          console.warn('⚠️ Orders table not found, using default values for order statistics')
-        } else {
-          console.warn('⚠️ Error fetching order statistics:', ordersError.message)
-        }
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('❌ API error:', errorData)
+        throw new Error(errorData.error || 'Failed to fetch dashboard stats')
       }
 
-      const stats = {
-        totalProducts: productCount || 0,
-        totalOrders: orderCount,
-        totalSales: totalSales,
-        pendingOrders: pendingOrders,
-        monthlyRevenue: monthlyRevenue,
-        recentOrders: recentOrders
-      }
-
-      console.log('✅ Dashboard stats retrieved:', stats)
-      return { data: stats, error: null }
+      const result = await response.json()
+      console.log('✅ Dashboard stats retrieved from API:', result.data)
+      
+      return { data: result.data, error: null }
 
     } catch (error) {
       console.error('❌ Error fetching dashboard stats:', error)
-      return { data: null, error }
+      return { data: null, error: error.message }
     }
   },
 
-  // Get recent orders for dashboard
+  // Get recent orders using server-side API
   async getRecentOrders(vendorId, limit = 5) {
     try {
       // Check if vendorId is provided
@@ -117,36 +47,29 @@ export const vendorService = {
         return { data: [], error: null }
       }
 
-      const supabase = getSupabase()
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          order_number,
-          total,
-          status,
-          created_at,
-          user_id,
-          profiles!inner(full_name, email)
-        `)
-        .eq('vendor_id', vendorId)
-        .order('created_at', { ascending: false })
-        .limit(limit)
+      // Call server-side API endpoint
+      const response = await fetch(`/api/recent-orders?vendorId=${vendorId}&limit=${limit}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for authentication
+      })
 
-      if (error) {
-        // If the table doesn't exist or there's a schema error, return empty data
-        if (error.code === 'PGRST116' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
-          console.warn('⚠️ Orders table not found, returning empty data')
-          return { data: [], error: null }
-        }
-        throw error
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('❌ Recent orders API error:', errorData)
+        return { data: [], error: errorData.error }
       }
 
-      return { data: data || [], error: null }
+      const result = await response.json()
+      console.log('✅ Recent orders retrieved from API:', result.data?.length || 0)
+      
+      return { data: result.data || [], error: null }
     } catch (error) {
       console.error('❌ Error fetching recent orders:', error)
       // Return empty data instead of error to prevent UI crashes
-      return { data: [], error: null }
+      return { data: [], error: error.message }
     }
   },
 
@@ -189,6 +112,134 @@ export const vendorService = {
       return { data, error: null }
     } catch (error) {
       console.error('❌ Error updating vendor profile:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Get best selling products using performance summary view
+  async getBestSellingProducts(vendorId, limit = 5) {
+    try {
+      if (!vendorId) {
+        console.warn('⚠️ No vendor ID provided for getBestSellingProducts')
+        return { data: [], error: null }
+      }
+
+      const supabase = getSupabase()
+      
+      // Get vendor's product IDs first
+      const { data: vendorProducts, error: productsError } = await supabase
+        .from('products')
+        .select('id, vendor_id')
+        .eq('vendor_id', vendorId)
+        .eq('status', 'active')
+
+      if (productsError) throw productsError
+
+      if (!vendorProducts || vendorProducts.length === 0) {
+        return { data: [], error: null }
+      }
+
+      const productIds = vendorProducts.map(p => p.id)
+
+      // Get best selling products from performance summary view
+      const { data: bestSelling, error: summaryError } = await supabase
+        .from('product_performance_summary')
+        .select(`
+          id,
+          name,
+          orders_count,
+          total_revenue,
+          total_sold
+        `)
+        .in('id', productIds)
+        .order('orders_count', { ascending: false })
+        .limit(limit)
+
+      if (summaryError) throw summaryError
+
+      // Get additional product details
+      const { data: productDetails, error: detailsError } = await supabase
+        .from('products')
+        .select('id, sku, price, images')
+        .in('id', productIds)
+
+      if (detailsError) throw detailsError
+
+      // Combine the data
+      const combinedData = bestSelling?.map(product => {
+        const details = productDetails?.find(d => d.id === product.id)
+        return {
+          id: product.id,
+          name: product.name,
+          sku: details?.sku || 'N/A',
+          price: details?.price || 0,
+          images: details?.images || [],
+          orders_count: product.orders_count || 0,
+          total_revenue: product.total_revenue || 0,
+          total_sold: product.total_sold || 0
+        }
+      }) || []
+
+      console.log('✅ Best selling products retrieved from view:', combinedData.length)
+      return { data: combinedData, error: null }
+    } catch (error) {
+      console.error('❌ Error fetching best selling products:', error)
+      return { data: [], error }
+    }
+  },
+
+  // Get inventory status
+  async getInventoryStatus(vendorId) {
+    try {
+      if (!vendorId) {
+        console.warn('⚠️ No vendor ID provided for getInventoryStatus')
+        return { data: null, error: null }
+      }
+
+      const supabase = getSupabase()
+
+      // Get total products count
+      const { count: totalProducts } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('vendor_id', vendorId)
+        .eq('status', 'active')
+
+      // Get in stock products (stock_quantity > 10)
+      const { count: inStock } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('vendor_id', vendorId)
+        .eq('status', 'active')
+        .gt('stock_quantity', 10)
+
+      // Get low stock products (stock_quantity between 1-10)
+      const { count: lowStock } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('vendor_id', vendorId)
+        .eq('status', 'active')
+        .gte('stock_quantity', 1)
+        .lte('stock_quantity', 10)
+
+      // Get out of stock products (stock_quantity = 0)
+      const { count: outOfStock } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('vendor_id', vendorId)
+        .eq('status', 'active')
+        .eq('stock_quantity', 0)
+
+      const inventoryData = {
+        totalProducts: totalProducts || 0,
+        inStock: inStock || 0,
+        lowStock: lowStock || 0,
+        outOfStock: outOfStock || 0
+      }
+
+      return { data: inventoryData, error: null }
+    } catch (error) {
+      console.error('❌ Error fetching inventory status:', error)
       return { data: null, error }
     }
   },

@@ -42,11 +42,18 @@ export async function GET(request) {
       .eq('vendor_id', vendorId)
       .eq('is_featured', true)
 
+    // Get follower count
+    const { count: followerCount } = await supabase
+      .from('vendor_follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('vendor_id', vendorId)
+
     const stats = {
       totalProducts: totalProducts || 0,
       activeProducts: activeProducts || 0,
       outOfStock: outOfStock || 0,
-      featuredProducts: featuredProducts || 0
+      featuredProducts: featuredProducts || 0,
+      followerCount: followerCount || 0
     }
 
     console.log('✅ Product stats retrieved:', stats)

@@ -9,6 +9,8 @@ export const vendorKeys = {
   recentOrders: (vendorId) => [...vendorKeys.all, 'recent-orders', vendorId],
   profile: (vendorId) => [...vendorKeys.all, 'profile', vendorId],
   analytics: (vendorId, period) => [...vendorKeys.all, 'analytics', vendorId, period],
+  bestSelling: (vendorId) => [...vendorKeys.all, 'best-selling', vendorId],
+  inventory: (vendorId) => [...vendorKeys.all, 'inventory', vendorId],
 }
 
 // Dashboard Stats Hook
@@ -56,6 +58,30 @@ export function useSalesAnalytics(period = '30d') {
     queryFn: () => vendorService.getSalesAnalytics(vendor?.id, period),
     enabled: !!vendor?.id,
     staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+}
+
+// Best Selling Products Hook
+export function useBestSellingProducts(limit = 5) {
+  const { vendor } = useAuth()
+  
+  return useQuery({
+    queryKey: vendorKeys.bestSelling(vendor?.id),
+    queryFn: () => vendorService.getBestSellingProducts(vendor?.id, limit),
+    enabled: !!vendor?.id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+}
+
+// Inventory Status Hook
+export function useInventoryStatus() {
+  const { vendor } = useAuth()
+  
+  return useQuery({
+    queryKey: vendorKeys.inventory(vendor?.id),
+    queryFn: () => vendorService.getInventoryStatus(vendor?.id),
+    enabled: !!vendor?.id,
+    staleTime: 1000 * 60 * 2, // 2 minutes
   })
 }
 

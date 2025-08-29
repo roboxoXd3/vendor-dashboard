@@ -11,10 +11,28 @@ export default function VariantsOptionsStep({
   onNext, 
   onBack 
 }) {
-  const handleAddSize = () => {
+  const handleAddSizes = () => {
     const sizeInput = document.getElementById('new-size')
     if (sizeInput.value.trim()) {
-      addToArray('sizes', sizeInput.value.trim())
+      const input = sizeInput.value.trim()
+      
+      // Check if input contains commas (bulk input)
+      if (input.includes(',')) {
+        // Split by comma and clean up each size
+        const sizes = input
+          .split(',')
+          .map(size => size.trim())
+          .filter(size => size.length > 0) // Remove empty strings
+        
+        // Add each size to the array
+        sizes.forEach(size => {
+          addToArray('sizes', size)
+        })
+      } else {
+        // Single size input
+        addToArray('sizes', input)
+      }
+      
       sizeInput.value = ''
     }
   }
@@ -22,7 +40,25 @@ export default function VariantsOptionsStep({
   const handleAddColor = () => {
     const colorInput = document.getElementById('new-color')
     if (colorInput.value.trim()) {
-      addToArray('colors', colorInput.value.trim())
+      const input = colorInput.value.trim()
+      
+      // Check if input contains commas (bulk input)
+      if (input.includes(',')) {
+        // Split by comma and clean up each color
+        const colors = input
+          .split(',')
+          .map(color => color.trim())
+          .filter(color => color.length > 0) // Remove empty strings
+        
+        // Add each color to the array
+        colors.forEach(color => {
+          addToArray('colors', color)
+        })
+      } else {
+        // Single color input
+        addToArray('colors', input)
+      }
+      
       colorInput.value = ''
     }
   }
@@ -51,21 +87,27 @@ export default function VariantsOptionsStep({
         <div className="bg-gray-50 p-4 rounded-lg">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Available Sizes</h3>
           
-          <div className="flex gap-2 mb-4">
-            <input
-              id="new-size"
-              type="text"
-              placeholder="Enter size (e.g., S, M, L, XL)"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              onKeyPress={(e) => e.key === 'Enter' && handleAddSize()}
-            />
-            <button
-              type="button"
-              onClick={handleAddSize}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2"
-            >
-              <FaPlus size={12} /> Add Size
-            </button>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Add Sizes</label>
+            <div className="flex gap-2">
+              <input
+                id="new-size"
+                type="text"
+                placeholder="Single size (e.g., S) or multiple sizes (e.g., XS, S, M, L, XL)"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                onKeyPress={(e) => e.key === 'Enter' && handleAddSizes()}
+              />
+              <button
+                type="button"
+                onClick={handleAddSizes}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2"
+              >
+                <FaPlus size={12} /> Add
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Single size: "S" | Multiple sizes: "XS, S, M, L, XL" | Shoe sizes: "7, 8, 9, 10, 11"
+            </p>
           </div>
           
           <div className="flex flex-wrap gap-2">
@@ -98,7 +140,7 @@ export default function VariantsOptionsStep({
             <input
               id="new-color"
               type="text"
-              placeholder="Enter color (e.g., Red, Blue, #FF0000)"
+              placeholder="Single color (e.g., Red) or multiple colors (e.g., Red, Blue, Green)"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               onKeyPress={(e) => e.key === 'Enter' && handleAddColor()}
             />
@@ -110,6 +152,9 @@ export default function VariantsOptionsStep({
               <FaPlus size={12} /> Add Color
             </button>
           </div>
+          <p className="text-xs text-gray-500 mb-4">
+            Single color: "Red" | Multiple colors: "Red, Blue, Green" | Hex codes: "#FF0000, #00FF00"
+          </p>
           
           <div className="flex flex-wrap gap-2">
             {formData.colors.map((color, index) => (

@@ -5,6 +5,7 @@ import { testSupabaseConnection, testAuthStatus } from '@/lib/test-connection'
 export default function TestConnectionPage() {
   const [connectionResult, setConnectionResult] = useState(null)
   const [authResult, setAuthResult] = useState(null)
+  const [followerTest, setFollowerTest] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -22,7 +23,38 @@ export default function TestConnectionPage() {
     const authResult = await testAuthStatus()
     setAuthResult(authResult)
     
+    // Test follower functionality with the connection result
+    await testFollowerFunctionality(connResult)
+    
     setLoading(false)
+  }
+
+  const testFollowerFunctionality = async (connResult = null) => {
+    try {
+      // Use the passed connection result or the state
+      const connectionData = connResult || connectionResult
+      const sampleVendorId = connectionData?.sampleVendor?.id
+      
+      if (!sampleVendorId) {
+        setFollowerTest({ success: false, error: 'No sample vendor found' })
+        return
+      }
+
+      const response = await fetch(`/api/test-followers?vendorId=${sampleVendorId}`)
+      const data = await response.json()
+      
+      if (response.ok) {
+        setFollowerTest({ 
+          success: true, 
+          data: data.data,
+          vendorId: sampleVendorId
+        })
+      } else {
+        setFollowerTest({ success: false, error: data.error })
+      }
+    } catch (error) {
+      setFollowerTest({ success: false, error: error.message })
+    }
   }
 
   if (loading) {
@@ -112,6 +144,40 @@ export default function TestConnectionPage() {
                   </div>
                   <div className="text-sm text-gray-700">
                     <p>This is expected for initial setup. User needs to login.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Follower Test Results */}
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold mb-3">Follower Functionality Test</h2>
+            <div className={`p-4 rounded-lg ${
+              followerTest?.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+            }`}>
+              {followerTest?.success ? (
+                <div>
+                  <div className="flex items-center mb-2">
+                    <span className="text-green-600 text-xl mr-2">✅</span>
+                    <span className="font-medium text-green-800">Follower System Working!</span>
+                  </div>
+                  <div className="text-sm text-green-700 space-y-1">
+                    <p>• Vendor ID: {followerTest.vendorId}</p>
+                    <p>• Current followers: {followerTest.data?.count || 0}</p>
+                    {followerTest.data?.followers?.length > 0 && (
+                      <p>• Recent followers: {followerTest.data.followers.slice(0, 3).map(f => f.profiles?.full_name || 'Unknown').join(', ')}</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center mb-2">
+                    <span className="text-red-600 text-xl mr-2">❌</span>
+                    <span className="font-medium text-red-800">Follower Test Failed</span>
+                  </div>
+                  <div className="text-sm text-red-700">
+                    <p><strong>Error:</strong> {followerTest?.error || 'Unknown error'}</p>
                   </div>
                 </div>
               )}
