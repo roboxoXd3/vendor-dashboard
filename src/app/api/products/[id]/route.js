@@ -81,42 +81,66 @@ export async function PUT(request, { params }) {
     // Updating product
     const supabase = getSupabaseServer()
 
-    // Prepare updates with proper data types
-    const productUpdates = {
-      ...updates,
-      updated_at: new Date().toISOString()
-    }
-
     // Handle images field - convert array to JSON string if it's an array
-    if (productUpdates.images && Array.isArray(productUpdates.images)) {
-      productUpdates.images = JSON.stringify(productUpdates.images)
+    let imagesField = updates.images
+    if (updates.images && Array.isArray(updates.images)) {
+      imagesField = JSON.stringify(updates.images)
     }
 
     // Handle UUID fields - convert empty strings to null
-    if (productUpdates.category_id === '') {
-      productUpdates.category_id = null
+    let categoryId = updates.category_id
+    if (categoryId === '') {
+      categoryId = null
+    }
+    
+    let sizeChartTemplateId = updates.size_chart_template_id
+    if (sizeChartTemplateId === '') {
+      sizeChartTemplateId = null
     }
 
-    // Handle numeric fields
-    if (productUpdates.price) {
-      productUpdates.price = Number(productUpdates.price)
-    }
-    if (productUpdates.stock_quantity !== undefined) {
-      productUpdates.stock_quantity = Number(productUpdates.stock_quantity)
-      productUpdates.in_stock = productUpdates.stock_quantity > 0
-    }
-    if (productUpdates.weight) {
-      productUpdates.weight = Number(productUpdates.weight)
-    }
+    // Debug: Log the data being sent
+    console.log('🔍 Debug - RPC function parameters:', {
+      p_product_id: id,
+      p_category_id: categoryId,
+      p_size_chart_template_id: sizeChartTemplateId,
+      p_size_chart_override: updates.size_chart_override
+    })
 
-    // Final update object prepared
-
+    // Use the robust RPC function to update the product
     const { data, error } = await supabase
-      .from('products')
-      .update(productUpdates)
-      .eq('id', id)
-      .select()
-      .single()
+      .rpc('update_product_complete', {
+        p_product_id: id,
+        p_name: updates.name,
+        p_description: updates.description,
+        p_price: updates.price ? Number(updates.price) : null,
+        p_mrp: updates.mrp ? Number(updates.mrp) : null,
+        p_sale_price: updates.sale_price ? Number(updates.sale_price) : null,
+        p_stock_quantity: updates.stock_quantity ? Number(updates.stock_quantity) : null,
+        p_weight: updates.weight ? Number(updates.weight) : null,
+        p_category_id: categoryId,
+        p_brand: updates.brand,
+        p_sku: updates.sku,
+        p_images: imagesField,
+        p_video_url: updates.video_url,
+        p_sizes: updates.sizes,
+        p_colors: updates.colors,
+        p_tags: updates.tags,
+        p_color_images: updates.color_images,
+        p_dimensions: updates.dimensions,
+        p_box_contents: updates.box_contents,
+        p_usage_instructions: updates.usage_instructions,
+        p_care_instructions: updates.care_instructions,
+        p_safety_notes: updates.safety_notes,
+        p_is_featured: updates.is_featured,
+        p_is_new_arrival: updates.is_new_arrival,
+        p_shipping_required: updates.shipping_required,
+        p_size_chart_override: updates.size_chart_override,
+        p_size_chart_template_id: sizeChartTemplateId,
+        p_size_guide_type: updates.size_guide_type,
+        p_custom_size_chart_data: updates.custom_size_chart_data,
+        p_subtitle: updates.subtitle,
+        p_currency: updates.currency
+      })
 
     if (error) {
       if (error.code === 'PGRST116') {

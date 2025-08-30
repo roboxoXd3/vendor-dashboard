@@ -49,6 +49,12 @@ export const useProductForm = (initialData = {}) => {
     is_new_arrival: true,
     shipping_required: true,
     
+    // Size Chart Settings
+    size_chart_override: 'auto',
+    size_chart_template_id: '',
+    size_guide_type: 'template',
+    custom_size_chart_data: null,
+    
     // Override with initial data
     ...initialData
   })

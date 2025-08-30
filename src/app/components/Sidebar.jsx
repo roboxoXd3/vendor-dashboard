@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CiShop } from "react-icons/ci";
 import { FaChartLine, FaCartShopping, FaMoneyBillWave } from "react-icons/fa6";
-import { FaBox, FaChartPie, FaStar } from "react-icons/fa";
+import { FaBox, FaChartPie, FaStar, FaRuler } from "react-icons/fa";
 import { BiSupport } from "react-icons/bi";
 import { IoMdSettings } from "react-icons/io";
 import { FiHelpCircle } from "react-icons/fi";
@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const menu = [
   { name: "Dashboard", icon: <FaChartLine />, href: "/dashboard" },
   { name: "Products", icon: <FaBox />, href: "/products" },
+  { name: "Size Charts", icon: <FaRuler />, href: "/size-charts" },
   { name: "Orders", icon: <FaCartShopping />, href: "/orders" },
   { name: "Reviews", icon: <FaStar />, href: "/reviews" },
   { name: "Questions", icon: <FiHelpCircle />, href: "/questions" },

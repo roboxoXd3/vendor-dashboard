@@ -1,33 +1,24 @@
 import { getSupabaseServer } from '@/lib/supabase-server'
 
-// GET /api/categories - Get all categories
-export async function GET(request) {
-  try {
-    console.log('📂 Fetching categories')
+export async function GET() {
+  const supabase = getSupabaseServer()
 
-    const supabase = getSupabaseServer()
+  try {
     const { data, error } = await supabase
       .from('categories')
-      .select('*')
-      .order('name', { ascending: true })
+      .select('id, name')
+      .order('name')
 
-    if (error) {
-      throw error
-    }
+    if (error) throw error
 
-    console.log(`✅ Retrieved ${data?.length || 0} categories`)
-    
-    return Response.json({
+    return Response.json({ 
       success: true,
-      categories: data || []
+      categories: data 
     })
-
   } catch (error) {
-    console.error('❌ Error fetching categories:', error)
     return Response.json({ 
       success: false,
-      error: 'Internal server error',
-      message: error.message 
+      error: error.message 
     }, { status: 500 })
   }
 }

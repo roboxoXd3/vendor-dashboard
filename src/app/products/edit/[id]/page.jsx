@@ -93,7 +93,13 @@ export default function EditProductPage({ params }) {
           
           is_featured: product.is_featured || false,
           is_new_arrival: product.is_new_arrival || false,
-          shipping_required: product.shipping_required !== false
+          shipping_required: product.shipping_required !== false,
+          
+          // Size chart related fields
+          size_chart_override: product.size_chart_override || 'auto',
+          size_chart_template_id: product.size_chart_template_id || '',
+          size_guide_type: product.size_guide_type || 'template',
+          custom_size_chart_data: product.custom_size_chart_data || null
         }
 
                        // Product data loaded successfully
