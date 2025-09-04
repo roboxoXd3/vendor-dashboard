@@ -25,6 +25,27 @@ export function getSupabase() {
       storage: typeof window !== 'undefined' ? window.localStorage : undefined,
       storageKey: 'vendor-dashboard-auth-token', // Custom storage key for vendor dashboard
       flowType: 'pkce' // Use PKCE flow for better security
+    },
+    global: {
+      fetch: (url, options = {}) => {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+        
+        return fetch(url, {
+          ...options,
+          signal: controller.signal
+        }).finally(() => {
+          clearTimeout(timeoutId)
+        })
+      }
+    },
+    db: {
+      schema: 'public'
+    },
+    realtime: {
+      params: {
+        eventsPerSecond: 10
+      }
     }
   })
 }

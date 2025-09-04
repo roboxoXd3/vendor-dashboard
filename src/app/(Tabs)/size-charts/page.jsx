@@ -179,9 +179,11 @@ function SizeChartModal({ chart, onClose, onSave }) {
   })
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false) // Add admin check
 
   useEffect(() => {
     loadCategories()
+    checkAdminStatus()
     if (chart) {
       setFormData({
         name: chart.name || '',
@@ -197,6 +199,52 @@ function SizeChartModal({ chart, onClose, onSave }) {
     }
   }, [chart])
 
+  const checkAdminStatus = async () => {
+    try {
+      // Check if current user is admin (you can implement this based on your auth system)
+      const response = await fetch('/api/auth/check-admin')
+      const data = await response.json()
+      setIsAdmin(data.isAdmin || false)
+    } catch (error) {
+      console.error('Error checking admin status:', error)
+      setIsAdmin(false)
+    }
+  }
+
+  // Get default measurement types based on category
+  const getDefaultMeasurementTypes = (categoryName) => {
+    if (!categoryName) return ['Chest', 'Waist', 'Length']
+    
+    const category = categoryName.toLowerCase()
+    
+    if (category.includes('trouser') || category.includes('pant') || category.includes('jeans') || category.includes('bottom')) {
+      return ['Waist', 'Hip', 'Length', 'Thigh', 'Knee']
+    }
+    
+    if (category.includes('shirt') || category.includes('top') || category.includes('t-shirt') || category.includes('blouse')) {
+      return ['Chest', 'Waist', 'Length', 'Shoulder', 'Sleeve']
+    }
+    
+    if (category.includes('dress')) {
+      return ['Chest', 'Waist', 'Hip', 'Length', 'Shoulder']
+    }
+    
+    if (category.includes('jacket') || category.includes('coat')) {
+      return ['Chest', 'Waist', 'Length', 'Shoulder', 'Sleeve']
+    }
+    
+    if (category.includes('shoe') || category.includes('footwear')) {
+      return ['Length', 'Width']
+    }
+    
+    if (category.includes('accessory') || category.includes('jewelry')) {
+      return ['Circumference', 'Length']
+    }
+    
+    // Default for other categories
+    return ['Chest', 'Waist', 'Length']
+  }
+
   const loadCategories = async () => {
     try {
       const response = await fetch('/api/categories')
@@ -205,6 +253,24 @@ function SizeChartModal({ chart, onClose, onSave }) {
     } catch (error) {
       console.error('Error loading categories:', error)
     }
+  }
+
+  const handleCategoryChange = (categoryId) => {
+    const selectedCategory = categories.find(cat => cat.id === categoryId)
+    const defaultTypes = getDefaultMeasurementTypes(selectedCategory?.name)
+    
+    setFormData(prev => ({
+      ...prev,
+      category_id: categoryId,
+      measurement_types: defaultTypes,
+      entries: prev.entries.map(entry => {
+        const newMeasurements = {}
+        defaultTypes.forEach(type => {
+          newMeasurements[type] = entry.measurements[type] || ''
+        })
+        return { ...entry, measurements: newMeasurements }
+      })
+    }))
   }
 
   const handleSubmit = async (e) => {
@@ -307,7 +373,7 @@ function SizeChartModal({ chart, onClose, onSave }) {
               </label>
               <select
                 value={formData.category_id}
-                onChange={(e) => setFormData({...formData, category_id: e.target.value})}
+                onChange={(e) => handleCategoryChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
                 <option value="">All Categories</option>
@@ -315,6 +381,9 @@ function SizeChartModal({ chart, onClose, onSave }) {
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
+              <p className="text-xs text-gray-500 mt-1">
+                💡 Selecting a category will automatically set appropriate measurement types
+              </p>
             </div>
           </div>
 
@@ -332,13 +401,16 @@ function SizeChartModal({ chart, onClose, onSave }) {
                 + Add Type
               </button>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mb-2">
               {formData.measurement_types.map((type, index) => (
                 <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
                   {type}
                 </span>
               ))}
             </div>
+            <p className="text-xs text-gray-500">
+              💡 Common measurements: Chest (for tops), Waist (for bottoms), Length (for all), Hip (for dresses/bottoms)
+            </p>
           </div>
 
           {/* Measurement Instructions */}

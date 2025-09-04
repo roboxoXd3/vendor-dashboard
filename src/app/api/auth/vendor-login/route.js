@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { getSupabaseServer } from '@/lib/supabase-server'
+import { performSupabaseOperation, getErrorMessage, isNetworkError } from '@/lib/supabase-utils'
 
 export async function POST(request) {
   try {
@@ -18,16 +19,19 @@ export async function POST(request) {
     // Get Supabase server client (bypasses RLS)
     const supabase = getSupabaseServer()
 
-    // Authenticate with Supabase
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
+    // Authenticate with Supabase using enhanced retry logic
+    const authResult = await performSupabaseOperation(
+      () => supabase.auth.signInWithPassword({ email, password }),
+      'User authentication'
+    )
+
+    const { data: authData, error: authError } = authResult
 
     if (authError || !authData.user) {
       console.error('❌ Authentication failed:', authError?.message)
+      const errorMessage = getErrorMessage(authError || new Error('Authentication failed'))
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { error: errorMessage },
         { status: 401 }
       )
     }

@@ -1,31 +1,44 @@
 import { getSupabaseServer } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
+import { performSupabaseOperation, getErrorMessage } from '@/lib/supabase-utils'
 
 // GET /api/currency - Get supported currencies and current rates
 export async function GET(request) {
   try {
     const supabase = getSupabaseServer()
     
-    // Get supported currencies from app_settings
-    const { data: currencySettings, error: settingsError } = await supabase
-      .from('app_settings')
-      .select('setting_value')
-      .in('setting_key', ['supported_currencies', 'default_currency'])
+    // Get supported currencies from app_settings with retry logic
+    const settingsResult = await performSupabaseOperation(
+      () => supabase
+        .from('app_settings')
+        .select('setting_value')
+        .in('setting_key', ['supported_currencies', 'default_currency']),
+      'Fetch currency settings'
+    )
+    
+    const { data: currencySettings, error: settingsError } = settingsResult
     
     if (settingsError) {
       console.error('Error fetching currency settings:', settingsError)
-      return NextResponse.json({ error: 'Failed to fetch currency settings' }, { status: 500 })
+      const errorMessage = getErrorMessage(settingsError)
+      return NextResponse.json({ error: errorMessage }, { status: 500 })
     }
 
-    // Get current exchange rates
-    const { data: rates, error: ratesError } = await supabase
-      .from('currency_rates')
-      .select('from_currency, to_currency, rate, updated_at')
-      .order('updated_at', { ascending: false })
+    // Get current exchange rates with retry logic
+    const ratesResult = await performSupabaseOperation(
+      () => supabase
+        .from('currency_rates')
+        .select('from_currency, to_currency, rate, updated_at')
+        .order('updated_at', { ascending: false }),
+      'Fetch currency rates'
+    )
+    
+    const { data: rates, error: ratesError } = ratesResult
 
     if (ratesError) {
       console.error('Error fetching currency rates:', ratesError)
-      return NextResponse.json({ error: 'Failed to fetch currency rates' }, { status: 500 })
+      const errorMessage = getErrorMessage(ratesError)
+      return NextResponse.json({ error: errorMessage }, { status: 500 })
     }
 
     // Process the data
