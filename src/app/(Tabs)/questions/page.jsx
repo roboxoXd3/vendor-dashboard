@@ -83,29 +83,30 @@ export default function QuestionsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Questions & Answers</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Questions & Answers</h1>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">
             Manage customer questions about your products
           </p>
         </div>
         
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 sm:space-x-3">
           <button
             onClick={() => handleFilterChange({ hasAnswer: filters.hasAnswer === 'false' ? '' : 'false' })}
-            className={`flex items-center px-4 py-2 rounded-md text-sm font-medium ${
+            className={`flex items-center px-3 sm:px-4 py-2 rounded-md text-sm font-medium ${
               filters.hasAnswer === 'false'
                 ? 'bg-orange-100 text-orange-700 border border-orange-200'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            <FiHelpCircle className="w-4 h-4 mr-2" />
-            Needs Answer
+            <FiHelpCircle className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Needs Answer</span>
+            <span className="sm:hidden">Pending</span>
             {stats && (
-              <span className="ml-2 px-2 py-0.5 bg-orange-500 text-white text-xs rounded-full">
+              <span className="ml-1 sm:ml-2 px-1.5 sm:px-2 py-0.5 bg-orange-500 text-white text-xs rounded-full">
                 {stats.needingAnswer}
               </span>
             )}

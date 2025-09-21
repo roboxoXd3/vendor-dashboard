@@ -47,15 +47,15 @@ export default function QAPageCards({ stats, isLoading }) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {[...Array(4)].map((_, index) => (
-          <div key={index} className="bg-white p-6 rounded-lg shadow-sm border animate-pulse">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-8 h-8 bg-gray-200 rounded"></div>
-              <div className="w-16 h-4 bg-gray-200 rounded"></div>
+          <div key={index} className="bg-white p-3 sm:p-6 rounded-lg shadow-sm border animate-pulse">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-200 rounded"></div>
+              <div className="w-12 h-3 sm:w-16 sm:h-4 bg-gray-200 rounded"></div>
             </div>
-            <div className="w-20 h-8 bg-gray-200 rounded mb-2"></div>
-            <div className="w-24 h-3 bg-gray-200 rounded"></div>
+            <div className="w-16 h-6 sm:w-20 sm:h-8 bg-gray-200 rounded mb-2"></div>
+            <div className="w-20 h-2 sm:w-24 sm:h-3 bg-gray-200 rounded"></div>
           </div>
         ))}
       </div>
@@ -63,34 +63,34 @@ export default function QAPageCards({ stats, isLoading }) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
       {cards.map((card, index) => {
         const Icon = card.icon;
         return (
-          <div key={index} className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <div className={`p-2 rounded-lg border ${getColorClasses(card.color)}`}>
-                <Icon className="w-5 h-5" />
+          <div key={index} className="bg-white p-3 sm:p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className={`p-1.5 sm:p-2 rounded-lg border ${getColorClasses(card.color)}`}>
+                <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-gray-900">
+                <div className="text-lg sm:text-2xl font-bold text-gray-900">
                   {card.value}{card.suffix || ''}
                 </div>
               </div>
             </div>
             
             <div>
-              <h3 className="text-sm font-medium text-gray-900 mb-1">
+              <h3 className="text-xs sm:text-sm font-medium text-gray-900 mb-1">
                 {card.title}
               </h3>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 hidden sm:block">
                 {card.description}
               </p>
             </div>
 
             {/* Status breakdown for total questions card */}
             {card.title === "Total Questions" && stats?.byStatus && (
-              <div className="mt-4 space-y-1">
+              <div className="mt-2 sm:mt-4 space-y-1 hidden sm:block">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-gray-500">Pending</span>
                   <span className="font-medium">{stats.byStatus.pending || 0}</span>
