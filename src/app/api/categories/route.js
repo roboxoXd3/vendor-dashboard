@@ -4,16 +4,36 @@ export async function GET() {
   const supabase = getSupabaseServer()
 
   try {
+    // Fetch categories with their subcategories
     const { data, error } = await supabase
       .from('categories')
-      .select('id, name')
+      .select(`
+        id, 
+        name, 
+        description,
+        subcategories (
+          id,
+          name,
+          description,
+          is_active
+        )
+      `)
+      .eq('is_active', true)
       .order('name')
 
     if (error) throw error
 
+    // Transform the data to include subcategories in a more accessible format
+    const categoriesWithSubcategories = data.map(category => ({
+      id: category.id,
+      name: category.name,
+      description: category.description,
+      subcategories: category.subcategories?.filter(sub => sub.is_active) || []
+    }))
+
     return Response.json({ 
       success: true,
-      categories: data 
+      categories: categoriesWithSubcategories 
     })
   } catch (error) {
     return Response.json({ 

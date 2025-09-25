@@ -60,9 +60,6 @@ export default function ProductCard({ product, onUpdate }) {
         if (Array.isArray(product.images) && product.images.length > 0) {
           const firstImage = product.images[0];
           const imageUrl = typeof firstImage === 'string' ? firstImage : 'https://via.placeholder.com/300x200?text=No+Image';
-          
-
-          
           return imageUrl;
         }
         
@@ -77,16 +74,10 @@ export default function ProductCard({ product, onUpdate }) {
             if (Array.isArray(parsed) && parsed.length > 0) {
               const firstImage = parsed[0];
               const imageUrl = typeof firstImage === 'string' ? firstImage : 'https://via.placeholder.com/300x200?text=No+Image';
-              
-
-              
               return imageUrl;
             } else if (parsed && typeof parsed === 'object' && parsed.main && Array.isArray(parsed.main) && parsed.main.length > 0) {
               const firstImage = parsed.main[0];
               const imageUrl = typeof firstImage === 'string' ? firstImage : 'https://via.placeholder.com/300x200?text=No+Image';
-              
-
-              
               return imageUrl;
             }
           } catch (parseError) {
@@ -119,7 +110,6 @@ export default function ProductCard({ product, onUpdate }) {
       onUpdate?.();
       setShowDeleteConfirm(false);
     } catch (error) {
-      console.error('Error deleting product:', error);
       alert('Failed to delete product. Please try again.');
     }
   };
@@ -199,10 +189,6 @@ export default function ProductCard({ product, onUpdate }) {
           className="flex items-center gap-1 hover:text-emerald-600 cursor-pointer transition-colors"
         >
           <FaEdit className="h-4 w-4" /> Edit
-        </button>
-
-        <button className="flex items-center gap-1 hover:text-blue-600 cursor-pointer transition-colors">
-          <FaChartBar className="h-4 w-4" /> Stats
         </button>
         <button 
           onClick={() => setShowDeleteConfirm(true)}

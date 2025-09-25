@@ -93,6 +93,11 @@ export async function PUT(request, { params }) {
       categoryId = null
     }
     
+    let subcategoryId = updates.subcategory_id
+    if (subcategoryId === '') {
+      subcategoryId = null
+    }
+    
     let sizeChartTemplateId = updates.size_chart_template_id
     if (sizeChartTemplateId === '') {
       sizeChartTemplateId = null
@@ -118,6 +123,7 @@ export async function PUT(request, { params }) {
         p_stock_quantity: updates.stock_quantity ? Number(updates.stock_quantity) : null,
         p_weight: updates.weight ? Number(updates.weight) : null,
         p_category_id: categoryId,
+        p_subcategory_id: subcategoryId,
         p_brand: updates.brand,
         p_sku: updates.sku,
         p_images: imagesField,

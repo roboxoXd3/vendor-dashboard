@@ -25,7 +25,6 @@ export const reviewsService = {
         params.append('hasResponse', options.hasResponse)
       }
 
-      console.log('🔍 Fetching reviews with params:', params.toString())
 
       const response = await fetch(`/api/reviews?${params.toString()}`)
       
@@ -35,11 +34,10 @@ export const reviewsService = {
       }
 
       const data = await response.json()
-      console.log('✅ Reviews fetched:', data.data.reviews.length, 'reviews')
       
       return data.data
     } catch (error) {
-      console.error('❌ Error fetching reviews:', error)
+      console.error('Error fetching reviews:', error)
       throw error
     }
   },
@@ -67,11 +65,10 @@ export const reviewsService = {
       }
 
       const data = await response.json()
-      console.log('✅ Review response added successfully')
       
       return data.data
     } catch (error) {
-      console.error('❌ Error responding to review:', error)
+      console.error('Error responding to review:', error)
       throw error
     }
   },
@@ -79,7 +76,6 @@ export const reviewsService = {
   // Hide/Show review
   async updateReviewVisibility(reviewId, action) {
     try {
-      console.log('👁️ Updating review visibility:', reviewId, action)
 
       const response = await fetch('/api/reviews', {
         method: 'PUT',
@@ -98,11 +94,10 @@ export const reviewsService = {
       }
 
       const data = await response.json()
-      console.log('✅ Review visibility updated successfully')
       
       return data.data
     } catch (error) {
-      console.error('❌ Error updating review visibility:', error)
+      console.error('Error updating review visibility:', error)
       throw error
     }
   },
@@ -173,11 +168,10 @@ export const reviewsService = {
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
 
-      console.log('✅ Reviews exported successfully')
       
       return { success: true, count: reviews.length }
     } catch (error) {
-      console.error('❌ Error exporting reviews:', error)
+      console.error('Error exporting reviews:', error)
       throw error
     }
   }

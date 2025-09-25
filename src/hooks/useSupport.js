@@ -49,7 +49,6 @@ export function useSupport() {
         }
       }
     } catch (error) {
-      console.error('Error fetching tickets:', error);
       toast.error(error.message || 'Failed to load tickets');
     } finally {
       if (showLoading) setLoading(false);
@@ -71,7 +70,6 @@ export function useSupport() {
         setActiveTicket(response.ticket);
       }
     } catch (error) {
-      console.error('Error fetching messages:', error);
       if (showLoading) {
         toast.error(error.message || 'Failed to load messages');
       }
@@ -95,7 +93,6 @@ export function useSupport() {
       toast.success('Ticket created successfully');
       return response;
     } catch (error) {
-      console.error('Error creating ticket:', error);
       toast.error(error.message || 'Failed to create ticket');
       throw error;
     }
@@ -117,7 +114,6 @@ export function useSupport() {
       
       return response;
     } catch (error) {
-      console.error('Error sending message:', error);
       throw error;
     } finally {
       setSendingMessage(false);

@@ -162,39 +162,39 @@ export default function ProductForm({
       {/* Full Screen Layout */}
       <div className="h-full flex flex-col">
         {/* Top Header Bar */}
-        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               {onBack && (
                 <button
                   onClick={onBack}
-                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
                 >
                   <FaArrowLeft size={20} />
                 </button>
               )}
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
                   {isEdit ? 'Edit Product' : 'Add New Product'}
                 </h1>
-                <p className="text-gray-600 text-sm">
+                <p className="text-gray-600 text-xs sm:text-sm hidden sm:block">
                   {isEdit ? 'Update your product information' : 'Create a new product for your store'}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
               {/* Mobile Preview Button */}
               <button
                 onClick={() => setShowMobilePreview(true)}
-                className="xl:hidden px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2"
+                className="xl:hidden px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
               >
-                <FaMobile size={16} />
-                Preview
+                <FaMobile size={14} className="sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Preview</span>
               </button>
 
               {/* Step Indicator */}
-              <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2">
                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
                 <span className="text-sm font-medium text-gray-700">
                   Step {currentStep} of {steps.length}: {steps.find(s => s.number === currentStep)?.title}
@@ -203,8 +203,30 @@ export default function ProductForm({
             </div>
           </div>
 
-          {/* Compact Progress Bar */}
-          <div className="mt-4">
+          {/* Mobile Step Indicator */}
+          <div className="mt-3 sm:hidden">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                <span className="text-xs font-medium text-gray-700">
+                  Step {currentStep} of {steps.length}
+                </span>
+              </div>
+              <span className="text-xs text-gray-500">
+                {steps.find(s => s.number === currentStep)?.title}
+              </span>
+            </div>
+            <div className="relative mt-2">
+              <div className="h-1 bg-gray-200 rounded-full"></div>
+              <div 
+                className="absolute top-0 left-0 h-1 bg-emerald-500 rounded-full transition-all duration-300 ease-in-out"
+                style={{ width: `${(currentStep / steps.length) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Desktop Progress Bar */}
+          <div className="mt-4 hidden sm:block">
             <div className="relative">
               <div className="h-2 bg-gray-200 rounded-full"></div>
               <div 
@@ -245,7 +267,7 @@ export default function ProductForm({
         <div className="flex-1 flex overflow-hidden">
           {/* Form Section - Scrollable */}
           <div className="flex-1 xl:w-1/2 overflow-y-auto">
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <form onSubmit={onSubmit} className="max-w-4xl">
                 {renderStep()}
               </form>
@@ -270,23 +292,23 @@ export default function ProductForm({
 
         {/* Mobile Preview Modal */}
         {showMobilePreview && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[95vh] overflow-hidden">
-              <div className="flex items-center justify-between mb-6">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 max-w-sm sm:max-w-md w-full max-h-[95vh] overflow-hidden">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Live Mobile Preview</h3>
-                  <p className="text-sm text-gray-600">Full mobile experience</p>
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900">Live Mobile Preview</h3>
+                  <p className="text-xs sm:text-sm text-gray-600">Full mobile experience</p>
                 </div>
                 <button
                   onClick={() => setShowMobilePreview(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl font-bold"
+                  className="text-gray-500 hover:text-gray-700 text-xl font-bold p-1"
                 >
                   ✕
                 </button>
               </div>
               
               <div className="flex justify-center overflow-hidden">
-                <div className="transform scale-90 origin-top">
+                <div className="transform scale-75 sm:scale-90 origin-top">
                   <MobilePhonePreview 
                     formData={formData} 
                     categories={categories}

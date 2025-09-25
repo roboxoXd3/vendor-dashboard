@@ -183,6 +183,7 @@ export async function POST(request) {
       sizes: productData.sizes || [],
       colors: productData.colors || [],
       category_id: productData.category_id === '' ? null : productData.category_id, // Handle empty string
+      subcategory_id: productData.subcategory_id === '' ? null : productData.subcategory_id, // Handle empty string
       brand: productData.brand || '',
       stock_quantity: Number(productData.stock_quantity) || 0,
       sku: productData.sku || `SKU-${Date.now()}`,

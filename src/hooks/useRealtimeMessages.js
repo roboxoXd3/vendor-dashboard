@@ -39,8 +39,6 @@ export const useRealtimeMessages = ({
 
   // Handle connection errors and implement reconnection logic
   const handleConnectionError = useCallback((error) => {
-    console.error('Realtime connection error:', error);
-    
     if (onError) {
       onError(error);
     }
@@ -50,15 +48,12 @@ export const useRealtimeMessages = ({
       const delay = reconnectDelay * Math.pow(2, reconnectAttemptsRef.current);
       reconnectAttemptsRef.current++;
       
-      console.log(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
-      
       reconnectTimeoutRef.current = setTimeout(() => {
         if (ticketId && enabled) {
           setupSubscription();
         }
       }, delay);
     } else {
-      console.error('Max reconnection attempts reached. Please refresh the page.');
       toast.error('Connection lost. Please refresh the page to reconnect.');
     }
   }, [ticketId, enabled, onError]);
@@ -73,8 +68,6 @@ export const useRealtimeMessages = ({
       // Clean up existing subscription
       cleanup();
 
-      console.log(`🔌 Setting up realtime subscription for ticket: ${ticketId}`);
-
       subscriptionRef.current = supabase
         .channel(`support-messages-${ticketId}`)
         .on(
@@ -86,7 +79,6 @@ export const useRealtimeMessages = ({
             filter: `ticket_id=eq.${ticketId}`
           },
           (payload) => {
-            console.log('📨 New message received:', payload);
             if (onMessageReceived) {
               onMessageReceived(payload.new);
             }
@@ -101,7 +93,6 @@ export const useRealtimeMessages = ({
             filter: `ticket_id=eq.${ticketId}`
           },
           (payload) => {
-            console.log('✏️ Message updated:', payload);
             if (onMessageUpdated) {
               onMessageUpdated(payload.new, payload.old);
             }
@@ -116,32 +107,22 @@ export const useRealtimeMessages = ({
             filter: `ticket_id=eq.${ticketId}`
           },
           (payload) => {
-            console.log('🗑️ Message deleted:', payload);
             if (onMessageDeleted) {
               onMessageDeleted(payload.old);
             }
           }
         )
         .on('system', {}, (status) => {
-          console.log('🔄 Realtime status:', status);
-          
           if (status === 'SUBSCRIBED') {
-            console.log('✅ Successfully subscribed to realtime updates');
             reconnectAttemptsRef.current = 0; // Reset reconnection attempts on successful connection
           } else if (status === 'CHANNEL_ERROR') {
             handleConnectionError(new Error('Channel error occurred'));
           } else if (status === 'TIMED_OUT') {
             handleConnectionError(new Error('Connection timed out'));
-          } else if (status === 'CLOSED') {
-            console.log('🔌 Realtime connection closed');
-            // Don't trigger error for normal closure
           }
         })
         .subscribe((status) => {
-          console.log('📡 Subscription status:', status);
-          
           if (status === 'SUBSCRIBED') {
-            console.log('✅ Successfully subscribed to realtime updates');
             reconnectAttemptsRef.current = 0;
           } else if (status === 'CHANNEL_ERROR') {
             handleConnectionError(new Error('Channel error occurred'));
@@ -151,7 +132,6 @@ export const useRealtimeMessages = ({
         });
 
     } catch (error) {
-      console.error('Error setting up realtime subscription:', error);
       handleConnectionError(error);
     }
   }, [ticketId, enabled, onMessageReceived, onMessageUpdated, onMessageDeleted, cleanup, handleConnectionError]);
@@ -170,7 +150,6 @@ export const useRealtimeMessages = ({
 
   // Manual reconnection function
   const reconnect = useCallback(() => {
-    console.log('🔄 Manual reconnection requested');
     reconnectAttemptsRef.current = 0;
     cleanup();
     if (ticketId && enabled) {

@@ -152,54 +152,56 @@ export default function BulkUploadPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-4 sm:p-6">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         {/* Header - matches existing design patterns */}
-        <div className="border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="border-b border-gray-200 px-4 sm:px-6 py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               <button
                 onClick={() => router.push('/products')}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
               >
                 <FaArrowLeft size={20} />
               </button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Bulk Product Upload</h1>
-                <p className="text-gray-600 mt-1">Upload multiple products at once using CSV file</p>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Bulk Product Upload</h1>
+                <p className="text-gray-600 mt-1 text-sm sm:text-base">Upload multiple products at once using CSV file</p>
               </div>
             </div>
             <button
               onClick={downloadTemplate}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm sm:text-base flex-shrink-0"
             >
-              <FaDownload size={16} />
-              Download Template
+              <FaDownload size={14} className="sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Download Template</span>
+              <span className="sm:hidden">Download</span>
             </button>
           </div>
         </div>
 
         {/* Progress Steps - matches existing step design */}
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 border-b border-gray-200">
           <div className="flex items-center justify-between max-w-md">
             {[
-              { number: 1, title: 'Upload CSV', icon: FaUpload },
-              { number: 2, title: 'Validate Data', icon: FaCheckCircle },
-              { number: 3, title: 'Review Results', icon: FaFileExcel }
+              { number: 1, title: 'Upload CSV', shortTitle: 'Upload', icon: FaUpload },
+              { number: 2, title: 'Validate Data', shortTitle: 'Validate', icon: FaCheckCircle },
+              { number: 3, title: 'Review Results', shortTitle: 'Results', icon: FaFileExcel }
             ].map((stepItem, index) => (
               <div key={stepItem.number} className="flex items-center">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                <div className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full ${
                   step >= stepItem.number ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-400'
                 }`}>
-                  <stepItem.icon size={16} />
+                  <stepItem.icon size={12} className="sm:w-4 sm:h-4" />
                 </div>
-                <span className={`ml-2 text-sm font-medium ${
+                <span className={`ml-1 sm:ml-2 text-xs sm:text-sm font-medium ${
                   step >= stepItem.number ? 'text-emerald-600' : 'text-gray-400'
                 }`}>
-                  {stepItem.title}
+                  <span className="hidden sm:inline">{stepItem.title}</span>
+                  <span className="sm:hidden">{stepItem.shortTitle}</span>
                 </span>
                 {index < 2 && (
-                  <div className={`w-12 h-0.5 mx-4 ${
+                  <div className={`w-6 sm:w-12 h-0.5 mx-2 sm:mx-4 ${
                     step > stepItem.number ? 'bg-emerald-500' : 'bg-gray-200'
                   }`} />
                 )}
@@ -210,46 +212,46 @@ export default function BulkUploadPage() {
 
         {/* Error Display */}
         {error && (
-          <div className="mx-6 mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="mx-4 sm:mx-6 mt-4 sm:mt-6 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
             <div className="flex items-center gap-2 text-red-800">
-              <FaExclamationTriangle />
-              <span className="font-medium">Error</span>
+              <FaExclamationTriangle size={14} className="sm:w-4 sm:h-4" />
+              <span className="font-medium text-sm sm:text-base">Error</span>
             </div>
-            <p className="text-red-700 mt-1">{error}</p>
+            <p className="text-red-700 mt-1 text-sm sm:text-base">{error}</p>
             <button
               onClick={clearError}
-              className="mt-2 text-red-600 hover:text-red-800 text-sm underline"
+              className="mt-2 text-red-600 hover:text-red-800 text-xs sm:text-sm underline"
             >
               Dismiss
             </button>
           </div>
         )}
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* Step 1: File Upload */}
           {step === 1 && (
-            <div className="text-center py-12">
+            <div className="text-center py-8 sm:py-12">
               <div 
-                className="border-2 border-dashed border-gray-300 rounded-lg p-12 hover:border-emerald-400 transition-colors cursor-pointer"
+                className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-12 hover:border-emerald-400 transition-colors cursor-pointer"
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <FaFileExcel size={48} className="mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Upload your files</h3>
-                <p className="text-gray-600 mb-6">
+                <FaFileExcel size={32} className="sm:w-12 sm:h-12 mx-auto text-gray-400 mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Upload your files</h3>
+                <p className="text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base">
                   Drag and drop your CSV or ZIP file here, or click to browse
                 </p>
                 
-                <div className="flex items-center justify-center gap-8 mb-6">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 mb-4 sm:mb-6">
                   <div className="text-center">
-                    <FaFileExcel className="text-3xl text-emerald-600 mx-auto mb-2" />
-                    <p className="text-sm font-medium text-gray-700">CSV Only</p>
+                    <FaFileExcel className="text-2xl sm:text-3xl text-emerald-600 mx-auto mb-2" />
+                    <p className="text-xs sm:text-sm font-medium text-gray-700">CSV Only</p>
                     <p className="text-xs text-gray-500">Products data only</p>
                   </div>
                   <div className="text-center">
-                    <FaFileArchive className="text-3xl text-blue-600 mx-auto mb-2" />
-                    <p className="text-sm font-medium text-gray-700">ZIP Package</p>
+                    <FaFileArchive className="text-2xl sm:text-3xl text-blue-600 mx-auto mb-2" />
+                    <p className="text-xs sm:text-sm font-medium text-gray-700">ZIP Package</p>
                     <p className="text-xs text-gray-500">CSV + Images + Videos</p>
                   </div>
                 </div>
@@ -264,52 +266,55 @@ export default function BulkUploadPage() {
                 
                 <button
                   type="button"
-                  className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 mx-auto transition-colors"
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 mx-auto transition-colors text-sm sm:text-base"
                 >
-                  <FaUpload size={16} />
-                  Choose File (CSV or ZIP)
+                  <FaUpload size={14} className="sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Choose File (CSV or ZIP)</span>
+                  <span className="sm:hidden">Choose File</span>
                 </button>
               </div>
               
               {/* Categories helper panel */}
-              <div className="mt-8 text-left bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <div className="flex items-center justify-between mb-3">
+              <div className="mt-6 sm:mt-8 text-left bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
-                    <FaInfoCircle className="text-gray-700" />
-                    <h4 className="font-medium text-gray-900">Available Categories</h4>
+                    <FaInfoCircle className="text-gray-700" size={14} />
+                    <h4 className="font-medium text-gray-900 text-sm sm:text-base">Available Categories</h4>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <input
                       type="text"
                       value={categoryFilter}
                       onChange={(e) => setCategoryFilter(e.target.value)}
                       placeholder="Search categories..."
-                      className="border border-gray-300 rounded px-3 py-1 text-sm"
+                      className="border border-gray-300 rounded px-2 sm:px-3 py-1 text-xs sm:text-sm flex-1"
                     />
                     <button
                       type="button"
                       onClick={() => categoriesService.downloadCSV(categories)}
-                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center gap-2"
+                      className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded text-xs sm:text-sm hover:bg-blue-700 flex items-center justify-center gap-1 sm:gap-2"
                     >
-                      <FaDownload size={14} /> Download Categories CSV
+                      <FaDownload size={12} className="sm:w-3.5 sm:h-3.5" /> 
+                      <span className="hidden sm:inline">Download Categories CSV</span>
+                      <span className="sm:hidden">Download CSV</span>
                     </button>
                   </div>
                 </div>
-                <div className="max-h-48 overflow-y-auto border border-gray-200 rounded">
+                <div className="max-h-32 sm:max-h-48 overflow-y-auto border border-gray-200 rounded">
                   <ul className="divide-y divide-gray-100">
                     {categories
                       .filter(c => !categoryFilter || c.name.toLowerCase().includes(categoryFilter.toLowerCase()))
                       .map(c => {
                         const checked = selectedCategories.has(c.id)
                         return (
-                          <li key={c.id} className="flex items-center justify-between px-3 py-2">
-                            <div>
-                              <p className="text-sm font-medium text-gray-800">{c.name}</p>
+                          <li key={c.id} className="flex items-center justify-between px-2 sm:px-3 py-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs sm:text-sm font-medium text-gray-800 truncate">{c.name}</p>
                               {c.description && (
-                                <p className="text-xs text-gray-500">{c.description}</p>
+                                <p className="text-xs text-gray-500 truncate">{c.description}</p>
                               )}
                             </div>
-                            <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <label className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-gray-700 flex-shrink-0">
                               <input
                                 type="checkbox"
                                 checked={checked}
@@ -320,8 +325,9 @@ export default function BulkUploadPage() {
                                     return copy
                                   })
                                 }}
+                                className="w-3 h-3 sm:w-4 sm:h-4"
                               />
-                              Select
+                              <span className="hidden sm:inline">Select</span>
                             </label>
                           </li>
                         )
@@ -329,17 +335,17 @@ export default function BulkUploadPage() {
                   </ul>
                 </div>
                 <p className="text-xs text-gray-600 mt-2">
-                  Tip: Use the exact category name in your CSV under <code>category_name</code>.
+                  Tip: Use the exact category name in your CSV under <code className="text-xs">category_name</code>.
                 </p>
               </div>
 
               {/* Instructions - matches existing info boxes */}
-              <div className="mt-8 text-left bg-blue-50 rounded-lg p-4">
+              <div className="mt-6 sm:mt-8 text-left bg-blue-50 rounded-lg p-3 sm:p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <FaInfoCircle className="text-blue-600" />
-                  <h4 className="font-medium text-blue-900">CSV Format Requirements:</h4>
+                  <FaInfoCircle className="text-blue-600" size={14} />
+                  <h4 className="font-medium text-blue-900 text-sm sm:text-base">CSV Format Requirements:</h4>
                 </div>
-                <ul className="text-sm text-blue-800 space-y-1">
+                <ul className="text-xs sm:text-sm text-blue-800 space-y-1">
                   <li>• <strong>Required columns:</strong> name, price</li>
                   <li>• <strong>Array fields:</strong> Use pipe (|) to separate values: "Small|Medium|Large"</li>
                   <li>• <strong>Image URLs:</strong> Use comma (,) to separate multiple URLs</li>
@@ -356,20 +362,20 @@ export default function BulkUploadPage() {
           {/* Step 2: Validation Results */}
           {step === 2 && validation && (
             <div>
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base sm:text-lg font-medium text-gray-900">
                     Validation Results for "{file?.name}"
                   </h3>
                   {uploadType === 'zip' && zipData && (
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1">
                       📦 ZIP contains: {Object.keys(zipData.imageFiles).length} images, {Object.keys(zipData.videoFiles).length} videos
                     </p>
                   )}
                 </div>
                 <button
                   onClick={resetUpload}
-                  className="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100 transition-colors self-start sm:self-center"
                   title="Upload different file"
                 >
                   <FaTimes size={16} />
@@ -377,23 +383,23 @@ export default function BulkUploadPage() {
               </div>
 
               {validation.isValid ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
                   <div className="flex items-center gap-2 text-green-800">
-                    <FaCheckCircle />
-                    <span className="font-medium">Validation Passed!</span>
+                    <FaCheckCircle size={14} className="sm:w-4 sm:h-4" />
+                    <span className="font-medium text-sm sm:text-base">Validation Passed!</span>
                   </div>
-                  <p className="text-green-700 mt-1">
+                  <p className="text-green-700 mt-1 text-xs sm:text-sm">
                     Found {validation.validRows || csvData.length} valid products ready for upload
                   </p>
                 </div>
               ) : (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
                   <div className="flex items-center gap-2 text-red-800 mb-2">
-                    <FaExclamationTriangle />
-                    <span className="font-medium">Validation Errors Found</span>
+                    <FaExclamationTriangle size={14} className="sm:w-4 sm:h-4" />
+                    <span className="font-medium text-sm sm:text-base">Validation Errors Found</span>
                   </div>
-                  <div className="max-h-40 overflow-y-auto">
-                    <ul className="text-red-700 text-sm space-y-1">
+                  <div className="max-h-32 sm:max-h-40 overflow-y-auto">
+                    <ul className="text-red-700 text-xs sm:text-sm space-y-1">
                       {validation.errors.map((error, index) => (
                         <li key={index}>• {error}</li>
                       ))}
@@ -404,22 +410,22 @@ export default function BulkUploadPage() {
 
               {/* Data Preview */}
               {csvData && csvData.length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <h4 className="font-medium text-gray-900 mb-3">
+                <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+                  <h4 className="font-medium text-gray-900 mb-3 text-sm sm:text-base">
                     Data Preview (First 5 rows of {csvData.length} total)
                   </h4>
                   <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
+                    <table className="min-w-full text-xs sm:text-sm">
                       <thead>
                         <tr className="border-b border-gray-200">
-                          {validation.columns.slice(0, 6).map(col => (
-                            <th key={col} className="text-left py-2 px-3 font-medium text-gray-700 capitalize">
+                          {validation.columns.slice(0, 4).map(col => (
+                            <th key={col} className="text-left py-2 px-2 sm:px-3 font-medium text-gray-700 capitalize">
                               {col.replace(/_/g, ' ')}
                             </th>
                           ))}
-                          {validation.columns.length > 6 && (
-                            <th className="text-left py-2 px-3 font-medium text-gray-700">
-                              ... +{validation.columns.length - 6} more
+                          {validation.columns.length > 4 && (
+                            <th className="text-left py-2 px-2 sm:px-3 font-medium text-gray-700">
+                              ... +{validation.columns.length - 4} more
                             </th>
                           )}
                         </tr>
@@ -427,13 +433,13 @@ export default function BulkUploadPage() {
                       <tbody>
                         {csvData.slice(0, 5).map((row, index) => (
                           <tr key={index} className="border-b border-gray-100">
-                            {validation.columns.slice(0, 6).map(col => (
-                              <td key={col} className="py-2 px-3 text-gray-600">
+                            {validation.columns.slice(0, 4).map(col => (
+                              <td key={col} className="py-2 px-2 sm:px-3 text-gray-600 truncate max-w-[100px] sm:max-w-none">
                                 {row[col] || '-'}
                               </td>
                             ))}
-                            {validation.columns.length > 6 && (
-                              <td className="py-2 px-3 text-gray-400">...</td>
+                            {validation.columns.length > 4 && (
+                              <td className="py-2 px-2 sm:px-3 text-gray-400">...</td>
                             )}
                           </tr>
                         ))}
@@ -443,10 +449,10 @@ export default function BulkUploadPage() {
                 </div>
               )}
 
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <button
                   onClick={resetUpload}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 sm:px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base order-2 sm:order-1"
                 >
                   Upload Different File
                 </button>
@@ -454,9 +460,9 @@ export default function BulkUploadPage() {
                   <button
                     onClick={handleUpload}
                     disabled={loading}
-                    className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+                    className="px-4 sm:px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors text-sm sm:text-base order-1 sm:order-2"
                   >
-                    {loading && <FaSpinner className="animate-spin" />}
+                    {loading && <FaSpinner className="animate-spin" size={14} />}
                     {loading ? 'Uploading...' : 'Proceed with Upload'}
                   </button>
                 )}
@@ -467,24 +473,24 @@ export default function BulkUploadPage() {
           {/* Step 3: Results */}
           {step === 3 && uploadResults && (
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-6">Upload Results</h3>
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-4 sm:mb-6">Upload Results</h3>
               
               {uploadResults.success ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
                   <div className="flex items-center gap-2 text-green-800">
-                    <FaCheckCircle />
-                    <span className="font-medium">
+                    <FaCheckCircle size={14} className="sm:w-4 sm:h-4" />
+                    <span className="font-medium text-sm sm:text-base">
                       ✅ Successfully created {uploadResults.processedCount} products!
                     </span>
                   </div>
-                  <p className="text-green-700 mt-1">
+                  <p className="text-green-700 mt-1 text-xs sm:text-sm">
                     Products are now available in your catalog and pending admin approval.
                   </p>
                   {uploadResults.data && uploadResults.data.length > 0 && (
                     <div className="mt-3">
-                      <p className="text-green-700 text-sm font-medium mb-2">Created products:</p>
-                      <div className="max-h-32 overflow-y-auto">
-                        <ul className="text-green-600 text-sm space-y-1">
+                      <p className="text-green-700 text-xs sm:text-sm font-medium mb-2">Created products:</p>
+                      <div className="max-h-24 sm:max-h-32 overflow-y-auto">
+                        <ul className="text-green-600 text-xs sm:text-sm space-y-1">
                           {uploadResults.data.slice(0, 10).map((product, index) => (
                             <li key={index}>• {product.name} (SKU: {product.sku})</li>
                           ))}
@@ -497,37 +503,38 @@ export default function BulkUploadPage() {
                   )}
                 </div>
               ) : (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
                   <div className="flex items-center gap-2 text-red-800">
-                    <FaExclamationTriangle />
-                    <span className="font-medium">Upload Failed</span>
+                    <FaExclamationTriangle size={14} className="sm:w-4 sm:h-4" />
+                    <span className="font-medium text-sm sm:text-base">Upload Failed</span>
                   </div>
-                  <p className="text-red-700 mt-1">{uploadResults.error || 'Unknown error occurred'}</p>
+                  <p className="text-red-700 mt-1 text-xs sm:text-sm">{uploadResults.error || 'Unknown error occurred'}</p>
                 </div>
               )}
 
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 {uploadResults.success && uploadResults.data && uploadResults.data.length > 0 && (
                   <button
                     onClick={() => {
                       const productIds = uploadResults.data.map(p => p.id).join(',')
                       router.push(`/products/bulk-upload/media?products=${productIds}`)
                     }}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    className="px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base order-1"
                   >
-                    <FaUpload size={16} />
-                    Add Images & Videos
+                    <FaUpload size={14} className="sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Add Images & Videos</span>
+                    <span className="sm:hidden">Add Media</span>
                   </button>
                 )}
                 <button
                   onClick={resetUpload}
-                  className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                  className="px-4 sm:px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm sm:text-base order-2"
                 >
                   Upload More Products
                 </button>
                 <button
                   onClick={() => router.push('/products')}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 sm:px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base order-3"
                 >
                   View Products
                 </button>

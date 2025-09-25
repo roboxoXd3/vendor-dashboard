@@ -82,7 +82,6 @@ export const imageUploadService = {
 
       const publicUrl = json.url
 
-      console.log(`✅ ${isVideo ? 'Video' : 'Image'} uploaded successfully:`, publicUrl)
 
       // Add to temporary tracking for cleanup if product creation fails
       if (productId === 'temp' || !productId) {
@@ -172,7 +171,6 @@ export const imageUploadService = {
 
       const filePath = pathMatch[1]
       
-      console.log('🗑️ Deleting image:', filePath)
 
       const supabase = getSupabase()
       const { error } = await supabase.storage
@@ -180,15 +178,14 @@ export const imageUploadService = {
         .remove([filePath])
 
       if (error) {
-        console.error('❌ Delete error:', error)
+        console.error('Delete error:', error)
         throw new Error(`Delete failed: ${error.message}`)
       }
 
-      console.log('✅ Image deleted successfully')
       return { success: true, error: null }
 
     } catch (error) {
-      console.error('❌ Image delete error:', error)
+      console.error('Image delete error:', error)
       return { success: false, error: error.message }
     }
   },

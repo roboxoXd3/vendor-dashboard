@@ -60,23 +60,23 @@ export default function MediaVideosStep({
             </div>
           </h3>
           
-          {formData.colors.map((color, index) => (
+          {Object.entries(formData.colors || {}).map(([colorName, hexValue], index) => (
             <div key={index} className="mb-4 p-3 border border-gray-200 rounded-lg">
               <div className="flex items-center gap-2 mb-3">
                 <div 
                   className="w-4 h-4 rounded-full border border-gray-300"
-                  style={{ backgroundColor: color }}
+                  style={{ backgroundColor: hexValue }}
                 ></div>
                 <span className="font-medium text-gray-700">
-                  Images for {color}
+                  Images for {colorName}
                 </span>
               </div>
               
               <EnhancedColorImageUpload
-                color={color}
-                onUploadSuccess={(imageUrl) => addColorImage(color, imageUrl)}
-                onRemoveImage={(imageUrl) => removeColorImage(color, imageUrl)}
-                existingImages={formData.color_images[color] || []}
+                color={colorName}
+                onUploadSuccess={(imageUrl) => addColorImage(colorName, imageUrl)}
+                onRemoveImage={(imageUrl) => removeColorImage(colorName, imageUrl)}
+                existingImages={formData.color_images[colorName] || []}
                 mainImages={formData.images || []} // Pass main images for selection
                 vendorId={vendor?.id}
                 productId={productId}
@@ -84,7 +84,7 @@ export default function MediaVideosStep({
             </div>
           ))}
           
-          {formData.colors.length === 0 ? (
+          {(!formData.colors || Object.keys(formData.colors).length === 0) ? (
             <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
               <FaImage className="mx-auto text-4xl text-gray-400 mb-3" />
               <p className="text-gray-600 font-medium mb-2">No Color Variants Added Yet</p>
@@ -103,7 +103,7 @@ export default function MediaVideosStep({
           ) : (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-800 text-sm font-medium mb-1">
-                🎨 Great! You have {formData.colors.length} color variant{formData.colors.length > 1 ? 's' : ''}
+                🎨 Great! You have {Object.keys(formData.colors || {}).length} color variant{Object.keys(formData.colors || {}).length > 1 ? 's' : ''}
               </p>
               <p className="text-blue-600 text-xs mb-2">
                 For each color, you can either <strong>select from main images</strong> or <strong>upload new images</strong> specific to that variant.

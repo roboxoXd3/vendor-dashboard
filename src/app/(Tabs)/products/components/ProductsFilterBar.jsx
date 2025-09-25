@@ -27,12 +27,9 @@ export default function ProductsFilterBar({ onFiltersChange }) {
     try {
       const response = await fetch('/api/categories');
       const result = await response.json();
-      console.log('📂 ProductsFilterBar - Categories API response:', result);
       if (result.success && result.categories) {
-        console.log('📂 ProductsFilterBar - Setting categories:', result.categories);
         setCategories(result.categories);
       } else {
-        console.log('📂 ProductsFilterBar - No categories found in response');
         setCategories([]);
       }
     } catch (error) {

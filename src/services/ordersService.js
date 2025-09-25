@@ -22,7 +22,6 @@ export const ordersService = {
         params.append('dateTo', options.dateTo)
       }
 
-      console.log('🔍 Fetching orders with params:', params.toString())
 
       const response = await fetch(`/api/orders?${params}`, {
         method: 'GET',
@@ -43,11 +42,10 @@ export const ordersService = {
         throw new Error(data.error || 'Failed to fetch orders')
       }
 
-      console.log('✅ Orders fetched successfully:', data.data?.length, 'orders')
       return data
 
     } catch (error) {
-      console.error('❌ Error fetching orders:', error)
+      console.error('Error fetching orders:', error)
       throw error
     }
   },
@@ -55,7 +53,6 @@ export const ordersService = {
   // Update order status
   async updateOrderStatus(orderId, status, vendorId, options = {}) {
     try {
-      console.log('🔄 Updating order status:', { orderId, status, vendorId })
 
       const response = await fetch('/api/orders', {
         method: 'PUT',
@@ -83,11 +80,10 @@ export const ordersService = {
         throw new Error(data.error || 'Failed to update order')
       }
 
-      console.log('✅ Order status updated successfully:', data.data?.id)
       return data
 
     } catch (error) {
-      console.error('❌ Error updating order status:', error)
+      console.error('Error updating order status:', error)
       throw error
     }
   },

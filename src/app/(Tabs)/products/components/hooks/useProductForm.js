@@ -11,6 +11,7 @@ export const useProductForm = (initialData = {}) => {
     brand: '',
     sku: '',
     category_id: '',
+    subcategory_id: '',
     
     // Pricing & Inventory
     price: '',
@@ -28,7 +29,7 @@ export const useProductForm = (initialData = {}) => {
     
     // Variants & Options
     sizes: [],
-    colors: [],
+    colors: {},
     tags: [],
     color_images: {},
     dimensions: {
@@ -235,6 +236,7 @@ export const useProductForm = (initialData = {}) => {
       brand: '',
       sku: '',
       category_id: '',
+      subcategory_id: '',
       price: '',
       mrp: '',
       sale_price: '',
@@ -244,7 +246,7 @@ export const useProductForm = (initialData = {}) => {
       images: [],
       video_url: '',
       sizes: [],
-      colors: [],
+      colors: {},
       tags: [],
       color_images: {},
       dimensions: {

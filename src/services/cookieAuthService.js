@@ -33,7 +33,7 @@ class CookieAuthService {
       try {
         await this.cleanupUserSessions(user.id)
       } catch (cleanupError) {
-        console.warn('⚠️ Could not cleanup old sessions:', cleanupError.message)
+        console.warn('Could not cleanup old sessions:', cleanupError.message)
       }
 
       // Create new session in database

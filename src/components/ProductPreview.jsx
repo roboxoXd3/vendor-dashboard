@@ -9,8 +9,8 @@ export default function ProductPreview({ formData, categories, vendor }) {
   
   // Initialize selected color with first available color
   useEffect(() => {
-    if (formData.colors && formData.colors.length > 0 && !selectedColor) {
-      setSelectedColor(formData.colors[0])
+    if (formData.colors && Object.keys(formData.colors).length > 0 && !selectedColor) {
+      setSelectedColor(Object.keys(formData.colors)[0])
     }
   }, [formData.colors, selectedColor])
 
@@ -304,7 +304,7 @@ export default function ProductPreview({ formData, categories, vendor }) {
         </div>
 
         {/* 3. Color & Size Selection - Exact Flutter Implementation */}
-        {(formData.sizes?.length > 0 || formData.colors?.length > 0) && (
+        {(formData.sizes?.length > 0 || Object.keys(formData.colors || {}).length > 0) && (
           <div className="px-4 pb-4">
             {/* Size Selection */}
             {formData.sizes && formData.sizes.length > 0 && (
@@ -334,7 +334,7 @@ export default function ProductPreview({ formData, categories, vendor }) {
             )}
             
             {/* Interactive Color Selection */}
-            {formData.colors && formData.colors.length > 0 && (
+            {formData.colors && Object.keys(formData.colors).length > 0 && (
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="text-lg font-bold">Select Color</h3>
@@ -345,24 +345,24 @@ export default function ProductPreview({ formData, categories, vendor }) {
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-3 mb-2">
-                  {formData.colors.map((color, index) => {
-                    const hasColorImages = formData.color_images && formData.color_images[color] && formData.color_images[color].length > 0
+                  {Object.entries(formData.colors).map(([colorName, hexValue], index) => {
+                    const hasColorImages = formData.color_images && formData.color_images[colorName] && formData.color_images[colorName].length > 0
                     return (
                       <button
                         key={index}
-                        onClick={() => handleColorSelect(color)}
+                        onClick={() => handleColorSelect(colorName)}
                         className={`relative w-12 h-12 rounded-full border-2 transition-all ${
-                          selectedColor === color
+                          selectedColor === colorName
                             ? 'border-emerald-600 shadow-lg ring-2 ring-emerald-200'
                             : 'border-gray-300 hover:border-gray-400'
                         }`}
-                        style={{ backgroundColor: getColorFromString(color) }}
-                        title={`${color} ${hasColorImages ? '(Has specific images)' : '(Uses main images)'}`}
+                        style={{ backgroundColor: hexValue }}
+                        title={`${colorName} ${hasColorImages ? '(Has specific images)' : '(Uses main images)'}`}
                       >
-                        {selectedColor === color && (
+                        {selectedColor === colorName && (
                           <div className="w-full h-full rounded-full flex items-center justify-center">
                             <div className={`text-lg font-bold ${
-                              color.toLowerCase() === 'white' || color.toLowerCase() === 'yellow' 
+                              hexValue === '#FFFFFF' || hexValue === '#FFFF00' || hexValue === '#FFD700'
                                 ? 'text-gray-800' 
                                 : 'text-white'
                             }`}>
@@ -374,7 +374,7 @@ export default function ProductPreview({ formData, categories, vendor }) {
                         {/* Color-specific image indicator */}
                         {hasColorImages && (
                           <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">{formData.color_images[color].length}</span>
+                            <span className="text-white text-xs font-bold">{formData.color_images[colorName].length}</span>
                           </div>
                         )}
                       </button>
@@ -459,21 +459,6 @@ export default function ProductPreview({ formData, categories, vendor }) {
             <p className="text-gray-700 text-sm leading-relaxed">
               {formData.description}
             </p>
-          </div>
-        )}
-
-        {/* 6. Key Highlights - Show product tags if available */}
-        {formData.tags && formData.tags.length > 0 && (
-          <div className="px-4 pb-4">
-            <h3 className="text-lg font-bold mb-3">Key Features</h3>
-            <div className="space-y-2">
-              {formData.tags.map((tag, index) => (
-                <div key={index} className="flex items-center">
-                  <div className="w-2 h-2 bg-emerald-600 rounded-full mr-3"></div>
-                  <span className="text-sm text-gray-700 capitalize">{tag}</span>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 

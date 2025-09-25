@@ -53,7 +53,6 @@ export default function SupportPage() {
         return prevActiveTicket;
       });
     } catch (error) {
-      console.error('Error fetching tickets:', error);
       toast.error(error.message || 'Failed to load tickets');
     } finally {
       setLoading(false);
@@ -80,7 +79,6 @@ export default function SupportPage() {
       // Update messages (initial load only)
       setMessages(response.messages || []);
     } catch (error) {
-      console.error('Error fetching messages:', error);
       toast.error(error.message || 'Failed to load messages');
       
       // Set empty messages array on error to prevent infinite loading
@@ -152,7 +150,6 @@ export default function SupportPage() {
   }, []);
 
   const handleRealtimeError = useCallback((error) => {
-    console.error('❌ Realtime error:', error);
     setRealtimeConnected(false);
     
     // Show user-friendly error message
@@ -194,7 +191,6 @@ export default function SupportPage() {
       
       // Fallback: Clear loading state after 15 seconds if it gets stuck
       const fallbackTimer = setTimeout(() => {
-        console.warn('⚠️ Loading state stuck, clearing...');
         setMessagesLoading(false);
       }, 15000);
       
@@ -232,7 +228,6 @@ export default function SupportPage() {
       
       toast.success('Message sent successfully');
     } catch (error) {
-      console.error('Error sending message:', error);
       throw error; // Re-throw so the component can handle it
     } finally {
       setSendingMessage(false);

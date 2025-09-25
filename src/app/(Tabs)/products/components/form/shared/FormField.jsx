@@ -29,7 +29,7 @@ export default function FormField({
   children,
   colSpan = 1
 }) {
-  const baseInputClasses = "w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+  const baseInputClasses = "w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
   
   const getColSpanClass = () => {
     switch (colSpan) {
@@ -96,7 +96,7 @@ export default function FormField({
   return (
     <div className={getColSpanClass()}>
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
           {label} {required && '*'}
           {tooltip && <InfoTooltip text={tooltip} />}
         </label>

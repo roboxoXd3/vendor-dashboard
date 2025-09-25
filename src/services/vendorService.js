@@ -4,11 +4,10 @@ export const vendorService = {
   // Get vendor dashboard stats using server-side API
   async getDashboardStats(vendorId) {
     try {
-      console.log('📊 Fetching dashboard stats for vendor:', vendorId)
 
       // Check if vendorId is provided
       if (!vendorId) {
-        console.warn('⚠️ No vendor ID provided for getDashboardStats')
+        console.warn('No vendor ID provided for getDashboardStats')
         return { data: null, error: null }
       }
 
@@ -23,17 +22,16 @@ export const vendorService = {
 
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('❌ API error:', errorData)
+        console.error('API error:', errorData)
         throw new Error(errorData.error || 'Failed to fetch dashboard stats')
       }
 
       const result = await response.json()
-      console.log('✅ Dashboard stats retrieved from API:', result.data)
       
       return { data: result.data, error: null }
 
     } catch (error) {
-      console.error('❌ Error fetching dashboard stats:', error)
+      console.error('Error fetching dashboard stats:', error)
       return { data: null, error: error.message }
     }
   },
@@ -43,7 +41,7 @@ export const vendorService = {
     try {
       // Check if vendorId is provided
       if (!vendorId) {
-        console.warn('⚠️ No vendor ID provided for getRecentOrders')
+        console.warn('No vendor ID provided for getRecentOrders')
         return { data: [], error: null }
       }
 
@@ -58,16 +56,15 @@ export const vendorService = {
 
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('❌ Recent orders API error:', errorData)
+        console.error('Recent orders API error:', errorData)
         return { data: [], error: errorData.error }
       }
 
       const result = await response.json()
-      console.log('✅ Recent orders retrieved from API:', result.data?.length || 0)
       
       return { data: result.data || [], error: null }
     } catch (error) {
-      console.error('❌ Error fetching recent orders:', error)
+      console.error('Error fetching recent orders:', error)
       // Return empty data instead of error to prevent UI crashes
       return { data: [], error: error.message }
     }
@@ -108,10 +105,9 @@ export const vendorService = {
 
       if (error) throw error
 
-      console.log('✅ Vendor profile updated successfully')
       return { data, error: null }
     } catch (error) {
-      console.error('❌ Error updating vendor profile:', error)
+      console.error('Error updating vendor profile:', error)
       return { data: null, error }
     }
   },
@@ -120,7 +116,7 @@ export const vendorService = {
   async getBestSellingProducts(vendorId, limit = 5) {
     try {
       if (!vendorId) {
-        console.warn('⚠️ No vendor ID provided for getBestSellingProducts')
+        console.warn('No vendor ID provided for getBestSellingProducts')
         return { data: [], error: null }
       }
 
@@ -180,10 +176,9 @@ export const vendorService = {
         }
       }) || []
 
-      console.log('✅ Best selling products retrieved from view:', combinedData.length)
       return { data: combinedData, error: null }
     } catch (error) {
-      console.error('❌ Error fetching best selling products:', error)
+      console.error('Error fetching best selling products:', error)
       return { data: [], error }
     }
   },
@@ -192,7 +187,7 @@ export const vendorService = {
   async getInventoryStatus(vendorId) {
     try {
       if (!vendorId) {
-        console.warn('⚠️ No vendor ID provided for getInventoryStatus')
+        console.warn('No vendor ID provided for getInventoryStatus')
         return { data: null, error: null }
       }
 

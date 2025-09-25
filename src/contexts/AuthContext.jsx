@@ -25,17 +25,12 @@ export function AuthProvider({ children }) {
     // Only run auth logic on client side
     if (!isClient) return
     
-    console.log('🔄 AuthProvider: Initializing cookie-based authentication...')
-    
     const initializeAuth = async () => {
       try {
         // Validate session from cookies
         const validation = await cookieAuthService.validateSessionFromCookies()
         
         if (validation.valid) {
-          console.log('✅ Cookie session is valid for:', validation.vendor?.business_name)
-          console.log('🔍 DEBUG - Setting user:', validation.user?.email)
-          console.log('🔍 DEBUG - Setting vendor:', validation.vendor?.business_name)
           setUser(validation.user)
           setVendor(validation.vendor)
           setSessionToken('cookie_based') // Placeholder since token is in HTTP-only cookie
@@ -46,27 +41,23 @@ export function AuthProvider({ children }) {
             startSessionRefreshTimer()
           }
         } else {
-          console.log('❌ No valid cookie session found')
           
           // Check if there's a Supabase session (fallback for first-time login)
           const supabase = getSupabase()
           const { data: { session } } = await supabase.auth.getSession()
           
           if (session?.user) {
-            console.log('🔄 Found Supabase session, but no cookie session - user needs to login again')
             // Don't auto-migrate, let user login again to set cookies properly
             setUser(null)
             setVendor(null)
             setSessionToken(null)
           } else {
-            console.log('ℹ️ No active session found')
             setUser(null)
             setVendor(null)
             setSessionToken(null)
           }
         }
       } catch (err) {
-        console.error('❌ Error initializing auth:', err)
         setError(err.message)
         setUser(null)
         setVendor(null)
@@ -81,10 +72,7 @@ export function AuthProvider({ children }) {
     // Listen for auth changes (fallback)
     const supabaseForListener = getSupabase()
     const { data: { subscription } } = supabaseForListener.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔄 Supabase auth state changed:', event)
-      
       if (event === 'SIGNED_OUT') {
-        console.log('🚪 User signed out, clearing tokens...')
         // Clear local state - cookies will be cleared by logout API
         setUser(null)
         setVendor(null)

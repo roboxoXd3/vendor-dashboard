@@ -14,8 +14,6 @@ export const productsService = {
         sortOrder = 'desc'
       } = options
 
-      console.log('📦 Fetching products for vendor:', vendorId, { page, limit, search })
-
       // Build query parameters
       const params = new URLSearchParams({
         vendorId,
@@ -36,7 +34,6 @@ export const productsService = {
         throw new Error(result.error || 'Failed to fetch products')
       }
 
-      console.log(`✅ Retrieved ${result.data?.length || 0} products via API`)
       return {
         data: result.data || [],
         pagination: result.pagination || {
@@ -65,10 +62,9 @@ export const productsService = {
         throw new Error(result.error || 'Failed to fetch product')
       }
 
-      console.log('✅ Product fetched successfully')
       return { data: result.data, error: null }
     } catch (error) {
-      console.error('❌ Error fetching product:', error)
+      console.error('Error fetching product:', error)
       return { data: null, error }
     }
   },
@@ -76,7 +72,6 @@ export const productsService = {
   // Create new product
   async createProduct(vendorId, productData) {
     try {
-      console.log('➕ Creating new product for vendor:', vendorId)
 
       const response = await fetch('/api/products', {
         method: 'POST',
@@ -95,10 +90,9 @@ export const productsService = {
         throw new Error(result.error || 'Failed to create product')
       }
 
-      console.log('✅ Product created successfully via API:', result.data?.id)
       return { data: result.data, error: null }
     } catch (error) {
-      console.error('❌ Error creating product:', error)
+      console.error('Error creating product:', error)
       return { data: null, error }
     }
   },
@@ -106,7 +100,6 @@ export const productsService = {
   // Update product
   async updateProduct(productId, updates) {
     try {
-      console.log('✏️ Updating product:', productId)
 
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
@@ -122,10 +115,9 @@ export const productsService = {
         throw new Error(result.error || 'Failed to update product')
       }
 
-      console.log('✅ Product updated successfully via API:', result.data?.name)
       return { data: result.data, error: null }
     } catch (error) {
-      console.error('❌ Error updating product:', error)
+      console.error('Error updating product:', error)
       return { data: null, error }
     }
   },
@@ -133,7 +125,6 @@ export const productsService = {
   // Delete product
   async deleteProduct(productId) {
     try {
-      console.log('🗑️ Deleting product:', productId)
 
       const response = await fetch(`/api/products/${productId}`, {
         method: 'DELETE',
@@ -148,10 +139,9 @@ export const productsService = {
         throw new Error(result.error || 'Failed to delete product')
       }
 
-      console.log('✅ Product deleted successfully via API')
       return { data: result.data, error: null }
     } catch (error) {
-      console.error('❌ Error deleting product:', error)
+      console.error('Error deleting product:', error)
       return { data: null, error }
     }
   },
@@ -184,12 +174,31 @@ export const productsService = {
     try {
       const { data, error } = await supabase
         .from('categories')
-        .select('*')
+        .select(`
+          id, 
+          name, 
+          description,
+          subcategories (
+            id,
+            name,
+            description,
+            is_active
+          )
+        `)
+        .eq('is_active', true)
         .order('name')
 
       if (error) throw error
 
-      return { data: data || [], error: null }
+      // Transform the data to include subcategories in a more accessible format
+      const categoriesWithSubcategories = data.map(category => ({
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        subcategories: category.subcategories?.filter(sub => sub.is_active) || []
+      }))
+
+      return { data: categoriesWithSubcategories || [], error: null }
     } catch (error) {
       console.error('❌ Error fetching categories:', error)
       return { data: [], error }
@@ -233,10 +242,9 @@ export const productsService = {
 
       if (error) throw error
 
-      console.log('✅ Bulk update completed')
       return { data: data || [], error: null }
     } catch (error) {
-      console.error('❌ Error in bulk update:', error)
+      console.error('Error in bulk update:', error)
       return { data: [], error }
     }
   }

@@ -34,7 +34,6 @@ export default function FeaturedProductsSection({ filters = {}, refreshKey = 0, 
       previousFilters.sortOrder !== filters.sortOrder;
     
     if (filtersChanged) {
-      console.log('🔄 Filters changed, resetting to page 1');
       setCurrentPage(1);
       setPreviousFilters(filters);
     }
@@ -74,15 +73,7 @@ export default function FeaturedProductsSection({ filters = {}, refreshKey = 0, 
   const products = productsData?.data || [];
   const totalPages = productsData?.pagination?.totalPages || 1;
 
-  console.log('🔍 Pagination Debug:', {
-    currentPage,
-    totalPages,
-    productsCount: products.length,
-    pagination: productsData?.pagination
-  });
-
   const handlePageClick = (pageNum) => {
-    console.log('📄 Page clicked:', pageNum, 'Current filters:', filters);
     setCurrentPage(pageNum);
   };
 
@@ -160,10 +151,6 @@ export default function FeaturedProductsSection({ filters = {}, refreshKey = 0, 
         </div>
       )}
       
-      {/* Debug info */}
-      <div className="text-center mt-2 text-sm text-gray-500">
-        Page {currentPage} of {totalPages} | {products.length} products shown
-      </div>
     </div>
   );
 }

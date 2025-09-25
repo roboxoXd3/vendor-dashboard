@@ -54,7 +54,6 @@ export default function ProductPageCards() {
       value: stats.totalProducts?.toString() || "0",
       icon: <MdInventory2 size={20} color="blue" />,
       color: "bg-blue-200",
-      percent: "8%",
       label: "Products in your store",
     },
     {
@@ -62,7 +61,6 @@ export default function ProductPageCards() {
       value: stats.activeProducts?.toString() || "0",
       icon: <MdCheckCircle size={20} color="green" />,
       color: "bg-green-200",
-      percent: "5%",
       label: "Currently available",
     },
     {
@@ -70,7 +68,6 @@ export default function ProductPageCards() {
       value: stats.outOfStock?.toString() || "0",
       icon: <MdError size={20} color="red" />,
       color: "bg-red-200",
-      percent: `${outOfStockPercentage}%`,
       label: "Need restocking",
     },
     {
@@ -78,7 +75,6 @@ export default function ProductPageCards() {
       value: stats.featuredProducts?.toString() || "0",
       icon: <FaStar size={20} color="brown" />,
       color: "bg-yellow-200",
-      percent: `${featuredPercentage}%`,
       label: "Promoted products",
     },
   ];
@@ -103,10 +99,6 @@ export default function ProductPageCards() {
           <div className="flex flex-col">
             <div className="flex items-baseline gap-2 mb-3 relative max-w-fit">
               <p className="font-bold text-lg md:text-[30px]">{item.value}</p>
-              <span className="text-sm font-semibold text-[var(--color-theme)] flex items-center absolute right-[-40px] bottom-[-3px]">
-                <FaArrowUp className="md:pt-1.5 md:text-xl" />
-                {item.percent}
-              </span>
             </div>
             <p className="text-sm text-gray-500 text-[12px]">{item.label}</p>
           </div>

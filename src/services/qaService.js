@@ -22,7 +22,6 @@ export const qaService = {
         params.append('hasAnswer', options.hasAnswer)
       }
 
-      console.log('🔍 Fetching Q&A with params:', params.toString())
 
       const response = await fetch(`/api/product-qa?${params.toString()}`)
       
@@ -32,11 +31,10 @@ export const qaService = {
       }
 
       const data = await response.json()
-      console.log('✅ Q&A fetched:', data.data.questions.length, 'questions')
       
       return data.data
     } catch (error) {
-      console.error('❌ Error fetching Q&A:', error)
+      console.error('Error fetching Q&A:', error)
       throw error
     }
   },
@@ -44,7 +42,6 @@ export const qaService = {
   // Answer a question
   async answerQuestion(questionId, answer, vendorId) {
     try {
-      console.log('💬 Answering question:', questionId)
 
       const response = await fetch('/api/product-qa', {
         method: 'PUT',
@@ -65,11 +62,10 @@ export const qaService = {
       }
 
       const data = await response.json()
-      console.log('✅ Question answered successfully')
       
       return data.data
     } catch (error) {
-      console.error('❌ Error answering question:', error)
+      console.error('Error answering question:', error)
       throw error
     }
   },
@@ -77,7 +73,6 @@ export const qaService = {
   // Hide/Show question
   async updateQuestionVisibility(questionId, action) {
     try {
-      console.log('👁️ Updating question visibility:', questionId, action)
 
       const response = await fetch('/api/product-qa', {
         method: 'PUT',
@@ -96,11 +91,10 @@ export const qaService = {
       }
 
       const data = await response.json()
-      console.log('✅ Question visibility updated successfully')
       
       return data.data
     } catch (error) {
-      console.error('❌ Error updating question visibility:', error)
+      console.error('Error updating question visibility:', error)
       throw error
     }
   },
@@ -169,11 +163,10 @@ export const qaService = {
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
 
-      console.log('✅ Q&A exported successfully')
       
       return { success: true, count: questions.length }
     } catch (error) {
-      console.error('❌ Error exporting Q&A:', error)
+      console.error('Error exporting Q&A:', error)
       throw error
     }
   }
