@@ -1,5 +1,34 @@
 import { getSupabaseServer } from '@/lib/supabase-server'
 
+// Helper function to get default hex colors for common color names
+function getDefaultColorHex(colorName) {
+  const colorMap = {
+    'black': '#000000',
+    'white': '#FFFFFF',
+    'red': '#FF0000',
+    'green': '#008000',
+    'blue': '#0000FF',
+    'yellow': '#FFFF00',
+    'orange': '#FFA500',
+    'purple': '#800080',
+    'pink': '#FFC0CB',
+    'brown': '#A52A2A',
+    'gray': '#808080',
+    'grey': '#808080',
+    'silver': '#C0C0C0',
+    'gold': '#FFD700',
+    'navy': '#000080',
+    'maroon': '#800000',
+    'teal': '#008080',
+    'lime': '#00FF00',
+    'cyan': '#00FFFF',
+    'magenta': '#FF00FF'
+  }
+  
+  const normalizedName = colorName.toLowerCase().trim()
+  return colorMap[normalizedName] || '#808080' // Default to gray if not found
+}
+
 // GET /api/products - List vendor products with filters and pagination
 export async function GET(request) {
   try {
@@ -97,11 +126,31 @@ export async function GET(request) {
           images = [product.images]
         }
       }
+
+      // Ensure colors field is properly formatted as an object
+      let colors = {}
+      if (product.colors) {
+        if (typeof product.colors === 'object' && !Array.isArray(product.colors)) {
+          colors = product.colors
+        } else if (Array.isArray(product.colors)) {
+          // Convert array format to object format for consistency
+          const colorObject = {}
+          product.colors.forEach(color => {
+            if (typeof color === 'string' && color.trim()) {
+              colorObject[color.trim()] = getDefaultColorHex(color.trim())
+            }
+          })
+          colors = colorObject
+        }
+      }
+
       return {
         ...product,
-        images
+        images,
+        colors
       }
     }) || []
+
 
     // Products retrieved successfully
     
@@ -172,16 +221,128 @@ export async function POST(request) {
 
     console.log(`📦 Creating product for vendor with status: ${vendor.status}, product approval_status: ${approvalStatus}`)
 
+    // Handle array fields - ensure they are properly formatted arrays
+    let sizesField = productData.sizes
+    if (sizesField && !Array.isArray(sizesField)) {
+      if (typeof sizesField === 'string') {
+        sizesField = sizesField.split(',').map(s => s.trim()).filter(Boolean)
+      } else {
+        sizesField = []
+      }
+    }
+
+    let tagsField = productData.tags
+    if (tagsField && !Array.isArray(tagsField)) {
+      if (typeof tagsField === 'string') {
+        tagsField = tagsField.split(',').map(s => s.trim()).filter(Boolean)
+      } else {
+        tagsField = []
+      }
+    }
+
+    let boxContentsField = productData.box_contents
+    if (boxContentsField && !Array.isArray(boxContentsField)) {
+      if (typeof boxContentsField === 'string') {
+        boxContentsField = boxContentsField.split(',').map(s => s.trim()).filter(Boolean)
+      } else {
+        boxContentsField = []
+      }
+    }
+
+    let usageInstructionsField = productData.usage_instructions
+    if (usageInstructionsField && !Array.isArray(usageInstructionsField)) {
+      if (typeof usageInstructionsField === 'string') {
+        usageInstructionsField = usageInstructionsField.split(',').map(s => s.trim()).filter(Boolean)
+      } else {
+        usageInstructionsField = []
+      }
+    }
+
+    let careInstructionsField = productData.care_instructions
+    if (careInstructionsField && !Array.isArray(careInstructionsField)) {
+      if (typeof careInstructionsField === 'string') {
+        careInstructionsField = careInstructionsField.split(',').map(s => s.trim()).filter(Boolean)
+      } else {
+        careInstructionsField = []
+      }
+    }
+
+    let safetyNotesField = productData.safety_notes
+    if (safetyNotesField && !Array.isArray(safetyNotesField)) {
+      if (typeof safetyNotesField === 'string') {
+        safetyNotesField = safetyNotesField.split(',').map(s => s.trim()).filter(Boolean)
+      } else {
+        safetyNotesField = []
+      }
+    }
+
+    // Handle colors field - database expects JSONB object for direct insert
+    let colorsField = productData.colors
+    if (colorsField) {
+      if (typeof colorsField === 'string') {
+        try {
+          colorsField = JSON.parse(colorsField)
+        } catch (e) {
+          colorsField = {}
+        }
+      } else if (Array.isArray(colorsField)) {
+        // Convert array format to object format for database storage
+        // Array: ["Blue", "Silver", "Green"] -> Object: {"Blue": "#0000FF", "Silver": "#C0C0C0", "Green": "#008000"}
+        const colorObject = {}
+        colorsField.forEach(color => {
+          if (typeof color === 'string' && color.trim()) {
+            // Use a default hex color if not provided
+            colorObject[color.trim()] = getDefaultColorHex(color.trim())
+          }
+        })
+        colorsField = colorObject
+      } else if (typeof colorsField !== 'object') {
+        colorsField = {}
+      }
+    } else {
+      // Ensure colors field is never null/undefined (database requires NOT NULL)
+      colorsField = {}
+    }
+
+
+    let colorImagesField = productData.color_images
+    if (colorImagesField && typeof colorImagesField !== 'object') {
+      if (typeof colorImagesField === 'string') {
+        try {
+          colorImagesField = JSON.parse(colorImagesField)
+        } catch (e) {
+          colorImagesField = {}
+        }
+      } else {
+        colorImagesField = {}
+      }
+    }
+
+    let dimensionsField = productData.dimensions
+    if (dimensionsField && typeof dimensionsField !== 'object') {
+      if (typeof dimensionsField === 'string') {
+        try {
+          dimensionsField = JSON.parse(dimensionsField)
+        } catch (e) {
+          dimensionsField = {}
+        }
+      } else {
+        dimensionsField = {}
+      }
+    }
+
     const newProduct = {
       vendor_id: vendorId,
       name: productData.name,
       subtitle: productData.subtitle || '',
       description: productData.description || '',
       price: Number(productData.price),
+      mrp: productData.mrp ? Number(productData.mrp) : null,
+      sale_price: productData.sale_price ? Number(productData.sale_price) : null,
       images: JSON.stringify(productData.images || []), // Convert array to JSON string
       video_url: productData.video_url || null,
-      sizes: productData.sizes || [],
-      colors: productData.colors || [],
+      sizes: sizesField,
+      colors: colorsField,
       category_id: productData.category_id === '' ? null : productData.category_id, // Handle empty string
       subcategory_id: productData.subcategory_id === '' ? null : productData.subcategory_id, // Handle empty string
       brand: productData.brand || '',
@@ -194,8 +355,18 @@ export async function POST(request) {
       is_new_arrival: true,
       shipping_required: productData.shipping_required !== false,
       weight: productData.weight ? Number(productData.weight) : null,
-      dimensions: productData.dimensions || null,
-      tags: productData.tags || [],
+      dimensions: dimensionsField,
+      tags: tagsField,
+      color_images: colorImagesField,
+      box_contents: boxContentsField,
+      usage_instructions: usageInstructionsField,
+      care_instructions: careInstructionsField,
+      safety_notes: safetyNotesField,
+      size_chart_override: productData.size_chart_override || 'auto',
+      size_chart_template_id: productData.size_chart_template_id === '' ? null : productData.size_chart_template_id,
+      size_guide_type: productData.size_guide_type || 'template',
+      custom_size_chart_data: productData.custom_size_chart_data || null,
+      currency: productData.currency || 'USD',
       meta_title: productData.meta_title || null,
       meta_description: productData.meta_description || null,
       created_at: new Date().toISOString(),
@@ -225,10 +396,29 @@ export async function POST(request) {
         images = [data.images]
       }
     }
+
+    // Ensure colors field is properly formatted as an object
+    let colors = {}
+    if (data.colors) {
+      if (typeof data.colors === 'object' && !Array.isArray(data.colors)) {
+        colors = data.colors
+      } else if (Array.isArray(data.colors)) {
+        // Convert array format to object format for consistency
+        const colorObject = {}
+        data.colors.forEach(color => {
+          if (typeof color === 'string' && color.trim()) {
+            colorObject[color.trim()] = getDefaultColorHex(color.trim())
+          }
+        })
+        colors = colorObject
+      }
+    }
+
     
     const processedData = {
       ...data,
-      images
+      images,
+      colors
     }
 
     // Product created successfully
