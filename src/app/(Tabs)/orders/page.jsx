@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import OrdersTable from "./components/OrdersTable";
 import OrderDetailsPanel from "./components/OrderDetailsPanel";
 import OrdersPageFilterBar from "./components/OrderPageFilterBar";
@@ -10,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function OrdersPage() {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const searchParams = useSearchParams();
   const [activeStatus, setActiveStatus] = useState("All Orders");
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
   const [currentPage, setCurrentPage] = useState(1);
@@ -32,6 +34,18 @@ export default function OrdersPage() {
 
   const orders = ordersResponse?.data || [];
   const statusCounts = useOrderStatusCounts(orders);
+
+  // Handle URL parameter to auto-open order details
+  useEffect(() => {
+    const orderIdFromUrl = searchParams.get('orderId');
+    if (orderIdFromUrl && orders.length > 0) {
+      // Check if the order exists in the current orders list
+      const orderExists = orders.some(order => order.id === orderIdFromUrl);
+      if (orderExists) {
+        setSelectedOrderId(orderIdFromUrl);
+      }
+    }
+  }, [searchParams, orders]);
 
   // Filter orders by status for display
   const filteredOrders = activeStatus === "All Orders" 

@@ -1,40 +1,113 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { FaWallet, FaClock, FaChartLine, FaInfoCircle } from "react-icons/fa";
 
-const cards = [
-  {
-    title: "Available Balance",
-    amount: "$3,842.50",
-    subtitle: "Available for withdrawal",
-    icon: <FaWallet className="text-green-600" />,
-    iconBg: "bg-green-100",
-    button: "Withdraw Funds",
-    buttonClass: "text-white",
-  },
-  {
-    title: "Pending Balance",
-    amount: "$1,250.75",
-    subtitle: "Funds in escrow (will be released in 7–14 days)",
-    icon: <FaClock className="text-yellow-600" />,
-    iconBg: "bg-yellow-100",
-    alert: {
-      icon: <FaInfoCircle size={20} className="text-yellow-700 mt-1" />,
-      text: "Funds are held in escrow until the order is confirmed as delivered and the return period has expired.",
-    },
-  },
-  {
-    title: "Lifetime Earnings",
-    amount: "$24,568.30",
-    subtitle: "Total earnings since you joined",
-    icon: <FaChartLine className="text-blue-600" />,
-    iconBg: "bg-blue-100",
-    extra: {
-      thisMonth: "$3,254.00",
-      lastMonth: "$2,842.75",
-    },
-  },
-];
-
 export default function PayoutPageCards() {
+  const [payoutData, setPayoutData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchPayoutData();
+  }, []);
+
+  const fetchPayoutData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/payouts');
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch payout data');
+      }
+
+      setPayoutData(result.data);
+    } catch (err) {
+      console.error('Error fetching payout data:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getCards = () => {
+    if (!payoutData) return [];
+
+    return [
+      {
+        title: "Available Balance",
+        amount: `$${payoutData.availableBalance}`,
+        subtitle: "Available for withdrawal",
+        icon: <FaWallet className="text-green-600" />,
+        iconBg: "bg-green-100",
+        button: "Withdraw Funds",
+        buttonClass: "text-white",
+      },
+      {
+        title: "Pending Balance",
+        amount: `$${payoutData.pendingBalance}`,
+        subtitle: "Funds in escrow (will be released in 7–14 days)",
+        icon: <FaClock className="text-yellow-600" />,
+        iconBg: "bg-yellow-100",
+        alert: {
+          icon: <FaInfoCircle size={20} className="text-yellow-700 mt-1" />,
+          text: "Funds are held in escrow until the order is confirmed as delivered and the return period has expired.",
+        },
+      },
+      {
+        title: "Lifetime Earnings",
+        amount: `$${payoutData.lifetimeEarnings}`,
+        subtitle: "Total earnings since you joined",
+        icon: <FaChartLine className="text-blue-600" />,
+        iconBg: "bg-blue-100",
+        extra: {
+          thisMonth: `$${payoutData.thisMonthEarnings}`,
+          lastMonth: `$${payoutData.lastMonthEarnings}`,
+        },
+      },
+    ];
+  };
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {[1, 2, 3].map((index) => (
+          <div
+            key={index}
+            className="bg-white p-5 rounded-lg shadow-sm relative flex flex-col justify-between h-full animate-pulse"
+          >
+            <div className="absolute top-4 right-4 p-3 rounded-full bg-gray-200 w-12 h-12"></div>
+            <div className="mb-4">
+              <div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
+              <div className="h-8 bg-gray-200 rounded w-32 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-40"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="col-span-full bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
+          <p className="font-medium">Error loading payout data</p>
+          <p className="text-sm mt-1">{error}</p>
+          <button
+            onClick={fetchPayoutData}
+            className="mt-2 text-sm bg-red-100 hover:bg-red-200 px-3 py-1 rounded"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const cards = getCards();
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
       {cards.map((card, index) => (

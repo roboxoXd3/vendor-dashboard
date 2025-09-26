@@ -1,22 +1,46 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-export default function TransactionHistory({ transactions }) {
+export default function TransactionHistory() {
   const ITEMS_PER_PAGE = 5;
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedType, setSelectedType] = useState("All");
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState(null);
+  const router = useRouter();
 
-  const filteredTransactions =
-    selectedType === "All"
-      ? transactions
-      : transactions.filter((trx) => trx.type === selectedType);
+  useEffect(() => {
+    fetchTransactions();
+  }, [currentPage, selectedType]);
 
-  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentItems = filteredTransactions.slice(
-    startIndex,
-    startIndex + ITEMS_PER_PAGE
-  );
+  const fetchTransactions = async () => {
+    try {
+      setLoading(true);
+      const typeParam = selectedType === "All" ? "all" : selectedType.toLowerCase();
+      const url = `/api/transactions?page=${currentPage}&limit=${ITEMS_PER_PAGE}&type=${typeParam}`;
+      
+      const response = await fetch(url);
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch transactions');
+      }
+
+      setTransactions(result.data.transactions);
+      setPagination(result.data.pagination);
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalPages = pagination?.pages || 0;
+  const currentItems = transactions;
 
   function handlePrevious() {
     if (currentPage > 1) {
@@ -33,6 +57,62 @@ export default function TransactionHistory({ transactions }) {
   function handleFilterChange(e) {
     setSelectedType(e.target.value);
     setCurrentPage(1);
+  }
+
+  const handleTransactionClick = (transaction) => {
+    // Use the orderId from the API response if available
+    if (transaction.orderId) {
+      // Navigate to orders page with the order ID as a parameter to open the details panel
+      router.push(`/orders?orderId=${transaction.orderId}`);
+    } else {
+      // For non-order transactions (like payouts), show a message or handle differently
+      console.log('This transaction is not related to a specific order');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg shadow p-4">
+        <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
+          <h2 className="text-sm font-semibold text-gray-700">Transaction History</h2>
+          <div className="h-8 bg-gray-200 rounded w-32 animate-pulse"></div>
+        </div>
+        
+        <div className="space-y-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="p-4 border border-gray-200 rounded animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-4 bg-gray-200 rounded w-20"></div>
+                  <div className="h-6 bg-gray-200 rounded w-16"></div>
+                </div>
+                <div className="h-4 bg-gray-200 rounded w-16"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-lg shadow p-4">
+        <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
+          <h2 className="text-sm font-semibold text-gray-700">Transaction History</h2>
+        </div>
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded">
+          <p className="font-medium">Error loading transactions</p>
+          <p className="text-sm mt-1">{error}</p>
+          <button
+            onClick={fetchTransactions}
+            className="mt-2 text-sm bg-red-100 hover:bg-red-200 px-3 py-1 rounded"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -72,46 +152,65 @@ export default function TransactionHistory({ transactions }) {
                 </tr>
               </thead>
               <tbody>
-                {currentItems.map((trx, i) => (
-                  <tr key={i} className="border-b border-[#E5E7EB]">
-                    <td className="p-3">#{trx.id}</td>
-                    <td className="py-3">
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${
-                          trx.type === "Withdrawal"
-                            ? "bg-blue-100 text-blue-700"
-                            : trx.type === "Earning"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
+                {currentItems.map((trx, i) => {
+                  const isOrderRelated = trx.orderId !== undefined;
+                  return (
+                    <tr 
+                      key={i} 
+                      className={`border-b border-[#E5E7EB] ${
+                        isOrderRelated 
+                          ? 'hover:bg-gray-50 cursor-pointer transition-colors' 
+                          : ''
+                      }`}
+                      onClick={() => isOrderRelated && handleTransactionClick(trx)}
+                      title={isOrderRelated ? 'Click to view order details' : ''}
+                    >
+                      <td className="p-3">#{trx.id}</td>
+                      <td className="py-3">
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${
+                            trx.type === "Withdrawal"
+                              ? "bg-blue-100 text-blue-700"
+                              : trx.type === "Earning"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {trx.type}
+                        </span>
+                      </td>
+                      <td className="py-3 text-gray-500">{trx.description}</td>
+                      <td className="py-3 text-gray-500">{trx.date}</td>
+                      <td
+                        className={`py-3 font-semibold ${
+                          trx.amount < 0 ? "text-red-500" : "text-green-600"
                         }`}
                       >
-                        {trx.type}
-                      </span>
-                    </td>
-                    <td className="py-3 text-gray-500">{trx.description}</td>
-                    <td className="py-3 text-gray-500">{trx.date}</td>
-                    <td
-                      className={`py-3 font-semibold ${
-                        trx.amount < 0 ? "text-red-500" : "text-green-600"
-                      }`}
-                    >
-                      {trx.amount < 0
-                        ? `-$${Math.abs(trx.amount).toFixed(2)}`
-                        : `+$${trx.amount.toFixed(2)}`}
-                    </td>
-                  </tr>
-                ))}
+                        {trx.amount < 0
+                          ? `-$${Math.abs(trx.amount).toFixed(2)}`
+                          : `+$${trx.amount.toFixed(2)}`}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           {/* Mobile Cards */}
           <div className="md:hidden space-y-4">
-            {currentItems.map((trx, i) => (
-              <div
-                key={i}
-                className="border border-[#E5E7EB] rounded-lg p-4 shadow-sm bg-white"
-              >
+            {currentItems.map((trx, i) => {
+              const isOrderRelated = trx.orderId !== undefined;
+              return (
+                <div
+                  key={i}
+                  className={`border border-[#E5E7EB] rounded-lg p-4 shadow-sm bg-white ${
+                    isOrderRelated 
+                      ? 'hover:bg-gray-50 cursor-pointer transition-colors' 
+                      : ''
+                  }`}
+                  onClick={() => isOrderRelated && handleTransactionClick(trx)}
+                >
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-md font-semibold text-gray-600">
                     #{trx.id}
@@ -150,7 +249,8 @@ export default function TransactionHistory({ transactions }) {
                   </span>
                 </p>
               </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
@@ -158,12 +258,12 @@ export default function TransactionHistory({ transactions }) {
       {/* Pagination */}
       <div className="text-xs text-gray-500 mt-4 flex flex-wrap items-center justify-between gap-3">
         <span>
-          {filteredTransactions.length === 0
+          {pagination?.total === 0
             ? "No transactions found"
-            : `Showing ${startIndex + 1}–${Math.min(
-                startIndex + ITEMS_PER_PAGE,
-                filteredTransactions.length
-              )} of ${filteredTransactions.length} transactions`}
+            : `Showing ${((currentPage - 1) * ITEMS_PER_PAGE) + 1}–${Math.min(
+                currentPage * ITEMS_PER_PAGE,
+                pagination?.total || 0
+              )} of ${pagination?.total || 0} transactions`}
         </span>
         <div className="flex gap-2">
           <button
