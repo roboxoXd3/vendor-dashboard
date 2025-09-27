@@ -75,7 +75,7 @@ export default function QATable({
       <div className="p-3 sm:p-6">
         <div className="animate-pulse space-y-3 sm:space-y-4">
           {[...Array(5)].map((_, index) => (
-            <div key={index} className="flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 border rounded-lg">
+            <div key={index} className="flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 border border-gray-200 rounded-lg">
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 rounded-full"></div>
               <div className="flex-1 space-y-2">
                 <div className="h-3 sm:h-4 bg-gray-200 rounded w-3/4"></div>

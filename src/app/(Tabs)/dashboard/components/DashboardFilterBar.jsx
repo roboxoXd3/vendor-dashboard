@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { FaDownload, FaCalendarAlt } from "react-icons/fa";
 
-export default function DashboardFilterBar() {
-  const [selectedPeriod, setSelectedPeriod] = useState('30d');
-  const [selectedView, setSelectedView] = useState('daily');
+export default function DashboardFilterBar({ filters, onFiltersChange }) {
+  const [selectedPeriod, setSelectedPeriod] = useState(filters?.period || '30d');
+  const [selectedView, setSelectedView] = useState(filters?.view || 'daily');
 
   const periods = [
     { value: '7d', label: 'Last 7 days' },
@@ -22,13 +22,15 @@ export default function DashboardFilterBar() {
   ];
 
   const handlePeriodChange = (e) => {
-    setSelectedPeriod(e.target.value);
-    // Here you could trigger a data refresh with the new period
+    const newPeriod = e.target.value;
+    setSelectedPeriod(newPeriod);
+    onFiltersChange?.({ period: newPeriod });
   };
 
   const handleViewChange = (e) => {
-    setSelectedView(e.target.value);
-    // Here you could trigger a view change
+    const newView = e.target.value;
+    setSelectedView(newView);
+    onFiltersChange?.({ view: newView });
   };
 
   return (
@@ -82,8 +84,38 @@ export default function DashboardFilterBar() {
         className="flex items-center justify-center gap-2 text-white px-4 py-2 rounded-md transition text-sm shadow cursor-pointer w-full md:w-auto hover:opacity-90"
         style={{ backgroundColor: "var(--color-theme)" }}
         onClick={() => {
-          // Handle export functionality
-          console.log('Exporting report for period:', selectedPeriod, 'view:', selectedView);
+          // Generate dashboard report
+          const reportData = {
+            period: selectedPeriod,
+            view: selectedView,
+            generatedAt: new Date().toISOString(),
+            reportType: 'Dashboard Summary'
+          };
+          
+          // Convert to CSV
+          const csvHeaders = ['Metric', 'Value', 'Period', 'View', 'Generated At'];
+          const csvRows = [
+            ['Report Type', reportData.reportType, reportData.period, reportData.view, reportData.generatedAt],
+            ['Period Selected', selectedPeriod, '', '', ''],
+            ['View Type', selectedView, '', '', ''],
+            ['Generated Date', new Date().toLocaleDateString(), '', '', '']
+          ];
+          
+          const csvContent = [
+            csvHeaders.join(','),
+            ...csvRows.map(row => row.map(field => `"${field}"`).join(','))
+          ].join('\n');
+          
+          // Create and download file
+          const blob = new Blob([csvContent], { type: 'text/csv' });
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `dashboard-report-${new Date().toISOString().split('T')[0]}.csv`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
         }}
       >
         <FaDownload className="h-4 w-4" />

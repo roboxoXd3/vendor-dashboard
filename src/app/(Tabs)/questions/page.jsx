@@ -129,7 +129,7 @@ export default function QuestionsPage() {
       />
 
       {/* Q&A Table */}
-      <div className="bg-white rounded-lg shadow-sm border">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <QATable
           questions={qaData?.questions || []}
           pagination={qaData?.pagination}

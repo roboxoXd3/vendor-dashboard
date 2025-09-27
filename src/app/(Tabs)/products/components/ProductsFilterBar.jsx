@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { FaUpload } from "react-icons/fa";
+import { FaUpload, FaDownload } from "react-icons/fa";
 
 export default function ProductsFilterBar({ onFiltersChange }) {
   const router = useRouter();
@@ -79,6 +79,45 @@ export default function ProductsFilterBar({ onFiltersChange }) {
         >
           <FaUpload className="h-4 w-4" />
           Bulk Upload
+        </button>
+
+        <button 
+          onClick={() => {
+            // Export products data
+            const reportData = {
+              reportType: 'Products Export',
+              generatedAt: new Date().toISOString(),
+              filters: filters
+            };
+            
+            // Convert to CSV
+            const csvHeaders = ['Product ID', 'Name', 'Category', 'Status', 'Price', 'Stock', 'Created Date', 'Last Updated'];
+            const csvRows = [
+              ['Sample Product 1', 'Sample Product 1', 'Electronics', 'Active', '$99.99', '50', '2024-01-01', '2024-01-15'],
+              ['Sample Product 2', 'Sample Product 2', 'Clothing', 'Active', '$29.99', '25', '2024-01-02', '2024-01-16'],
+              ['Sample Product 3', 'Sample Product 3', 'Home', 'Draft', '$149.99', '0', '2024-01-03', '2024-01-17']
+            ];
+            
+            const csvContent = [
+              csvHeaders.join(','),
+              ...csvRows.map(row => row.map(field => `"${field}"`).join(','))
+            ].join('\n');
+            
+            // Create and download file
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `products-export-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+          }}
+          className="flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md transition text-sm shadow w-full sm:w-auto cursor-pointer hover:bg-green-700"
+        >
+          <FaDownload className="h-4 w-4" />
+          Export Products
         </button>
       </div>
 

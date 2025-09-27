@@ -5,33 +5,33 @@ import { useAuth } from '@/contexts/AuthContext'
 // Query keys
 export const vendorKeys = {
   all: ['vendor'],
-  dashboardStats: (vendorId) => [...vendorKeys.all, 'dashboard-stats', vendorId],
-  recentOrders: (vendorId) => [...vendorKeys.all, 'recent-orders', vendorId],
+  dashboardStats: (vendorId, filters) => [...vendorKeys.all, 'dashboard-stats', vendorId, filters],
+  recentOrders: (vendorId, filters) => [...vendorKeys.all, 'recent-orders', vendorId, filters],
   profile: (vendorId) => [...vendorKeys.all, 'profile', vendorId],
   analytics: (vendorId, period) => [...vendorKeys.all, 'analytics', vendorId, period],
-  bestSelling: (vendorId) => [...vendorKeys.all, 'best-selling', vendorId],
-  inventory: (vendorId) => [...vendorKeys.all, 'inventory', vendorId],
+  bestSelling: (vendorId, filters) => [...vendorKeys.all, 'best-selling', vendorId, filters],
+  inventory: (vendorId, filters) => [...vendorKeys.all, 'inventory', vendorId, filters],
 }
 
 // Dashboard Stats Hook
-export function useDashboardStats() {
+export function useDashboardStats(filters = {}) {
   const { vendor } = useAuth()
   
   return useQuery({
-    queryKey: vendorKeys.dashboardStats(vendor?.id),
-    queryFn: () => vendorService.getDashboardStats(vendor?.id),
+    queryKey: vendorKeys.dashboardStats(vendor?.id, filters),
+    queryFn: () => vendorService.getDashboardStats(vendor?.id, filters),
     enabled: !!vendor?.id,
     staleTime: 1000 * 60 * 2, // 2 minutes
   })
 }
 
 // Recent Orders Hook
-export function useRecentOrders(limit = 5) {
+export function useRecentOrders(limit = 5, filters = {}) {
   const { vendor } = useAuth()
   
   return useQuery({
-    queryKey: vendorKeys.recentOrders(vendor?.id),
-    queryFn: () => vendorService.getRecentOrders(vendor?.id, limit),
+    queryKey: vendorKeys.recentOrders(vendor?.id, filters),
+    queryFn: () => vendorService.getRecentOrders(vendor?.id, limit, filters),
     enabled: !!vendor?.id,
     staleTime: 1000 * 60 * 1, // 1 minute
   })
@@ -50,36 +50,72 @@ export function useVendorProfile() {
 }
 
 // Sales Analytics Hook
-export function useSalesAnalytics(period = '30d') {
+export function useSalesAnalytics(period = '30d', filters = {}) {
   const { vendor } = useAuth()
   
   return useQuery({
-    queryKey: vendorKeys.analytics(vendor?.id, period),
-    queryFn: () => vendorService.getSalesAnalytics(vendor?.id, period),
+    queryKey: vendorKeys.analytics(vendor?.id, period, filters),
+    queryFn: () => vendorService.getSalesAnalytics(vendor?.id, period, filters),
+    enabled: !!vendor?.id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+}
+
+// Analytics Metrics Hook
+export function useAnalyticsMetrics(filters = {}) {
+  const { vendor } = useAuth()
+  
+  return useQuery({
+    queryKey: vendorKeys.analytics(vendor?.id, 'metrics', filters),
+    queryFn: () => vendorService.getAnalyticsMetrics(vendor?.id, filters),
+    enabled: !!vendor?.id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+}
+
+// Conversion Funnel Hook
+export function useConversionFunnel(filters = {}) {
+  const { vendor } = useAuth()
+  
+  return useQuery({
+    queryKey: vendorKeys.analytics(vendor?.id, 'funnel', filters),
+    queryFn: () => vendorService.getConversionFunnel(vendor?.id, filters),
+    enabled: !!vendor?.id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+}
+
+// Product Performance Hook
+export function useProductPerformance(filters = {}) {
+  const { vendor } = useAuth()
+  
+  return useQuery({
+    queryKey: vendorKeys.analytics(vendor?.id, 'performance', filters),
+    queryFn: () => vendorService.getProductPerformance(vendor?.id, filters),
     enabled: !!vendor?.id,
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
 }
 
 // Best Selling Products Hook
-export function useBestSellingProducts(limit = 5) {
+export function useBestSellingProducts(limit = 5, filters = {}) {
   const { vendor } = useAuth()
   
   return useQuery({
-    queryKey: vendorKeys.bestSelling(vendor?.id),
-    queryFn: () => vendorService.getBestSellingProducts(vendor?.id, limit),
+    queryKey: vendorKeys.bestSelling(vendor?.id, filters),
+    queryFn: () => vendorService.getBestSellingProducts(vendor?.id, limit, filters),
     enabled: !!vendor?.id,
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
 }
 
 // Inventory Status Hook
-export function useInventoryStatus() {
+export function useInventoryStatus(filters = {}) {
   const { vendor } = useAuth()
   
   return useQuery({
-    queryKey: vendorKeys.inventory(vendor?.id),
-    queryFn: () => vendorService.getInventoryStatus(vendor?.id),
+    queryKey: vendorKeys.inventory(vendor?.id, filters),
+    queryFn: () => vendorService.getInventoryStatus(vendor?.id, filters),
     enabled: !!vendor?.id,
     staleTime: 1000 * 60 * 2, // 2 minutes
   })

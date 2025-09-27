@@ -8,6 +8,8 @@ import { useUpdateOrderStatus } from "@/hooks/useOrders";
 
 export default function OrderDetailsPanel({ selectedOrderId, orders = [], onClose }) {
   const [order, setOrder] = useState(null);
+  const [showDeliveredModal, setShowDeliveredModal] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState(null);
   const updateOrderStatus = useUpdateOrderStatus();
 
   const statusStyles = {
@@ -58,6 +60,36 @@ export default function OrderDetailsPanel({ selectedOrderId, orders = [], onClos
 
   const getVendorTotal = (order) => {
     return order.vendor_subtotal || order.total || 0;
+  };
+
+  const handleStatusChange = (e) => {
+    const newStatus = e.target.value;
+    
+    if (newStatus === 'delivered') {
+      setPendingStatus(newStatus);
+      setShowDeliveredModal(true);
+    } else if (newStatus && newStatus !== order.status) {
+      updateOrderStatus.mutate({
+        orderId: order.id,
+        status: newStatus
+      });
+    }
+  };
+
+  const confirmDelivered = () => {
+    if (pendingStatus) {
+      updateOrderStatus.mutate({
+        orderId: order.id,
+        status: pendingStatus
+      });
+    }
+    setShowDeliveredModal(false);
+    setPendingStatus(null);
+  };
+
+  const cancelDelivered = () => {
+    setShowDeliveredModal(false);
+    setPendingStatus(null);
   };
 
   useEffect(() => {
@@ -255,16 +287,12 @@ export default function OrderDetailsPanel({ selectedOrderId, orders = [], onClos
         {/* Actions */}
         <div className="flex flex-col gap-3">
           <select
-            onChange={(e) => {
-              if (e.target.value && e.target.value !== order.status) {
-                updateOrderStatus.mutate({
-                  orderId: order.id,
-                  status: e.target.value
-                });
-              }
-            }}
-            className="border border-gray-300 px-4 py-3 text-black text-md rounded-lg w-full"
+            onChange={handleStatusChange}
+            className={`border border-gray-300 px-4 py-3 text-black text-md rounded-lg w-full ${
+              order.status === 'delivered' ? 'bg-gray-100 cursor-not-allowed' : ''
+            }`}
             defaultValue={order.status}
+            disabled={order.status === 'delivered'}
           >
             <option value="">Update Order Status</option>
             <option value="confirmed">Confirmed</option>
@@ -274,6 +302,12 @@ export default function OrderDetailsPanel({ selectedOrderId, orders = [], onClos
             <option value="cancelled">Cancelled</option>
           </select>
           
+          {order.status === 'delivered' && (
+            <p className="text-xs text-gray-500 text-center">
+              Order is delivered and cannot be changed
+            </p>
+          )}
+          
           {order.status === 'shipped' && (
             <button className="bg-[var(--color-theme)] px-4 py-3 text-white text-md rounded-lg w-full">
               Generate Shipping Label
@@ -281,6 +315,52 @@ export default function OrderDetailsPanel({ selectedOrderId, orders = [], onClos
           )}
         </div>
       </div>
+
+      {/* Delivered Confirmation Modal */}
+      {showDeliveredModal && (
+        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl border border-gray-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                <MdOutlineAccessTime className="text-yellow-600 text-lg" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Confirm Order Delivery
+              </h3>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-600 mb-3">
+                Are you sure you want to mark this order as delivered?
+              </p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-sm text-yellow-800 font-medium">
+                  ⚠️ Important Notice
+                </p>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Once you set the order status to "delivered", you cannot change it again. 
+                  This action is permanent and will finalize the order.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={cancelDelivered}
+                className="flex-1 px-4 cursor-pointer py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelivered}
+                className="flex-1 px-4 py-2 cursor-pointer bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Mark as Delivered
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

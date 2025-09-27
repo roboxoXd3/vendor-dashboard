@@ -4,8 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useRecentOrders } from '@/hooks/useVendor';
 
-export default function CustomerLocations() {
-  const { data: ordersData, isLoading } = useRecentOrders(50); // Get more orders to analyze locations
+export default function CustomerLocations({ filters = {} }) {
+  const { data: ordersData, isLoading } = useRecentOrders(50, filters); // Get more orders to analyze locations
 
   // For now, we'll show a placeholder since we don't have customer address data in orders
   // In a real implementation, you'd need to join orders with shipping_addresses table

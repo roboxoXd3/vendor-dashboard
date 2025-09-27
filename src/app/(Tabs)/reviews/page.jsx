@@ -130,7 +130,7 @@ export default function ReviewsPage() {
       />
 
       {/* Reviews Table */}
-      <div className="bg-white rounded-lg shadow-sm border">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <ReviewsTable
           reviews={reviewsData?.reviews || []}
           pagination={reviewsData?.pagination}

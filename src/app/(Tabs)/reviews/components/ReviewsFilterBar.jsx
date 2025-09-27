@@ -47,7 +47,7 @@ export default function ReviewsFilterBar({
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border p-3 sm:p-4">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
       {/* Main Filter Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         {/* Left Side - Quick Filters */}

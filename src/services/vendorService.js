@@ -2,7 +2,7 @@ import { getSupabase } from '@/lib/supabase'
 
 export const vendorService = {
   // Get vendor dashboard stats using server-side API
-  async getDashboardStats(vendorId) {
+  async getDashboardStats(vendorId, filters = {}) {
     try {
 
       // Check if vendorId is provided
@@ -11,8 +11,14 @@ export const vendorService = {
         return { data: null, error: null }
       }
 
+      // Build query parameters
+      const params = new URLSearchParams({
+        vendorId,
+        ...filters
+      });
+
       // Call server-side API endpoint
-      const response = await fetch(`/api/dashboard-stats?vendorId=${vendorId}`, {
+      const response = await fetch(`/api/dashboard-stats?${params}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -37,7 +43,7 @@ export const vendorService = {
   },
 
   // Get recent orders using server-side API
-  async getRecentOrders(vendorId, limit = 5) {
+  async getRecentOrders(vendorId, limit = 5, filters = {}) {
     try {
       // Check if vendorId is provided
       if (!vendorId) {
@@ -45,8 +51,15 @@ export const vendorService = {
         return { data: [], error: null }
       }
 
+      // Build query parameters
+      const params = new URLSearchParams({
+        vendorId,
+        limit,
+        ...filters
+      });
+
       // Call server-side API endpoint
-      const response = await fetch(`/api/recent-orders?vendorId=${vendorId}&limit=${limit}`, {
+      const response = await fetch(`/api/recent-orders?${params}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -113,7 +126,7 @@ export const vendorService = {
   },
 
   // Get best selling products using performance summary view
-  async getBestSellingProducts(vendorId, limit = 5) {
+  async getBestSellingProducts(vendorId, limit = 5, filters = {}) {
     try {
       if (!vendorId) {
         console.warn('No vendor ID provided for getBestSellingProducts')
@@ -184,7 +197,7 @@ export const vendorService = {
   },
 
   // Get inventory status
-  async getInventoryStatus(vendorId) {
+  async getInventoryStatus(vendorId, filters = {}) {
     try {
       if (!vendorId) {
         console.warn('No vendor ID provided for getInventoryStatus')
@@ -240,65 +253,155 @@ export const vendorService = {
   },
 
   // Get sales analytics
-  async getSalesAnalytics(vendorId, period = '30d') {
+  async getSalesAnalytics(vendorId, period = '30d', filters = {}) {
     try {
-      const startDate = new Date()
-      
-      switch (period) {
-        case '7d':
-          startDate.setDate(startDate.getDate() - 7)
-          break
-        case '30d':
-          startDate.setDate(startDate.getDate() - 30)
-          break
-        case '90d':
-          startDate.setDate(startDate.getDate() - 90)
-          break
-        case '1y':
-          startDate.setFullYear(startDate.getFullYear() - 1)
-          break
-        default:
-          startDate.setDate(startDate.getDate() - 30)
+      if (!vendorId) {
+        console.warn('No vendor ID provided for getSalesAnalytics')
+        return { data: null, error: null }
       }
 
-      const supabase = getSupabase()
-      const { data: analyticsData } = await supabase
-        .from('orders')
-        .select('created_at, total, status')
-        .eq('vendor_id', vendorId)
-        .gte('created_at', startDate.toISOString())
-        .order('created_at', { ascending: true })
+      // Build query parameters
+      const params = new URLSearchParams({
+        vendorId,
+        period,
+        ...filters
+      });
 
-      // Process the data for charts
-      const dailySales = {}
-      const statusCounts = { pending: 0, processing: 0, completed: 0, cancelled: 0 }
-      let totalRevenue = 0
-
-      analyticsData?.forEach(order => {
-        const date = order.created_at.split('T')[0] // YYYY-MM-DD
-        const amount = parseFloat(order.total)
-
-        dailySales[date] = (dailySales[date] || 0) + amount
-        statusCounts[order.status] = (statusCounts[order.status] || 0) + 1
-        
-        if (['completed', 'delivered'].includes(order.status)) {
-          totalRevenue += amount
-        }
+      // Call server-side API endpoint
+      const response = await fetch(`/api/analytics/sales?${params}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
       })
 
-      return {
-        data: {
-          dailySales,
-          statusCounts,
-          totalRevenue,
-          totalOrders: analyticsData?.length || 0,
-          period
-        },
-        error: null
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Sales analytics API error:', errorData)
+        throw new Error(errorData.error || 'Failed to fetch sales analytics')
       }
+
+      const result = await response.json()
+      return { data: result.data, error: null }
+
     } catch (error) {
-      console.error('❌ Error fetching sales analytics:', error)
-      return { data: null, error }
+      console.error('Error fetching sales analytics:', error)
+      return { data: null, error: error.message }
+    }
+  },
+
+  // Get analytics metrics
+  async getAnalyticsMetrics(vendorId, filters = {}) {
+    try {
+      if (!vendorId) {
+        console.warn('No vendor ID provided for getAnalyticsMetrics')
+        return { data: null, error: null }
+      }
+
+      // Build query parameters
+      const params = new URLSearchParams({
+        vendorId,
+        ...filters
+      });
+
+      // Call server-side API endpoint
+      const response = await fetch(`/api/analytics/metrics?${params}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Analytics metrics API error:', errorData)
+        throw new Error(errorData.error || 'Failed to fetch analytics metrics')
+      }
+
+      const result = await response.json()
+      return { data: result.data, error: null }
+
+    } catch (error) {
+      console.error('Error fetching analytics metrics:', error)
+      return { data: null, error: error.message }
+    }
+  },
+
+  // Get conversion funnel
+  async getConversionFunnel(vendorId, filters = {}) {
+    try {
+      if (!vendorId) {
+        console.warn('No vendor ID provided for getConversionFunnel')
+        return { data: null, error: null }
+      }
+
+      // Build query parameters
+      const params = new URLSearchParams({
+        vendorId,
+        ...filters
+      });
+
+      // Call server-side API endpoint
+      const response = await fetch(`/api/analytics/funnel?${params}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Conversion funnel API error:', errorData)
+        throw new Error(errorData.error || 'Failed to fetch conversion funnel')
+      }
+
+      const result = await response.json()
+      return { data: result.data, error: null }
+
+    } catch (error) {
+      console.error('Error fetching conversion funnel:', error)
+      return { data: null, error: error.message }
+    }
+  },
+
+  // Get product performance
+  async getProductPerformance(vendorId, filters = {}) {
+    try {
+      if (!vendorId) {
+        console.warn('No vendor ID provided for getProductPerformance')
+        return { data: [], error: null }
+      }
+
+      // Build query parameters
+      const params = new URLSearchParams({
+        vendorId,
+        ...filters
+      });
+
+      // Call server-side API endpoint
+      const response = await fetch(`/api/analytics/performance?${params}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Product performance API error:', errorData)
+        throw new Error(errorData.error || 'Failed to fetch product performance')
+      }
+
+      const result = await response.json()
+      return { data: result.data || [], error: null }
+
+    } catch (error) {
+      console.error('Error fetching product performance:', error)
+      return { data: [], error: error.message }
     }
   }
 }

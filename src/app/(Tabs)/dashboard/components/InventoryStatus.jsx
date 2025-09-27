@@ -2,8 +2,8 @@
 
 import { useInventoryStatus } from '@/hooks/useVendor';
 
-export default function InventoryStatus() {
-  const { data: inventoryData, isLoading, error } = useInventoryStatus();
+export default function InventoryStatus({ filters = {} }) {
+  const { data: inventoryData, isLoading, error } = useInventoryStatus(filters);
 
   if (isLoading) {
     return (

@@ -150,7 +150,6 @@ export default function OrdersTable({
                     <div className="flex items-center gap-3 text-gray-500">
                       <FiEye className="cursor-pointer hover:text-black" />
                       <FiPrinter className="cursor-pointer hover:text-black" />
-                      <FiMoreVertical className="cursor-pointer hover:text-black" />
                     </div>
                   </td>
                 </tr>
@@ -225,7 +224,6 @@ export default function OrdersTable({
               <div className="flex justify-end gap-4 text-gray-500 pt-2 border-t border-gray-200">
                 <FiEye className="cursor-pointer hover:text-black" />
                 <FiPrinter className="cursor-pointer hover:text-black" />
-                <FiMoreVertical className="cursor-pointer hover:text-black" />
               </div>
             </div>
           );

@@ -4,8 +4,8 @@ import { FaArrowUp, FaArrowDown } from "react-icons/fa6";
 import { useDashboardStats } from '@/hooks/useVendor';
 import { useCurrencyContext } from '@/contexts/CurrencyContext';
 
-export default function DashboardPageCards() {
-  const { data: statsData, isLoading, error } = useDashboardStats();
+export default function DashboardPageCards({ filters = {} }) {
+  const { data: statsData, isLoading, error } = useDashboardStats(filters);
   const { formatPrice, globalCurrency, getCurrencySymbol } = useCurrencyContext();
 
   if (isLoading) {
@@ -90,7 +90,7 @@ export default function DashboardPageCards() {
         >
           <div className="flex-1">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm md:text-lg font-semibold text-gray-500">
+              <h3 className="text-sm font-semibold text-gray-500">
                 {item.title}
               </h3>
               <div className={`p-2 rounded-full ${item.color} text-white`}>
@@ -99,19 +99,19 @@ export default function DashboardPageCards() {
             </div>
             <div className="mt-2 flex flex-col">
               <div className="flex items-center gap-2 mb-1 w-fit relative">
-                <p className="font-bold text-lg md:text-[30px]">{item.value}</p>
+                <p className="font-bold text-lg">{item.value}</p>
                 <span className={`text-sm font-semibold flex items-center absolute right-[-40px] bottom-[-3px] ${
                   item.trend === 'up' ? 'text-green-600' : 'text-red-600'
                 }`}>
                   {item.trend === 'up' ? (
-                    <FaArrowUp className="md:pt-1.5 md:text-xl" />
+                    <FaArrowUp className="pt-1 text-sm" />
                   ) : (
-                    <FaArrowDown className="md:pt-1.5 md:text-xl" />
+                    <FaArrowDown className="pt-1 text-sm" />
                   )}
                   {item.percent}
                 </span>
               </div>
-              <p className="text-xs md:text-[12px] text-gray-500">
+              <p className="text-xs text-gray-500">
                 {item.label}
               </p>
             </div>

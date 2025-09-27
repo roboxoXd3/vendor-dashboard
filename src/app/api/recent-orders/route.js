@@ -5,6 +5,8 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url)
     const vendorId = searchParams.get('vendorId')
     const limit = parseInt(searchParams.get('limit')) || 5
+    const period = searchParams.get('period') || '30d'
+    const view = searchParams.get('view') || 'daily'
     const supabase = getSupabaseServer()
     
     if (!vendorId) {
@@ -13,7 +15,28 @@ export async function GET(request) {
       }, { status: 400 })
     }
 
-    console.log('📋 Fetching recent orders for vendor:', vendorId, 'limit:', limit)
+    console.log('📋 Fetching recent orders for vendor:', vendorId, 'limit:', limit, 'filters:', { period, view })
+
+    // Calculate date range based on period filter
+    const endDate = new Date()
+    const startDate = new Date()
+    
+    switch (period) {
+      case '7d':
+        startDate.setDate(endDate.getDate() - 7)
+        break
+      case '30d':
+        startDate.setDate(endDate.getDate() - 30)
+        break
+      case '90d':
+        startDate.setDate(endDate.getDate() - 90)
+        break
+      case '1y':
+        startDate.setFullYear(endDate.getFullYear() - 1)
+        break
+      default:
+        startDate.setDate(endDate.getDate() - 30)
+    }
 
     // Get vendor's product IDs first
     const { data: products, error: productsError } = await supabase
@@ -32,7 +55,7 @@ export async function GET(request) {
 
     const productIds = products.map(p => p.id)
 
-    // Get recent order items for vendor's products
+    // Get recent order items for vendor's products with date filter
     const { data: orderItems, error: orderItemsError } = await supabase
       .from('order_items')
       .select(`
@@ -49,8 +72,11 @@ export async function GET(request) {
         )
       `)
       .in('product_id', productIds)
-      .order('created_at', { ascending: false })
+      .gte('orders.created_at', startDate.toISOString())
+      .lte('orders.created_at', endDate.toISOString())
+      .order('created_at', { ascending: false, referencedTable: 'orders' })
       .limit(limit * 2) // Get more to account for multiple items per order
+
 
     if (orderItemsError) {
       console.error('❌ Error fetching recent order items:', orderItemsError)

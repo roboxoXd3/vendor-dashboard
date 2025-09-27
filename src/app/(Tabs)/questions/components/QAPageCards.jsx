@@ -49,7 +49,7 @@ export default function QAPageCards({ stats, isLoading }) {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {[...Array(4)].map((_, index) => (
-          <div key={index} className="bg-white p-3 sm:p-6 rounded-lg shadow-sm border animate-pulse">
+          <div key={index} className="bg-white p-3 sm:p-6 rounded-lg shadow-sm border border-gray-200 animate-pulse">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-200 rounded"></div>
               <div className="w-12 h-3 sm:w-16 sm:h-4 bg-gray-200 rounded"></div>
@@ -67,7 +67,7 @@ export default function QAPageCards({ stats, isLoading }) {
       {cards.map((card, index) => {
         const Icon = card.icon;
         return (
-          <div key={index} className="bg-white p-3 sm:p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+          <div key={index} className="bg-white p-3 sm:p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div className={`p-1.5 sm:p-2 rounded-lg border ${getColorClasses(card.color)}`}>
                 <Icon className="w-4 h-4 sm:w-5 sm:h-5" />

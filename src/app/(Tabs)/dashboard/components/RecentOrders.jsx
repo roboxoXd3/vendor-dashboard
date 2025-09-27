@@ -12,8 +12,8 @@ const statusColor = {
   cancelled: "bg-red-100 text-red-600",
 };
 
-export default function RecentOrders() {
-  const { data: ordersData, isLoading, error } = useRecentOrders(5);
+export default function RecentOrders({ filters = {} }) {
+  const { data: ordersData, isLoading, error } = useRecentOrders(5, filters);
   const { formatPrice } = useCurrencyContext();
 
   const formatDate = (dateString) => {

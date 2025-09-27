@@ -5,8 +5,8 @@ import { useBestSellingProducts } from '@/hooks/useVendor';
 import { useCurrencyContext } from '@/contexts/CurrencyContext';
 import Image from 'next/image';
 
-export default function BestSellingProducts() {
-  const { data: productsData, isLoading, error } = useBestSellingProducts(3);
+export default function BestSellingProducts({ filters = {} }) {
+  const { data: productsData, isLoading, error } = useBestSellingProducts(3, filters);
   const { formatPrice } = useCurrencyContext();
 
   const formatProductPrice = (price) => {

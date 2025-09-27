@@ -110,7 +110,7 @@ export default function FeaturedProductsSection({ filters = {}, refreshKey = 0, 
       )}
 
       {totalPages > 1 && (
-        <div className="flex justify-center mt-6 text-md rounded-md border border-gray-300 w-fit mx-auto bg-white p-2">
+        <div className="flex justify-center mt-6 text-sm rounded-md border border-gray-300 w-fit mx-auto bg-white p-2">
           <button
             onClick={handlePrevious}
             disabled={currentPage === 1}

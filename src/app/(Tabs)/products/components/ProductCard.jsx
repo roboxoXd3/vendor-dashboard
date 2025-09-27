@@ -117,7 +117,7 @@ export default function ProductCard({ product, onUpdate }) {
 
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col gap-3">
+    <div className="bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col gap-2">
                 <div className="relative">
             {productImage === 'https://via.placeholder.com/300x200?text=No+Image' || imageError ? (
               <div className="w-full h-40 bg-gray-100 rounded-lg flex flex-col items-center justify-center text-gray-500">
@@ -150,17 +150,17 @@ export default function ProductCard({ product, onUpdate }) {
             )}
           </div>
 
-      <div className="p-2">
+      <div className="p-3">
         <div className="flex justify-between">
           <h3 className="font-semibold text-sm text-gray-800">
             {product.name}
           </h3>
           <h3 className="font-semibold text-sm text-[#D97706] flex items-center gap-1">
-            <FaStar />
+            <FaStar className="w-4 h-4" />
             {product.rating || 0}
           </h3>
         </div>
-        <p className="text-xs text-gray-500 mb-1">{product.description || 'No description available'}</p>
+        <p className="text-xs text-gray-500 mb-2">{product.description || 'No description available'}</p>
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <span className="text-emerald-600">
@@ -172,7 +172,7 @@ export default function ProductCard({ product, onUpdate }) {
               </span>
             )}
           </div>
-          <div className="text-xs text-gray-600 mt-1">
+          <div className="text-xs text-gray-600">
             Stock:{" "}
             {product.stock_quantity > 0 ? (
               product.stock_quantity
@@ -183,7 +183,7 @@ export default function ProductCard({ product, onUpdate }) {
         </div>
       </div>
 
-      <div className="flex justify-between items-center text-sm text-gray-600 border-t p-2 pt-3">
+      <div className="flex justify-between items-center text-sm text-gray-600 border-t p-3 pt-3">
         <button
           onClick={() => router.push(`/products/edit/${product.id}`)}
           className="flex items-center gap-1 hover:text-emerald-600 cursor-pointer transition-colors"
@@ -202,25 +202,25 @@ export default function ProductCard({ product, onUpdate }) {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
+          <div className="bg-white rounded-lg p-4 max-w-md w-full">
+            <h3 className="text-base font-semibold text-gray-900 mb-3">
               Delete Product
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-sm text-gray-600 mb-4">
               Are you sure you want to delete "{product.name}"? This action cannot be undone.
             </p>
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleteProductMutation.isLoading}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 text-sm"
               >
                 {deleteProductMutation.isLoading ? 'Deleting...' : 'Delete'}
               </button>

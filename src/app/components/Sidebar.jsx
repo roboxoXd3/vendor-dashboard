@@ -2,120 +2,117 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CiShop } from "react-icons/ci";
-import { FaChartLine, FaCartShopping, FaMoneyBillWave } from "react-icons/fa6";
-import { FaBox, FaChartPie, FaStar, FaRuler } from "react-icons/fa";
-import { BiSupport } from "react-icons/bi";
-import { IoMdSettings } from "react-icons/io";
-import { FiHelpCircle } from "react-icons/fi";
-import { FiLogOut, FiX } from "react-icons/fi";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  HiOutlineHome,
+  HiOutlineCube,
+  HiOutlineShoppingCart,
+  HiOutlineCurrencyDollar,
+  HiOutlineChartBar,
+  HiOutlineStar,
+  HiOutlineQuestionMarkCircle,
+  HiOutlineMegaphone,
+  HiOutlineCog,
+  HiOutlineArrowRightOnRectangle,
+  HiOutlineXMark,
+  HiOutlineViewColumns,
+} from "react-icons/hi2";
 
-const menu = [
-  { name: "Dashboard", icon: <FaChartLine />, href: "/dashboard" },
-  { name: "Products", icon: <FaBox />, href: "/products" },
-  { name: "Size Charts", icon: <FaRuler />, href: "/size-charts" },
-  { name: "Orders", icon: <FaCartShopping />, href: "/orders" },
-  { name: "Reviews", icon: <FaStar />, href: "/reviews" },
-  { name: "Questions", icon: <FiHelpCircle />, href: "/questions" },
-  { name: "Payouts", icon: <FaMoneyBillWave />, href: "/payouts" },
-  { name: "Analytics", icon: <FaChartPie />, href: "/analytics" },
-  { name: "Support", icon: <BiSupport />, href: "/support" },
-  { name: "Settings", icon: <IoMdSettings />, href: "/settings" },
+const navItems = [
+  { name: "Dashboard", href: "/dashboard", icon: HiOutlineHome },
+  { name: "Products", href: "/products", icon: HiOutlineCube },
+  { name: "Size Charts", href: "/size-charts", icon: HiOutlineViewColumns },
+  { name: "Orders", href: "/orders", icon: HiOutlineShoppingCart },
+  { name: "Reviews", href: "/reviews", icon: HiOutlineStar },
+  { name: "Questions", href: "/questions", icon: HiOutlineQuestionMarkCircle },
+  { name: "Payouts", href: "/payouts", icon: HiOutlineCurrencyDollar },
+  { name: "Analytics", href: "/analytics", icon: HiOutlineChartBar },
+  { name: "Support", href: "/support", icon: HiOutlineMegaphone },
+  { name: "Settings", href: "/settings", icon: HiOutlineCog },
 ];
 
-export default function Sidebar({ onClose, isOpen }) {
+export default function Sidebar({ isOpen, onClose }) {
   const pathname = usePathname();
   const { user, vendor, signOut } = useAuth();
 
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
   return (
     <aside
-      className={`
-        fixed top-0 left-0 z-50 h-full w-64 bg-white shadow-lg border-r border-gray-200 flex flex-col justify-between
-        transform transition-transform duration-300 ease-in-out
-        ${isOpen ? "translate-x-0" : "-translate-x-full"}
-        lg:translate-x-0 lg:static lg:block
-      `}
+      className={`fixed z-50 lg:static top-0 left-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${
+        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      }`}
     >
       <div>
-        {/* Mobile Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 lg:hidden">
-          <div className="flex items-center gap-2 text-xl font-semibold">
-            <span className="text-[var(--color-theme)] text-3xl">
-              <CiShop />
-            </span>{" "}
-            <Link href="/"> Vendor Panel</Link>
+        <div className="p-3.5 text-lg font-bold flex items-center justify-between gap-2 border-b border-gray-200 lg:justify-start">
+          <div className="bg-[var(--color-theme)] p-2 rounded-md">
+            <HiOutlineCube className="text-white w-5 h-5" />
           </div>
+          Vendor Panel
           <button
             onClick={onClose}
-            className="text-gray-500 text-2xl hover:text-black"
+            className="ml-auto lg:hidden text-gray-500"
           >
-            <FiX />
+            <HiOutlineXMark className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Desktop Header */}
-        <div className="hidden lg:flex items-center gap-2 p-4 text-xl font-semibold border-b border-gray-200">
-          <span className="text-[var(--color-theme)] text-[18px]">
-            <CiShop size={30} />
-          </span>{" "}
-          <Link href="/"> Vendor Panel</Link>
-        </div>
-
-        {/* Menu */}
-        <nav className="mt-4 flex flex-col gap-1">
-          {menu.map((item) => {
-            const isActive = pathname.startsWith(item.href);
+        <ul className="px-2 pt-4 space-y-1">
+          {navItems.map(({ name, href, icon: Icon }) => {
+            const active = pathname === href;
             return (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={() => {
-                  if (onClose) onClose();
-                }}
-                className={`flex items-center gap-3 py-3 px-6 text-[16px] transition-all duration-200 
-                  ${
-                    isActive
-                      ? "bg-[var(--color-theme-light)] text-[var(--color-theme)] border-l-[4px] border-[var(--color-theme)]"
-                      : "text-gray-500"
-                  }
-                  hover:bg-[var(--color-theme-light)] hover:text-[var(--color-theme)] hover:border-l-[4px] hover:border-[var(--color-theme)]`}
-              >
-                <span
-                  className={`${
-                    isActive ? "text-[var(--color-theme)]" : "text-gray-500"
+              <li key={name}>
+                <Link
+                  href={href}
+                  onClick={() => {
+                    if (onClose) onClose();
+                  }}
+                  className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm ${
+                    active
+                      ? "bg-green-500/10 border-l-4 border-[var(--color-theme)] text-[var(--color-theme)] font-medium"
+                      : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
-                  {item.icon}
-                </span>
-                {item.name}
-              </Link>
+                  <Icon
+                    className={`w-5 h-5 ${
+                      active ? "text-[var(--color-theme)]" : "text-gray-400"
+                    }`}
+                  />
+                  {name}
+                </Link>
+              </li>
             );
           })}
-        </nav>
+        </ul>
       </div>
 
-      <div className="p-4 border-t border-gray-200 flex justify-between items-center fixed bottom-0 w-full">
-        <div className="flex gap-3 items-center">
+      <div className="px-4 py-3 border-t border-gray-200">
+        <div className="flex items-center gap-3">
           <Image
             src="/avatar.png"
-            alt="avatar"
-            className="rounded-full object-cover"
-            width={24}
-            height={24}
+            alt="User"
+            width={32}
+            height={32}
+            className="rounded-full"
           />
-          <div className="text-sm">
-            <div className="font-medium">{vendor?.business_name || 'Vendor'}</div>
-            <div className="text-gray-500 text-xs">{vendor?.status === 'approved' ? 'Verified Vendor' : vendor?.status || 'Pending'}</div>
+          <div className="flex-1">
+            <p className="text-sm font-medium">{vendor?.business_name || 'Vendor'}</p>
+            <p className="text-xs text-gray-500 capitalize">{vendor?.status === 'approved' ? 'Verified Vendor' : vendor?.status || 'Pending'}</p>
           </div>
-        </div>
-        <div 
-          className="cursor-pointer text-xl text-gray-500 hover:text-black"
-          onClick={signOut}
-          title="Sign Out"
-        >
-          <FiLogOut />
+          <button
+            onClick={handleLogout}
+            className="p-1 hover:bg-gray-100 cursor-pointer rounded transition-colors"
+            title="Sign Out"
+          >
+            <HiOutlineArrowRightOnRectangle className="w-5 h-5 text-gray-400 hover:text-red-500" />
+          </button>
         </div>
       </div>
     </aside>
