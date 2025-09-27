@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { FiEye, FiPrinter, FiMoreVertical } from "react-icons/fi";
+import { useCurrencyContext } from "@/contexts/CurrencyContext";
 
 const statusStyles = {
   delivered: "bg-green-100 text-green-700",
@@ -56,6 +57,7 @@ export default function OrdersTable({
   selectedOrderId,
 }) {
   const [selectedId, setSelectedId] = useState(selectedOrderId || null);
+  const { formatPrice } = useCurrencyContext();
 
   const handleSelect = (id) => {
     const newId = selectedId === id ? null : id;
@@ -135,7 +137,7 @@ export default function OrdersTable({
                     </div>
                   </td>
                   <td className="px-4 py-3 font-semibold">
-                    ${vendorTotal.toFixed(2)}
+                    {formatPrice(vendorTotal, 'USD')}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -214,7 +216,7 @@ export default function OrdersTable({
 
               <div className="text-sm text-gray-600">
                 <p>
-                  <strong>Amount:</strong> ${vendorTotal.toFixed(2)}
+                  <strong>Amount:</strong> {formatPrice(vendorTotal, 'USD')}
                 </p>
                 <p>
                   <strong>Date:</strong> {formatDate(order.created_at)}

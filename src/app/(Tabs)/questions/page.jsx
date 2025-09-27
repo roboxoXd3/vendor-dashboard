@@ -14,7 +14,7 @@ export default function QuestionsPage() {
   const [filters, setFilters] = useState({
     page: 1,
     limit: 20,
-    status: 'pending',
+    status: 'all', // Changed from 'pending' to 'all' to show all questions by default
     hasAnswer: '',
     productId: '',
     sortBy: 'created_at',
@@ -93,25 +93,7 @@ export default function QuestionsPage() {
           </p>
         </div>
         
-        <div className="flex items-center space-x-2 sm:space-x-3">
-          <button
-            onClick={() => handleFilterChange({ hasAnswer: filters.hasAnswer === 'false' ? '' : 'false' })}
-            className={`flex items-center px-3 sm:px-4 py-2 rounded-md text-sm font-medium ${
-              filters.hasAnswer === 'false'
-                ? 'bg-orange-100 text-orange-700 border border-orange-200'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            <FiHelpCircle className="w-4 h-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Needs Answer</span>
-            <span className="sm:hidden">Pending</span>
-            {stats && (
-              <span className="ml-1 sm:ml-2 px-1.5 sm:px-2 py-0.5 bg-orange-500 text-white text-xs rounded-full">
-                {stats.needingAnswer}
-              </span>
-            )}
-          </button>
-        </div>
+      
       </div>
 
       {/* Stats Cards */}

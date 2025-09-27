@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { FaUniversity, FaPlus, FaCheck, FaClock, FaTimes } from "react-icons/fa";
 import { SiPaypal } from "react-icons/si";
+import { useCurrencyContext } from "@/contexts/CurrencyContext";
 
 export default function PayoutMethods() {
   const [bankAccounts, setBankAccounts] = useState([]);
@@ -9,6 +10,7 @@ export default function PayoutMethods() {
   const [error, setError] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addingAccount, setAddingAccount] = useState(false);
+  const { formatPrice } = useCurrencyContext();
   const [formData, setFormData] = useState({
     bank_name: '',
     bank_code: '',
@@ -327,7 +329,7 @@ export default function PayoutMethods() {
       )}
 
       <p className="text-xs text-gray-500 mt-4 leading-relaxed">
-        Withdrawal minimum: $50.00
+        Withdrawal minimum: {formatPrice(50, 'USD')}
         <br />
         Processing time: 1–3 business days
         <br />

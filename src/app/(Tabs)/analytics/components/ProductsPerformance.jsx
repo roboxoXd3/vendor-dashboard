@@ -9,7 +9,7 @@ export default function ProductsPerformance({ filters = {} }) {
   const { formatPrice } = useCurrencyContext();
   
   // Ensure products is always an array
-  const products = Array.isArray(productsData) ? productsData : [];
+  const products = Array.isArray(productsData?.data) ? productsData.data : [];
   if (isLoading) {
     return (
       <div className="bg-white rounded-xl shadow p-3 md:p-6 overflow-x-auto">
@@ -128,17 +128,25 @@ export default function ProductsPerformance({ filters = {} }) {
               <tr key={i} className="border-b border-gray-200">
                 <td className="py-4 flex items-center gap-2 min-w-[150px]">
                   <span className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                    {product.images && product.images.length > 0 ? (
-                      <Image 
-                        src={product.images[0]} 
-                        alt={product.name} 
-                        width={16} 
-                        height={16} 
-                        className="w-4 h-4 rounded"
-                      />
-                    ) : (
-                      <div className="w-4 h-4 bg-gray-300 rounded"></div>
-                    )}
+                    {(() => {
+                      try {
+                        const images = typeof product.images === 'string' ? JSON.parse(product.images) : product.images;
+                        const hasValidImage = Array.isArray(images) && images.length > 0 && images[0] && typeof images[0] === 'string' && images[0].startsWith('http');
+                        return hasValidImage ? (
+                          <Image 
+                            src={images[0]} 
+                            alt={product.name} 
+                            width={16} 
+                            height={16} 
+                            className="w-4 h-4 rounded"
+                          />
+                        ) : (
+                          <div className="w-4 h-4 bg-gray-300 rounded"></div>
+                        );
+                      } catch (e) {
+                        return <div className="w-4 h-4 bg-gray-300 rounded"></div>;
+                      }
+                    })()}
                   </span>
                   <span className="text-gray-700 font-medium truncate">
                     {product.name}
@@ -154,7 +162,7 @@ export default function ProductsPerformance({ filters = {} }) {
                   </span>
                 </td>
                 <td className="py-4 font-semibold whitespace-nowrap">
-                  {formatPrice(product.revenue)}
+                  {formatPrice(product.revenue, 'USD')}
                 </td>
                 <td className="py-4 flex items-center gap-1 whitespace-nowrap">
                   {Array.from({ length: 5 }).map((_, idx) => (
@@ -190,17 +198,25 @@ export default function ProductsPerformance({ filters = {} }) {
           >
             <div className="flex items-center gap-3 mb-2">
               <span className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                {product.images && product.images.length > 0 ? (
-                  <Image 
-                    src={product.images[0]} 
-                    alt={product.name} 
-                    width={20} 
-                    height={20} 
-                    className="w-5 h-5 rounded"
-                  />
-                ) : (
-                  <div className="w-5 h-5 bg-gray-300 rounded"></div>
-                )}
+                {(() => {
+                  try {
+                    const images = typeof product.images === 'string' ? JSON.parse(product.images) : product.images;
+                    const hasValidImage = Array.isArray(images) && images.length > 0 && images[0] && typeof images[0] === 'string' && images[0].startsWith('http');
+                    return hasValidImage ? (
+                      <Image 
+                        src={images[0]} 
+                        alt={product.name} 
+                        width={20} 
+                        height={20} 
+                        className="w-5 h-5 rounded"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 bg-gray-300 rounded"></div>
+                    );
+                  } catch (e) {
+                    return <div className="w-5 h-5 bg-gray-300 rounded"></div>;
+                  }
+                })()}
               </span>
               <div>
                 <h3 className="text-sm font-semibold text-gray-700">
@@ -217,7 +233,7 @@ export default function ProductsPerformance({ filters = {} }) {
               <span className="text-xs text-green-500">↑ {product.delta?.toFixed(1) || 0}%</span>
             </div>
             <div className="text-sm text-gray-700 mb-1">
-              <strong>Revenue:</strong> {formatPrice(product.revenue)}
+              <strong>Revenue:</strong> {formatPrice(product.revenue, 'USD')}
             </div>
 
             <div className="flex items-center gap-1 text-sm text-gray-700 mb-1">

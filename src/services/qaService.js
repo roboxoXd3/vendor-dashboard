@@ -18,7 +18,7 @@ export const qaService = {
       if (options.status && options.status !== 'all') {
         params.append('status', options.status)
       }
-      if (options.hasAnswer !== undefined) {
+      if (options.hasAnswer !== undefined && options.hasAnswer !== '') {
         params.append('hasAnswer', options.hasAnswer)
       }
 

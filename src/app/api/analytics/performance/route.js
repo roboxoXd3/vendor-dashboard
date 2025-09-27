@@ -82,10 +82,57 @@ export async function GET(request) {
       .select('product_id, rating')
       .in('product_id', productIds)
 
-    // Process performance data
-    const performanceData = products.map(product => {
-      const productOrderItems = orderItems?.filter(item => item.product_id === product.id) || []
-      const productReviews = reviews?.filter(review => review.product_id === product.id) || []
+    // Get additional data for each product
+    const performanceData = await Promise.all(products.map(async (product) => {
+      const [
+        productOrders,
+        productCartItems,
+        productWishlistItems,
+        productReviews
+      ] = await Promise.all([
+        // Orders for this product
+        supabase
+          .from('order_items')
+          .select(`
+            quantity,
+            price,
+            orders!inner(
+              id,
+              status,
+              created_at
+            )
+          `)
+          .eq('product_id', product.id)
+          .gte('orders.created_at', startDate.toISOString())
+          .lte('orders.created_at', endDate.toISOString()),
+        
+        // Cart items for this product
+        supabase
+          .from('cart_items')
+          .select('id, created_at')
+          .eq('product_id', product.id)
+          .gte('created_at', startDate.toISOString())
+          .lte('created_at', endDate.toISOString()),
+        
+        // Wishlist items for this product
+        supabase
+          .from('wishlist')
+          .select('id, created_at')
+          .eq('product_id', product.id)
+          .gte('created_at', startDate.toISOString())
+          .lte('created_at', endDate.toISOString()),
+        
+        // Reviews for this product
+        supabase
+          .from('product_reviews')
+          .select('rating')
+          .eq('product_id', product.id)
+      ])
+      
+      const orderItems = productOrders.data || []
+      const cartItems = productCartItems.data || []
+      const wishlistItems = productWishlistItems.data || []
+      const reviews = productReviews.data || []
       
       // Calculate metrics
       let totalRevenue = 0
@@ -93,7 +140,7 @@ export async function GET(request) {
       let ordersCount = 0
       const uniqueOrders = new Set()
 
-      productOrderItems.forEach(item => {
+      orderItems.forEach(item => {
         if (['completed', 'delivered'].includes(item.orders.status)) {
           totalRevenue += parseFloat(item.price) * item.quantity
           totalSold += item.quantity
@@ -104,12 +151,17 @@ export async function GET(request) {
       ordersCount = uniqueOrders.size
 
       // Calculate average rating
-      const avgRating = productReviews.length > 0 
-        ? productReviews.reduce((sum, review) => sum + review.rating, 0) / productReviews.length
+      const avgRating = reviews.length > 0 
+        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
         : parseFloat(product.rating || 0)
 
-      // Estimate views based on orders (rough calculation)
-      const views = ordersCount * 20 // Assume 20 views per order on average
+      // Estimate views based on engagement
+      const views = Math.max(
+        ordersCount * 25, // 25 views per order
+        cartItems.length * 3, // 3 views per cart addition
+        wishlistItems.length * 5, // 5 views per wishlist addition
+        10 // Minimum baseline
+      )
       
       // Calculate conversion rate
       const conversionRate = views > 0 ? (ordersCount / views) * 100 : 0
@@ -129,7 +181,7 @@ export async function GET(request) {
         totalSold: totalSold,
         stockQuantity: product.stock_quantity || 0
       }
-    })
+    }))
 
     // Sort by revenue descending
     performanceData.sort((a, b) => b.revenue - a.revenue)

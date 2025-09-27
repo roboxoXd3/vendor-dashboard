@@ -18,17 +18,11 @@ export default function QAFilterBar({
     exportQA.mutate(filters);
   };
 
-  const statusOptions = [
+  const filterOptions = [
+    { value: 'all', label: 'All Questions' },
     { value: 'pending', label: 'Pending' },
     { value: 'answered', label: 'Answered' },
     { value: 'hidden', label: 'Hidden' },
-    { value: 'all', label: 'All Status' }
-  ];
-
-  const answerOptions = [
-    { value: '', label: 'All Questions' },
-    { value: 'true', label: 'With Answer' },
-    { value: 'false', label: 'Needs Answer' }
   ];
 
   const sortOptions = [
@@ -43,45 +37,32 @@ export default function QAFilterBar({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         {/* Left Side - Quick Filters */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {/* Status Filter */}
+          {/* Combined Filter */}
           <select
-            value={filters.status}
-            onChange={(e) => onFilterChange({ status: e.target.value })}
+            value={filters.hasAnswer === 'false' ? 'needs_answer' : filters.status}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === 'needs_answer') {
+                onFilterChange({ 
+                  status: 'all',
+                  hasAnswer: 'false'
+                });
+              } else {
+                onFilterChange({ 
+                  status: value,
+                  hasAnswer: ''
+                });
+              }
+            }}
             className="px-2 sm:px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            {statusOptions.map(option => (
+            {filterOptions.map(option => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
 
-          {/* Answer Filter */}
-          <select
-            value={filters.hasAnswer}
-            onChange={(e) => onFilterChange({ hasAnswer: e.target.value })}
-            className="px-2 sm:px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            {answerOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          {/* Advanced Filters Toggle */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
-              showFilters
-                ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            <FiFilter className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">More Filters</span>
-            <span className="sm:hidden">More</span>
-          </button>
         </div>
 
         {/* Right Side - Actions */}
@@ -100,14 +81,7 @@ export default function QAFilterBar({
               ))}
             </select>
 
-            <button
-              onClick={() => onFilterChange({ 
-                sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc' 
-              })}
-              className="px-2 sm:px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm hover:bg-gray-50"
-            >
-              {filters.sortOrder === 'asc' ? '↑' : '↓'}
-            </button>
+
           </div>
 
           {/* Export */}
@@ -123,7 +97,7 @@ export default function QAFilterBar({
 
           {/* Refresh */}
           <button
-            onClick={onRefresh}
+            onClick={() => window.location.reload()}
             disabled={isLoading}
             className="flex items-center px-2 sm:px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm font-medium"
           >
@@ -155,9 +129,9 @@ export default function QAFilterBar({
                 Needs Answer
               </span>
             )}
-            {filters.hasAnswer === 'true' && (
-              <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
-                Has Answer
+            {filters.status !== 'all' && filters.hasAnswer !== 'false' && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                {filterOptions.find(opt => opt.value === filters.status)?.label}
               </span>
             )}
           </div>

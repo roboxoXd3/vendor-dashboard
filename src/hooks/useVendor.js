@@ -65,6 +65,7 @@ export function useSalesAnalytics(period = '30d', filters = {}) {
 export function useAnalyticsMetrics(filters = {}) {
   const { vendor } = useAuth()
   
+  
   return useQuery({
     queryKey: vendorKeys.analytics(vendor?.id, 'metrics', filters),
     queryFn: () => vendorService.getAnalyticsMetrics(vendor?.id, filters),

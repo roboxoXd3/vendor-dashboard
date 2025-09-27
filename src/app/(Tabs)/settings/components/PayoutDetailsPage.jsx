@@ -9,8 +9,11 @@ import {
   FaSave,
 } from "react-icons/fa";
 import { MdOutlinePhoneAndroid } from "react-icons/md";
+import { useCurrencyContext } from "@/contexts/CurrencyContext";
 
 export default function PayoutDetailsPage() {
+  const { formatPrice } = useCurrencyContext();
+  
   return (
     <div className="max-w-screen mx-auto bg-white shadow-md p-4 md:p-6 rounded-lg space-y-6">
       {/* Header */}
@@ -82,7 +85,7 @@ export default function PayoutDetailsPage() {
               <p className="text-sm text-gray-500">Available Balance</p>
               <div className="flex justify-between items-center mt-2">
                 <p className="text-[var(--color-theme)] text-2xl font-bold">
-                  $2,847.50
+                  {formatPrice(2847.50, 'USD')}
                 </p>
                 <a href="#" className="text-xs text-[var(--color-theme)]">
                   View Details

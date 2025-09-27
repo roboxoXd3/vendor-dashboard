@@ -73,38 +73,68 @@ export async function GET(request) {
       .gte('orders.created_at', startDate.toISOString())
       .lte('orders.created_at', endDate.toISOString())
 
-    // Calculate funnel data
-    let purchased = 0
-    let checkoutStarted = 0
-    let addToCart = 0
-    const uniqueOrders = new Set()
+    // Get comprehensive funnel data
+    const [
+      orderStats,
+      cartStats,
+      wishlistStats,
+      searchStats
+    ] = await Promise.all([
+      // Order statistics
+      supabase
+        .from('orders')
+        .select('id, status, created_at')
+        .eq('vendor_id', vendorId)
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString()),
+      
+      // Cart statistics
+      supabase
+        .from('cart_items')
+        .select('id, created_at, products!inner(vendor_id)')
+        .eq('products.vendor_id', vendorId)
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString()),
+      
+      // Wishlist statistics
+      supabase
+        .from('wishlist')
+        .select('id, created_at, products!inner(vendor_id)')
+        .eq('products.vendor_id', vendorId)
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString()),
+      
+      // Search analytics
+      supabase
+        .from('search_analytics')
+        .select('id, query, timestamp')
+        .gte('timestamp', startDate.toISOString())
+        .lte('timestamp', endDate.toISOString())
+    ])
 
-    if (orderItems && orderItems.length > 0) {
-      orderItems.forEach(item => {
-        const order = item.orders
-        uniqueOrders.add(order.id)
-        
-        if (['completed', 'delivered'].includes(order.status)) {
-          purchased += item.quantity
-        } else if (['processing', 'shipped'].includes(order.status)) {
-          checkoutStarted += item.quantity
-        } else if (order.status === 'pending') {
-          addToCart += item.quantity
-        }
-      })
-    }
-
-    // Estimate views based on orders (rough calculation)
-    const productViews = uniqueOrders.size * 25 // Assume 25 views per order on average
-    const addToCartCount = Math.floor(productViews * 0.15) // 15% add to cart rate
-    const checkoutStartedCount = Math.floor(addToCartCount * 0.4) // 40% checkout rate
-    const purchasedCount = Math.floor(checkoutStartedCount * 0.8) // 80% purchase rate
+    // Calculate funnel metrics
+    const orders = orderStats.data || []
+    const cartItems = cartStats.data || []
+    const wishlistItems = wishlistStats.data || []
+    const searchQueries = searchStats.data || []
+    
+    // Calculate actual funnel data
+    const purchased = orders.filter(o => ['completed', 'delivered'].includes(o.status)).length
+    const checkoutStarted = orders.filter(o => ['processing', 'shipped', 'confirmed'].includes(o.status)).length
+    const addToCart = cartItems.length
+    const productViews = Math.max(
+      orders.length * 25, // 25 views per order
+      cartItems.length * 3, // 3 views per cart addition
+      wishlistItems.length * 5, // 5 views per wishlist addition
+      searchQueries.length * 2, // 2 views per search
+      100 // Minimum baseline
+    )
 
     const funnelData = {
       productViews: productViews,
-      addToCart: addToCartCount,
-      checkoutStarted: checkoutStartedCount,
-      purchased: purchasedCount
+      addToCart: addToCart,
+      checkoutStarted: checkoutStarted,
+      purchased: purchased
     }
 
     console.log('✅ Conversion funnel calculated:', funnelData)

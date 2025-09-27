@@ -74,45 +74,84 @@ export async function GET(request) {
       .gte('orders.created_at', startDate.toISOString())
       .lte('orders.created_at', endDate.toISOString())
 
-    // Calculate metrics
-    let totalRevenue = 0
-    let totalOrders = 0
-    let totalItems = 0
-    let completedOrders = 0
-    const uniqueOrders = new Set()
-
-    if (orderItems && orderItems.length > 0) {
-      orderItems.forEach(item => {
-        const order = item.orders
-        uniqueOrders.add(order.id)
-        
-        if (['completed', 'delivered'].includes(order.status)) {
-          totalRevenue += parseFloat(item.price) * item.quantity
-          totalItems += item.quantity
-          completedOrders++
-        }
-      })
+    // Get comprehensive analytics data
+    const [
+      orderStats,
+      cartStats,
+      wishlistStats,
+      searchStats
+    ] = await Promise.all([
+      // Order statistics
+      supabase
+        .from('orders')
+        .select('id, total, status, created_at')
+        .eq('vendor_id', vendorId)
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString()),
       
-      totalOrders = uniqueOrders.size
-    }
+      // Cart statistics
+      supabase
+        .from('cart_items')
+        .select('id, created_at, products!inner(vendor_id)')
+        .eq('products.vendor_id', vendorId)
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString()),
+      
+      // Wishlist statistics
+      supabase
+        .from('wishlist')
+        .select('id, created_at, products!inner(vendor_id)')
+        .eq('products.vendor_id', vendorId)
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString()),
+      
+      // Search analytics
+      supabase
+        .from('search_analytics')
+        .select('id, query, timestamp')
+        .gte('timestamp', startDate.toISOString())
+        .lte('timestamp', endDate.toISOString())
+    ])
 
-    // Calculate metrics
+    // Calculate order metrics
+    const orders = orderStats.data || []
+    const totalOrders = orders.length
+    const completedOrders = orders.filter(o => ['completed', 'delivered'].includes(o.status)).length
+    const totalRevenue = orders
+      .filter(o => ['completed', 'delivered'].includes(o.status))
+      .reduce((sum, o) => sum + parseFloat(o.total || 0), 0)
+    
     const avgOrderValue = completedOrders > 0 ? totalRevenue / completedOrders : 0
     const conversionRate = totalOrders > 0 ? (completedOrders / totalOrders) * 100 : 0
     
-    // For now, return rate is hardcoded as we don't have return data
-    const returnRate = 1.2
-
-    // Total views is estimated based on orders (rough calculation)
-    const totalViews = totalOrders * 20 // Assume 20 views per order on average
+    // Calculate engagement metrics
+    const cartItems = cartStats.data || []
+    const wishlistItems = wishlistStats.data || []
+    const searchQueries = searchStats.data || []
+    
+    // Estimate views based on engagement
+    const estimatedViews = Math.max(
+      totalOrders * 25, // 25 views per order
+      cartItems.length * 3, // 3 views per cart addition
+      wishlistItems.length * 5, // 5 views per wishlist addition
+      searchQueries.length * 2, // 2 views per search
+      100 // Minimum baseline
+    )
+    
+    // Return rate calculation (placeholder - no return data available)
+    const returnRate = completedOrders > 0 ? Math.min(5.0, (completedOrders * 0.02)) : 0
 
     const metrics = {
       conversionRate: parseFloat(conversionRate.toFixed(1)),
       avgOrderValue: parseFloat(avgOrderValue.toFixed(2)),
-      returnRate: returnRate,
-      totalViews: totalViews,
+      returnRate: parseFloat(returnRate.toFixed(1)),
+      totalViews: estimatedViews,
       totalOrders: totalOrders,
-      totalRevenue: parseFloat(totalRevenue.toFixed(2))
+      totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+      completedOrders: completedOrders,
+      cartItems: cartItems.length,
+      wishlistItems: wishlistItems.length,
+      searchQueries: searchQueries.length
     }
 
     console.log('✅ Analytics metrics calculated:', metrics)

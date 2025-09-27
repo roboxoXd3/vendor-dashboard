@@ -23,25 +23,8 @@ export default function QATable({
   onAnswerQuestion,
   onRefresh 
 }) {
-  const [selectedQuestions, setSelectedQuestions] = useState([]);
   const [expandedQuestion, setExpandedQuestion] = useState(null);
   const updateVisibility = useUpdateQuestionVisibility();
-
-  const handleSelectAll = (checked) => {
-    if (checked) {
-      setSelectedQuestions(questions.map(q => q.id));
-    } else {
-      setSelectedQuestions([]);
-    }
-  };
-
-  const handleSelectQuestion = (questionId, checked) => {
-    if (checked) {
-      setSelectedQuestions(prev => [...prev, questionId]);
-    } else {
-      setSelectedQuestions(prev => prev.filter(id => id !== questionId));
-    }
-  };
 
   const handleToggleVisibility = async (question) => {
     const action = question.status === 'pending' ? 'hide' : 'show';
@@ -104,38 +87,10 @@ export default function QATable({
     <div>
       {/* Table Header */}
       <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 bg-gray-50">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              checked={selectedQuestions.length === questions.length}
-              onChange={(e) => handleSelectAll(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="ml-2 sm:ml-3 text-xs sm:text-sm font-medium text-gray-700">
-              {selectedQuestions.length > 0 
-                ? `${selectedQuestions.length} selected`
-                : `${questions.length} questions`
-              }
-            </span>
-          </div>
-
-          {selectedQuestions.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <button className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-green-100 text-green-700 rounded hover:bg-green-200">
-                <span className="hidden sm:inline">Approve Selected</span>
-                <span className="sm:hidden">Approve</span>
-              </button>
-              <button className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-                <span className="hidden sm:inline">Bulk Answer</span>
-                <span className="sm:hidden">Answer</span>
-              </button>
-              <button className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
-                <span className="hidden sm:inline">Hide Selected</span>
-                <span className="sm:hidden">Hide</span>
-              </button>
-            </div>
-          )}
+        <div className="flex items-center justify-between">
+          <span className="text-xs sm:text-sm font-medium text-gray-700">
+            {questions.length} question{questions.length !== 1 ? 's' : ''}
+          </span>
         </div>
       </div>
 
@@ -144,14 +99,6 @@ export default function QATable({
         {questions.map((question) => (
           <div key={question.id} className="p-3 sm:p-6 hover:bg-gray-50">
             <div className="flex items-start space-x-3 sm:space-x-4">
-              {/* Selection Checkbox */}
-              <input
-                type="checkbox"
-                checked={selectedQuestions.includes(question.id)}
-                onChange={(e) => handleSelectQuestion(question.id, e.target.checked)}
-                className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-
               {/* Customer Avatar */}
               <div className="flex-shrink-0">
                 {question.profiles?.image_path ? (

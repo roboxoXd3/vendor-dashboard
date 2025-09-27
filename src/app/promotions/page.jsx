@@ -2,6 +2,7 @@
 
 import { HiOutlinePencil, HiOutlineTrash } from "react-icons/hi";
 import { Button } from "@/components/ui/button";
+import { useCurrencyContext } from "@/contexts/CurrencyContext";
 const promotions = [
   {
     name: "Summer Sale",
@@ -15,7 +16,7 @@ const promotions = [
   {
     name: "New Customer",
     type: "Fixed Amount",
-    value: "$10 Off",
+    value: `${formatPrice(10, 'USD')} Off`,
     uses: 87,
     start: "April 1, 2023",
     end: "Ongoing",
@@ -42,6 +43,8 @@ const promotions = [
 ];
 
 export default function PromotionPage() {
+  const { formatPrice } = useCurrencyContext();
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -62,7 +65,7 @@ export default function PromotionPage() {
         </div>
         <div className="bg-white p-4 rounded-lg border">
           <p className="text-sm text-gray-500">Revenue from Promotions</p>
-          <h2 className="text-2xl font-bold">$3,842</h2>
+          <h2 className="text-2xl font-bold">{formatPrice(3842, 'USD')}</h2>
           <p className="text-xs text-green-500">+12.5% Compared to last month</p>
         </div>
       </div>
@@ -167,7 +170,7 @@ export default function PromotionPage() {
         <div className="bg-green-100 p-6 rounded-lg text-center flex flex-col justify-center items-center">
           <h4 className="text-lg font-bold">Premium Plan</h4>
           <p className="text-sm">Unlock all features</p>
-          <h2 className="text-3xl font-bold mt-2">$29.99/mo</h2>
+          <h2 className="text-3xl font-bold mt-2">{formatPrice(29.99, 'USD')}/mo</h2>
         </div>
       </div>
     </div>

@@ -47,7 +47,7 @@ export default function ConversionFunnel({ filters = {} }) {
     );
   }
 
-  const funnel = funnelData || {};
+  const funnel = funnelData?.data || {};
   const funnelSteps = [
     { label: "Product Views", value: (funnel.productViews || 0).toLocaleString(), percentage: "100%" },
     { label: "Add to Cart", value: (funnel.addToCart || 0).toLocaleString(), percentage: `${((funnel.addToCart || 0) / (funnel.productViews || 1) * 100).toFixed(1)}%` },
@@ -71,8 +71,30 @@ export default function ConversionFunnel({ filters = {} }) {
         </div>
       </div>
 
-      <div className="w-full h-48 border border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 text-sm mb-6">
-        (Chart Placeholder)
+      <div className="w-full h-48 mb-6">
+        <div className="flex items-center justify-center h-full">
+          <div className="flex items-center space-x-4">
+            {funnelSteps.map((step, idx) => (
+              <div key={idx} className="flex flex-col items-center">
+                <div 
+                  className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-sm mb-2"
+                  style={{ 
+                    backgroundColor: step.color,
+                    transform: `scale(${1 - (idx * 0.1)})`
+                  }}
+                >
+                  {step.value}
+                </div>
+                <div className="text-xs text-gray-600 text-center max-w-20">
+                  {step.label}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {step.percentage}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row items-center justify-center md:justify-between gap-6">

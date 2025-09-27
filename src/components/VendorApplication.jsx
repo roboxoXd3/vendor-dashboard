@@ -2,12 +2,14 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Building, Mail, Phone, MapPin, FileText, User, CreditCard } from 'lucide-react'
+import { useCurrencyContext } from '@/contexts/CurrencyContext'
 
 export default function VendorApplication({ onSuccess, onCancel, mode = 'quick' }) {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState(mode === 'quick' ? 1 : 2) // Skip intro for detailed mode
+  const { formatPrice } = useCurrencyContext()
   
   // Get user metadata from Supabase Auth (stored during registration)
   const getUserMetadata = () => {
@@ -554,7 +556,7 @@ export default function VendorApplication({ onSuccess, onCancel, mode = 'quick' 
               <ul className="text-sm text-blue-800 space-y-1">
                 <li>• Commission rate: 10% per sale</li>
                 <li>• Payout schedule: Monthly</li>
-                <li>• Minimum payout: $50</li>
+                <li>• Minimum payout: {formatPrice(50, 'USD')}</li>
                 <li>• Application review: 1-3 business days</li>
               </ul>
             </div>

@@ -294,6 +294,7 @@ export const vendorService = {
   // Get analytics metrics
   async getAnalyticsMetrics(vendorId, filters = {}) {
     try {
+      
       if (!vendorId) {
         console.warn('No vendor ID provided for getAnalyticsMetrics')
         return { data: null, error: null }

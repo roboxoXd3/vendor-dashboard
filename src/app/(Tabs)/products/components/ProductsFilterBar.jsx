@@ -3,10 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { FaUpload, FaDownload } from "react-icons/fa";
+import { useCurrencyContext } from "@/contexts/CurrencyContext";
 
 export default function ProductsFilterBar({ onFiltersChange }) {
   const router = useRouter();
   const [categories, setCategories] = useState([]);
+  const { formatPrice } = useCurrencyContext();
   const [filters, setFilters] = useState({
     search: '',
     category: '',
@@ -93,9 +95,9 @@ export default function ProductsFilterBar({ onFiltersChange }) {
             // Convert to CSV
             const csvHeaders = ['Product ID', 'Name', 'Category', 'Status', 'Price', 'Stock', 'Created Date', 'Last Updated'];
             const csvRows = [
-              ['Sample Product 1', 'Sample Product 1', 'Electronics', 'Active', '$99.99', '50', '2024-01-01', '2024-01-15'],
-              ['Sample Product 2', 'Sample Product 2', 'Clothing', 'Active', '$29.99', '25', '2024-01-02', '2024-01-16'],
-              ['Sample Product 3', 'Sample Product 3', 'Home', 'Draft', '$149.99', '0', '2024-01-03', '2024-01-17']
+              ['Sample Product 1', 'Sample Product 1', 'Electronics', 'Active', formatPrice(99.99, 'USD'), '50', '2024-01-01', '2024-01-15'],
+              ['Sample Product 2', 'Sample Product 2', 'Clothing', 'Active', formatPrice(29.99, 'USD'), '25', '2024-01-02', '2024-01-16'],
+              ['Sample Product 3', 'Sample Product 3', 'Home', 'Draft', formatPrice(149.99, 'USD'), '0', '2024-01-03', '2024-01-17']
             ];
             
             const csvContent = [

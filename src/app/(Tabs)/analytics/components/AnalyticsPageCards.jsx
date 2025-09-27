@@ -9,6 +9,7 @@ import { useCurrencyContext } from '@/contexts/CurrencyContext';
 export default function AnalyticsPageCards({ filters = {} }) {
   const { data: metricsData, isLoading, error } = useAnalyticsMetrics(filters);
   const { formatPrice } = useCurrencyContext();
+  
 
   if (isLoading) {
     return (
@@ -37,7 +38,7 @@ export default function AnalyticsPageCards({ filters = {} }) {
     );
   }
 
-  const metrics = metricsData || {};
+  const metrics = metricsData?.data || {};
   const items = [
     {
       title: "Conversion Rate",
@@ -47,7 +48,7 @@ export default function AnalyticsPageCards({ filters = {} }) {
     },
     {
       title: "Avg. Order Value",
-      value: formatPrice(metrics.avgOrderValue || 0),
+      value: formatPrice(metrics.avgOrderValue || 0, 'USD'),
       icon: <FaTag color="brown" size={13} />,
       color: "bg-yellow-200",
     },

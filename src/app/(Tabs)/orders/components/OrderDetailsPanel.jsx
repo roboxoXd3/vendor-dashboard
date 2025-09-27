@@ -5,12 +5,14 @@ import Image from "next/image";
 import { FaCheck, FaShuttleVan } from "react-icons/fa";
 import { MdOutlineAccessTime } from "react-icons/md";
 import { useUpdateOrderStatus } from "@/hooks/useOrders";
+import { useCurrencyContext } from "@/contexts/CurrencyContext";
 
 export default function OrderDetailsPanel({ selectedOrderId, orders = [], onClose }) {
   const [order, setOrder] = useState(null);
   const [showDeliveredModal, setShowDeliveredModal] = useState(false);
   const [pendingStatus, setPendingStatus] = useState(null);
   const updateOrderStatus = useUpdateOrderStatus();
+  const { formatPrice } = useCurrencyContext();
 
   const statusStyles = {
     delivered: "bg-green-100 text-green-700",
@@ -201,10 +203,10 @@ export default function OrderDetailsPanel({ selectedOrderId, orders = [], onClos
                   )}
                   <div className="flex justify-between items-center mt-2">
                     <p className="text-gray-600">
-                      {item.quantity} x ${item.price?.toFixed(2)}
+                      {item.quantity} x {formatPrice(item.price || 0, 'USD')}
                     </p>
                     <p className="text-black text-lg font-medium">
-                      ${(item.price * item.quantity)?.toFixed(2)}
+                      {formatPrice((item.price || 0) * item.quantity, 'USD')}
                     </p>
                   </div>
                 </div>
@@ -221,15 +223,15 @@ export default function OrderDetailsPanel({ selectedOrderId, orders = [], onClos
           <div className="space-y-2 text-gray-600">
             <div className="flex justify-between">
               <p>Vendor Subtotal</p>
-              <p>${getVendorTotal(order).toFixed(2)}</p>
+              <p>{formatPrice(getVendorTotal(order), 'USD')}</p>
             </div>
             <div className="flex justify-between">
               <p>Shipping</p>
-              <p>${order.shipping_fee?.toFixed(2) || '0.00'}</p>
+              <p>{formatPrice(order.shipping_fee || 0, 'USD')}</p>
             </div>
             <div className="flex justify-between pt-2 text-black text-lg font-medium border-t border-gray-200">
               <p>Vendor Total</p>
-              <p>${getVendorTotal(order).toFixed(2)}</p>
+              <p>{formatPrice(getVendorTotal(order), 'USD')}</p>
             </div>
             <p className="mt-2 text-xs text-gray-500">
               Payment Method: {order.shipping_method || 'Not specified'}
