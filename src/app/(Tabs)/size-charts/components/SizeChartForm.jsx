@@ -155,20 +155,316 @@ export default function SizeChartForm({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">
-          {chart ? 'Edit Size Chart' : 'Create New Size Chart'}
-        </h2>
-        <button
-          onClick={onCancel}
-          className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-        >
-          <FaTimes size={16} />
-        </button>
+    <div className="bg-white min-h-screen md:min-h-auto md:rounded-lg md:shadow-sm md:border md:border-gray-200">
+      {/* Mobile Header */}
+      <div className="sticky top-0 bg-white border-b border-gray-200 p-4 md:hidden z-50">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-semibold text-gray-900 truncate">
+            {chart ? 'Edit Size Chart' : 'Create Size Chart'}
+          </h1>
+          <button
+            onClick={onCancel}
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+          >
+            <FaTimes size={20} />
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Desktop Header */}
+      <div className="hidden md:block p-6 pb-0">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">
+            {chart ? 'Edit Size Chart' : 'Create New Size Chart'}
+          </h2>
+          <button
+            onClick={onCancel}
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+          >
+            <FaTimes size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Form */}
+      <form onSubmit={handleSubmit} className="md:hidden space-y-0">
+        <div className="p-4 space-y-6">
+          {/* Basic Information */}
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Size Chart Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base"
+                placeholder="e.g., Men's T-Shirt Sizing"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Category
+              </label>
+              <select
+                value={formData.category_id}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base appearance-none bg-white"
+              >
+                <option value="">All Categories</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-2 bg-blue-50 p-2 rounded-lg">
+                💡 Selecting a category will automatically set appropriate measurement types
+              </p>
+            </div>
+          </div>
+
+          {/* Mobile Measurement Types */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <label className="block text-sm font-medium text-gray-700">
+                Measurement Types
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowAddField(true)}
+                className="bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 flex items-center gap-1"
+              >
+                <FaPlus size={12} /> Add Field
+              </button>
+            </div>
+            
+            {showAddField && (
+              <div className="bg-gray-50 p-4 rounded-xl mb-4">
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={newFieldName}
+                    onChange={(e) => setNewFieldName(e.target.value)}
+                    placeholder="Enter field name (e.g., Shoulder, Hip)"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base"
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addField())}
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={addField}
+                      className="flex-1 px-4 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-base font-medium"
+                    >
+                      Add Field
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddField(false);
+                        setNewFieldName('');
+                      }}
+                      className="flex-1 px-4 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 text-base"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex flex-wrap gap-2 mb-3">
+              {formData.measurement_types.map((type, index) => (
+                <span 
+                  key={index} 
+                  className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm flex items-center gap-2"
+                >
+                  {type}
+                  {formData.measurement_types.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeField(type)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <FaTrash size={10} />
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">
+              💡 Common measurements: Chest (for tops), Waist (for bottoms), Length (for all), Hip (for dresses/bottoms)
+            </p>
+          </div>
+
+          {/* Mobile Measurement Instructions */}
+          <div className="mb-8">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Measurement Instructions
+            </label>
+            <textarea
+              value={formData.measurement_instructions}
+              onChange={(e) => setFormData(prev => ({ ...prev, measurement_instructions: e.target.value }))}
+              rows={4}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base resize-none"
+              placeholder="Instructions for customers on how to measure..."
+            />
+          {/* Mobile Size Chart Data */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <label className="block text-sm font-medium text-gray-700">
+                Size Chart Data
+              </label>
+              <button
+                type="button"
+                onClick={addSize}
+                className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-emerald-700 flex items-center gap-2"
+              >
+                <FaPlus size={14} /> Add Size
+              </button>
+            </div>
+
+            {/* Mobile Card-based Size Chart */}
+            <div className="space-y-4">
+              {formData.entries.map((entry, index) => (
+                <div key={index} className="bg-gray-50 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium text-gray-900">Size {entry.size}</h4>
+                    {formData.entries.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeSize(index)}
+                        className="text-red-600 hover:text-red-800 p-1"
+                      >
+                        <FaTrash size={14} />
+                      </button>
+                    )}
+                  </div>
+                  
+                  <input
+                    type="text"
+                    value={entry.size}
+                    onChange={(e) => {
+                      const newEntries = [...formData.entries];
+                      newEntries[index].size = e.target.value;
+                      setFormData(prev => ({ ...prev, entries: newEntries }));
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-sm bg-white"
+                    placeholder="Size (e.g., S, M, L)"
+                  />
+
+                  <div className="grid grid-cols-1 gap-3">
+                    {formData.measurement_types.map(type => (
+                      <div key={type} className="bg-white rounded-lg p-3">
+                        <label className="block text-xs text-gray-600 mb-1">{type} (cm)</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={entry.measurements[type] || ''}
+                          onChange={(e) => {
+                            const newEntries = [...formData.entries];
+                            newEntries[index].measurements[type] = e.target.value;
+                            setFormData(prev => ({ ...prev, entries: newEntries }));
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 text-sm"
+                          placeholder="0.0"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Desktop Size Chart Table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full border-collapse border border-gray-300">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border border-gray-300 p-3 text-left">Size</th>
+                  {formData.measurement_types.map(type => (
+                    <th key={type} className="border border-gray-300 p-3 text-center">
+                      {type} (cm)
+                    </th>
+                  ))}
+                  <th className="border border-gray-300 p-3 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {formData.entries.map((entry, index) => (
+                  <tr key={index}>
+                    <td className="border border-gray-300 p-3">
+                      <input
+                        type="text"
+                        value={entry.size}
+                        onChange={(e) => {
+                          const newEntries = [...formData.entries];
+                          newEntries[index].size = e.target.value;
+                          setFormData(prev => ({ ...prev, entries: newEntries }));
+                        }}
+                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      />
+                    </td>
+                    {formData.measurement_types.map(type => (
+                      <td key={type} className="border border-gray-300 p-3">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={entry.measurements[type] || ''}
+                          onChange={(e) => {
+                            const newEntries = [...formData.entries];
+                            newEntries[index].measurements[type] = e.target.value;
+                            setFormData(prev => ({ ...prev, entries: newEntries }));
+                          }}
+                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          placeholder="0.0"
+                        />
+                      </td>
+                    ))}
+                    <td className="border border-gray-300 p-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => removeSize(index)}
+                        className="text-red-600 hover:text-red-800"
+                        disabled={formData.entries.length <= 1}
+                      >
+                        <FaTrash size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Action Buttons */}
+        <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 md:hidden">
+          <div className="space-y-3">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full px-6 py-4 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2 text-base font-medium"
+            >
+              <FaSave size={16} />
+              {loading ? 'Saving...' : (chart ? 'Update Size Chart' : 'Create Size Chart')}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-full px-6 py-3 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 text-base"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </form>
+
+      {/* Desktop Form */}
+      <form onSubmit={handleSubmit} className="hidden md:block p-6 pt-0 space-y-6">
         {/* Basic Information */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -205,7 +501,7 @@ export default function SizeChartForm({
           </div>
         </div>
 
-        {/* Measurement Types */}
+        {/* Desktop Measurement Types */}
         <div>
           <div className="flex justify-between items-center mb-2">
             <label className="block text-sm font-medium text-gray-700">
@@ -274,7 +570,7 @@ export default function SizeChartForm({
           </p>
         </div>
 
-        {/* Measurement Instructions */}
+        {/* Desktop Measurement Instructions */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Measurement Instructions
@@ -288,7 +584,7 @@ export default function SizeChartForm({
           />
         </div>
 
-        {/* Size Chart Data */}
+        {/* Desktop Size Chart Data */}
         <div>
           <div className="flex justify-between items-center mb-4">
             <label className="block text-sm font-medium text-gray-700">
@@ -364,7 +660,7 @@ export default function SizeChartForm({
           </div>
         </div>
 
-        {/* Actions */}
+        {/* Desktop Actions */}
         <div className="flex justify-end gap-3 pt-4 border-t">
           <button
             type="button"
