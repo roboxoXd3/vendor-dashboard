@@ -122,6 +122,37 @@ export function useInventoryStatus(filters = {}) {
   })
 }
 
+// Customer Locations Hook
+export function useCustomerLocations(filters = {}) {
+  const { vendor } = useAuth()
+  
+  return useQuery({
+    queryKey: ['customerLocations', vendor?.id, filters],
+    queryFn: async () => {
+      if (!vendor?.id) {
+        throw new Error('Vendor ID is required');
+      }
+
+      const params = new URLSearchParams({
+        vendorId: vendor.id,
+        ...filters
+      });
+
+      const response = await fetch(`/api/vendor-stats/customer-locations?${params.toString()}`);
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch customer locations');
+      }
+
+      return result;
+    },
+    enabled: !!vendor?.id,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+  })
+}
+
 // Update Vendor Profile Mutation
 export function useUpdateVendorProfile() {
   const queryClient = useQueryClient()

@@ -7,6 +7,7 @@ import CustomerLocations from "./components/CustomerLocations";
 import InventoryStatus from "./components/InventoryStatus";
 import DashboardPageCards from "./components/DashboardPageCards";
 import DashboardFilterBar from "./components/DashboardFilterBar";
+import SalesTrendChart from "./components/SalesTrendChart";
 
 export default function DashboardPage() {
   const [filters, setFilters] = useState({
@@ -25,10 +26,8 @@ export default function DashboardPage() {
       />
       <DashboardPageCards filters={filters} />
 
-      {/* Sales Trend Placeholder */}
-      <div className="bg-white min-h-[200px] md:min-h-[240px] rounded-xl shadow-sm p-4 flex items-center justify-center text-gray-400">
-        Sales Trend Chart (Coming Soon)
-      </div>
+      {/* Sales Trend Chart */}
+      <SalesTrendChart filters={filters} />
 
       {/* Best Selling & Recent Orders */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
