@@ -111,11 +111,15 @@ export default function VariantsOptionsStep({
   }
 
   const handleColorQuantityChange = (colorName, quantity) => {
+    // Allow empty string or parse the number
+    const parsedQuantity = quantity === '' ? 0 : parseInt(quantity, 10)
+    const finalQuantity = isNaN(parsedQuantity) ? 0 : parsedQuantity
+    
     const newColors = { 
       ...formData.colors,
       [colorName]: {
         ...formData.colors[colorName],
-        quantity: parseInt(quantity) || 0
+        quantity: finalQuantity
       }
     }
     handleInputChange({
@@ -366,8 +370,9 @@ export default function VariantsOptionsStep({
                       <input
                         type="number"
                         min="0"
-                        value={quantity}
+                        value={quantity === 0 ? '' : quantity}
                         onChange={(e) => handleColorQuantityChange(colorName, e.target.value)}
+                        onFocus={(e) => e.target.select()}
                         className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
                         placeholder="0"
                       />
