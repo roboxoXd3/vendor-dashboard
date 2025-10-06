@@ -179,6 +179,26 @@ export default function ProductCard({ product, onUpdate }) {
             ) : (
               <span className="text-red-500">0</span>
             )}
+            {product.colors && Object.keys(product.colors).length > 0 && (
+              <div className="mt-1 text-xs">
+                {Object.entries(product.colors).slice(0, 2).map(([colorName, colorData]) => {
+                  const quantity = typeof colorData === 'object' ? (colorData?.quantity || 0) : 0
+                  const hexValue = typeof colorData === 'object' ? colorData?.hex : colorData
+                  return (
+                    <div key={colorName} className="flex items-center gap-1">
+                      <div 
+                        className="w-2 h-2 rounded-full border border-gray-300"
+                        style={{ backgroundColor: hexValue }}
+                      ></div>
+                      <span>{quantity}</span>
+                    </div>
+                  )
+                })}
+                {Object.keys(product.colors).length > 2 && (
+                  <span className="text-gray-400">+{Object.keys(product.colors).length - 2} more</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

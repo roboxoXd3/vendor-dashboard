@@ -95,18 +95,6 @@ export default function PricingInventoryStep({
         </div>
 
         <FormField
-          label="Stock Quantity"
-          name="stock_quantity"
-          type="number"
-          value={formData.stock_quantity}
-          onChange={handleInputChange}
-          required
-          min="0"
-          placeholder="0"
-          tooltip="Number of units available for sale"
-        />
-
-        <FormField
           label="Weight (kg)"
           name="weight"
           type="number"
@@ -117,6 +105,26 @@ export default function PricingInventoryStep({
           placeholder="0.00"
           tooltip="Product weight for shipping calculations"
         />
+
+        {/* Stock Quantity Info */}
+        <div className="md:col-span-2">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-blue-600 text-sm">ℹ</span>
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-blue-800">Stock Quantity Management</h4>
+                <p className="text-sm text-blue-700 mt-1">
+                  Stock quantity is automatically calculated from the quantities you set for each color variant in the next step.
+                  You don't need to enter a total stock quantity here.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </StepContainer>
   )

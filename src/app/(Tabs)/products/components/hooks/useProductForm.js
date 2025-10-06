@@ -272,6 +272,25 @@ export const useProductForm = (initialData = {}) => {
     }))
   }, [])
 
+  // Calculate stock quantity from colors
+  const calculateStockQuantity = useCallback((colors) => {
+    if (!colors || typeof colors !== 'object') return 0
+    
+    return Object.values(colors).reduce((total, colorData) => {
+      const quantity = typeof colorData === 'object' ? (colorData?.quantity || 0) : 0
+      return total + quantity
+    }, 0)
+  }, [])
+
+  // Update stock quantity when colors change
+  useEffect(() => {
+    const totalStock = calculateStockQuantity(formData.colors)
+    setFormData(prev => ({
+      ...prev,
+      stock_quantity: totalStock
+    }))
+  }, [formData.colors, calculateStockQuantity])
+
   return {
     formData,
     setFormData,

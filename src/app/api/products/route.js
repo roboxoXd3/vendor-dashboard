@@ -127,17 +127,20 @@ export async function GET(request) {
         }
       }
 
-      // Ensure colors field is properly formatted as an object
+      // Ensure colors field is properly formatted as an object with quantity
       let colors = {}
       if (product.colors) {
         if (typeof product.colors === 'object' && !Array.isArray(product.colors)) {
           colors = product.colors
         } else if (Array.isArray(product.colors)) {
-          // Convert array format to object format for consistency
+          // Convert array format to object format with default quantity
           const colorObject = {}
           product.colors.forEach(color => {
             if (typeof color === 'string' && color.trim()) {
-              colorObject[color.trim()] = getDefaultColorHex(color.trim())
+              colorObject[color.trim()] = {
+                hex: getDefaultColorHex(color.trim()),
+                quantity: 0
+              }
             }
           })
           colors = colorObject
@@ -276,7 +279,7 @@ export async function POST(request) {
       }
     }
 
-    // Handle colors field - database expects JSONB object for direct insert
+    // Handle colors field - database expects JSONB object with quantity for direct insert
     let colorsField = productData.colors
     if (colorsField) {
       if (typeof colorsField === 'string') {
@@ -286,13 +289,15 @@ export async function POST(request) {
           colorsField = {}
         }
       } else if (Array.isArray(colorsField)) {
-        // Convert array format to object format for database storage
-        // Array: ["Blue", "Silver", "Green"] -> Object: {"Blue": "#0000FF", "Silver": "#C0C0C0", "Green": "#008000"}
+        // Convert array format to object format with quantity for database storage
+        // Array: ["Blue", "Silver", "Green"] -> Object: {"Blue": {"hex": "#0000FF", "quantity": 0}, ...}
         const colorObject = {}
         colorsField.forEach(color => {
           if (typeof color === 'string' && color.trim()) {
-            // Use a default hex color if not provided
-            colorObject[color.trim()] = getDefaultColorHex(color.trim())
+            colorObject[color.trim()] = {
+              hex: getDefaultColorHex(color.trim()),
+              quantity: 0
+            }
           }
         })
         colorsField = colorObject
@@ -346,11 +351,17 @@ export async function POST(request) {
       category_id: productData.category_id === '' ? null : productData.category_id, // Handle empty string
       subcategory_id: productData.subcategory_id === '' ? null : productData.subcategory_id, // Handle empty string
       brand: productData.brand || '',
-      stock_quantity: Number(productData.stock_quantity) || 0,
+      stock_quantity: Object.values(colorsField).reduce((total, colorData) => {
+        const quantity = typeof colorData === 'object' ? (colorData?.quantity || 0) : 0
+        return total + quantity
+      }, 0),
       sku: productData.sku || `SKU-${Date.now()}`,
       status: productData.status || 'active',
       approval_status: approvalStatus,
-      in_stock: Number(productData.stock_quantity) > 0,
+      in_stock: Object.values(colorsField).reduce((total, colorData) => {
+        const quantity = typeof colorData === 'object' ? (colorData?.quantity || 0) : 0
+        return total + quantity
+      }, 0) > 0,
       is_featured: productData.is_featured || false,
       is_new_arrival: true,
       shipping_required: productData.shipping_required !== false,
@@ -397,17 +408,20 @@ export async function POST(request) {
       }
     }
 
-    // Ensure colors field is properly formatted as an object
+    // Ensure colors field is properly formatted as an object with quantity
     let colors = {}
     if (data.colors) {
       if (typeof data.colors === 'object' && !Array.isArray(data.colors)) {
         colors = data.colors
       } else if (Array.isArray(data.colors)) {
-        // Convert array format to object format for consistency
+        // Convert array format to object format with default quantity
         const colorObject = {}
         data.colors.forEach(color => {
           if (typeof color === 'string' && color.trim()) {
-            colorObject[color.trim()] = getDefaultColorHex(color.trim())
+            colorObject[color.trim()] = {
+              hex: getDefaultColorHex(color.trim()),
+              quantity: 0
+            }
           }
         })
         colors = colorObject

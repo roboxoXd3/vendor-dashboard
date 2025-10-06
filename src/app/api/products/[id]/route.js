@@ -72,17 +72,20 @@ export async function GET(request, { params }) {
       }
     }
 
-    // Ensure colors field is properly formatted as an object
+    // Ensure colors field is properly formatted as an object with quantity
     let colors = {}
     if (data.colors) {
       if (typeof data.colors === 'object' && !Array.isArray(data.colors)) {
         colors = data.colors
       } else if (Array.isArray(data.colors)) {
-        // Convert array format to object format for consistency
+        // Convert array format to object format with default quantity
         const colorObject = {}
         data.colors.forEach(color => {
           if (typeof color === 'string' && color.trim()) {
-            colorObject[color.trim()] = getDefaultColorHex(color.trim())
+            colorObject[color.trim()] = {
+              hex: getDefaultColorHex(color.trim()),
+              quantity: 0
+            }
           }
         })
         colors = colorObject
@@ -190,7 +193,7 @@ export async function PUT(request, { params }) {
       }
     }
 
-    // Handle colors field - RPC function now expects JSONB object (fixed)
+    // Handle colors field - RPC function now expects JSONB object with quantity
     let colorsField = updates.colors
     if (colorsField) {
       if (typeof colorsField === 'string') {
@@ -200,13 +203,15 @@ export async function PUT(request, { params }) {
           colorsField = {}
         }
       } else if (Array.isArray(colorsField)) {
-        // Convert array format to object format for RPC function
-        // Array: ["Blue", "Silver", "Green"] -> Object: {"Blue": "#0000FF", "Silver": "#C0C0C0", "Green": "#008000"}
+        // Convert array format to object format with quantity for RPC function
+        // Array: ["Blue", "Silver", "Green"] -> Object: {"Blue": {"hex": "#0000FF", "quantity": 0}, ...}
         const colorObject = {}
         colorsField.forEach(color => {
           if (typeof color === 'string' && color.trim()) {
-            // Use a default hex color if not provided
-            colorObject[color.trim()] = getDefaultColorHex(color.trim())
+            colorObject[color.trim()] = {
+              hex: getDefaultColorHex(color.trim()),
+              quantity: 0
+            }
           }
         })
         colorsField = colorObject
@@ -294,7 +299,10 @@ export async function PUT(request, { params }) {
         p_price: updates.price ? Number(updates.price) : null,
         p_mrp: updates.mrp ? Number(updates.mrp) : null,
         p_sale_price: updates.sale_price ? Number(updates.sale_price) : null,
-        p_stock_quantity: updates.stock_quantity ? Number(updates.stock_quantity) : null,
+        p_stock_quantity: Object.values(colorsField).reduce((total, colorData) => {
+          const quantity = typeof colorData === 'object' ? (colorData?.quantity || 0) : 0
+          return total + quantity
+        }, 0),
         p_weight: updates.weight ? Number(updates.weight) : null,
         p_category_id: categoryId,
         p_subcategory_id: subcategoryId,
@@ -348,17 +356,20 @@ export async function PUT(request, { params }) {
       }
     }
 
-    // Ensure colors field is properly formatted as an object
+    // Ensure colors field is properly formatted as an object with quantity
     let colors = {}
     if (data.colors) {
       if (typeof data.colors === 'object' && !Array.isArray(data.colors)) {
         colors = data.colors
       } else if (Array.isArray(data.colors)) {
-        // Convert array format to object format for consistency
+        // Convert array format to object format with default quantity
         const colorObject = {}
         data.colors.forEach(color => {
           if (typeof color === 'string' && color.trim()) {
-            colorObject[color.trim()] = getDefaultColorHex(color.trim())
+            colorObject[color.trim()] = {
+              hex: getDefaultColorHex(color.trim()),
+              quantity: 0
+            }
           }
         })
         colors = colorObject

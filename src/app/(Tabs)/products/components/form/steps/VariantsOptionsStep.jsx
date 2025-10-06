@@ -60,7 +60,13 @@ export default function VariantsOptionsStep({
 
   const handleAddColorFromPicker = () => {
     if (colorName.trim()) {
-      const newColors = { ...formData.colors, [colorName.trim()]: selectedColor }
+      const newColors = { 
+        ...formData.colors, 
+        [colorName.trim()]: {
+          hex: selectedColor,
+          quantity: 0
+        }
+      }
       handleInputChange({
         target: {
           name: 'colors',
@@ -96,6 +102,22 @@ export default function VariantsOptionsStep({
   const handleRemoveColor = (colorName) => {
     const newColors = { ...formData.colors }
     delete newColors[colorName]
+    handleInputChange({
+      target: {
+        name: 'colors',
+        value: newColors
+      }
+    })
+  }
+
+  const handleColorQuantityChange = (colorName, quantity) => {
+    const newColors = { 
+      ...formData.colors,
+      [colorName]: {
+        ...formData.colors[colorName],
+        quantity: parseInt(quantity) || 0
+      }
+    }
     handleInputChange({
       target: {
         name: 'colors',
@@ -318,31 +340,70 @@ export default function VariantsOptionsStep({
           {/* Display Added Colors */}
           <div>
             <h4 className="text-sm font-medium text-gray-700 mb-3">Added Colors ({Object.keys(formData.colors || {}).length})</h4>
-          <div className="flex flex-wrap gap-2">
-              {Object.entries(formData.colors || {}).map(([colorName, hexValue]) => (
-              <span
-                  key={colorName}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-green-100 text-green-800 rounded-full text-sm border border-green-200"
-              >
-                <div 
-                    className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0"
-                    style={{ backgroundColor: hexValue }}
-                ></div>
-                  <span className="font-medium">{colorName}</span>
-                  <span className="text-xs opacity-75 font-mono">{hexValue}</span>
-                <button
-                  type="button"
-                    onClick={() => handleRemoveColor(colorName)}
-                    className="text-green-600 hover:text-green-800 p-1 flex-shrink-0"
-                >
-                  <FaTimes size={10} />
-                </button>
-              </span>
-            ))}
+            <div className="space-y-3">
+              {Object.entries(formData.colors || {}).map(([colorName, colorData]) => {
+                // Handle both old format (string) and new format (object)
+                const hexValue = typeof colorData === 'string' ? colorData : colorData?.hex || '#000000'
+                const quantity = typeof colorData === 'object' ? (colorData?.quantity || 0) : 0
+                
+                return (
+                  <div
+                    key={colorName}
+                    className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200"
+                  >
+                    <div 
+                      className="w-6 h-6 rounded-full border border-gray-300 flex-shrink-0"
+                      style={{ backgroundColor: hexValue }}
+                    ></div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-800">{colorName}</span>
+                        <span className="text-xs opacity-75 font-mono text-green-600">{hexValue}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-600">Qty:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={quantity}
+                        onChange={(e) => handleColorQuantityChange(colorName, e.target.value)}
+                        className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        placeholder="0"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveColor(colorName)}
+                      className="text-green-600 hover:text-green-800 p-1 flex-shrink-0"
+                    >
+                      <FaTimes size={10} />
+                    </button>
+                  </div>
+                )
+              })}
               {(!formData.colors || Object.keys(formData.colors).length === 0) && (
                 <p className="text-gray-500 text-sm italic py-2">No colors added yet. Use the color picker above to add colors.</p>
-            )}
+              )}
             </div>
+            
+            {/* Total Stock Summary */}
+            {formData.colors && Object.keys(formData.colors).length > 0 && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-blue-800">Total Stock Quantity:</span>
+                  <span className="text-lg font-bold text-blue-900">
+                    {Object.values(formData.colors).reduce((total, colorData) => {
+                      const quantity = typeof colorData === 'object' ? (colorData?.quantity || 0) : 0
+                      return total + quantity
+                    }, 0)}
+                  </span>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  Automatically calculated from all color quantities
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
