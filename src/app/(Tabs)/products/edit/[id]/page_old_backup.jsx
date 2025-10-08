@@ -520,7 +520,7 @@ export default function EditProductPage({ params }) {
                   />
                 </div>
 
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Brand
                     <InfoTooltip text="The brand or manufacturer of this product" />
@@ -535,7 +535,7 @@ export default function EditProductPage({ params }) {
                   />
                 </div>
 
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     SKU
                     <InfoTooltip text="Stock Keeping Unit - unique identifier for inventory tracking" />

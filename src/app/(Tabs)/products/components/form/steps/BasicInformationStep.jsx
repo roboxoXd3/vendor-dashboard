@@ -89,7 +89,7 @@ export default function BasicInformationStep({
       nextLabel="Next: Pricing"
       showBack={false}
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+      <div className="space-y-4 sm:space-y-6">
         <FormField
           label="Product Name"
           name="name"
@@ -98,7 +98,6 @@ export default function BasicInformationStep({
           required
           placeholder="Enter product name"
           tooltip="Choose a clear, descriptive name for your product"
-          colSpan={2}
         />
 
         <FormField
@@ -108,7 +107,6 @@ export default function BasicInformationStep({
           onChange={handleInputChange}
           placeholder="Enter product subtitle"
           tooltip="A short tagline or key feature highlight"
-          colSpan={2}
         />
 
         <FormField
@@ -121,7 +119,6 @@ export default function BasicInformationStep({
           placeholder="Describe your product in detail..."
           tooltip="Detailed description of your product features and benefits"
           rows={4}
-          colSpan={2}
         />
 
         <FormField
@@ -142,7 +139,7 @@ export default function BasicInformationStep({
           tooltip="Stock Keeping Unit - unique identifier for inventory tracking"
         />
 
-        <div className="col-span-2">
+        <div>
           <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
             Category *
             <div className="inline-block ml-1 group relative">
@@ -191,7 +188,7 @@ export default function BasicInformationStep({
         </div>
 
         {/* Subcategory Field */}
-        <div className="col-span-2">
+        <div>
           <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
             Subcategory
             <div className="inline-block ml-1 group relative">

@@ -37,7 +37,7 @@ export default function PricingInventoryStep({
       onBack={onBack}
       nextLabel="Next: Variants"
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-4 sm:space-y-6">
         <FormField
           label="Selling Price"
           name="price"
@@ -107,7 +107,7 @@ export default function PricingInventoryStep({
         />
 
         {/* Stock Quantity Info */}
-        <div className="md:col-span-2">
+        <div>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <div className="flex-shrink-0">
