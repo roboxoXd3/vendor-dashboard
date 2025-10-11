@@ -153,15 +153,19 @@ export default function ReviewPublishStep({
               <h4 className="font-medium text-gray-700 mb-2">Colors ({Object.keys(formData.colors || {}).length})</h4>
               {formData.colors && Object.keys(formData.colors).length > 0 ? (
                 <div className="flex flex-wrap gap-1">
-                  {Object.entries(formData.colors).slice(0, 5).map(([colorName, hexValue], index) => (
-                    <span key={index} className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs flex items-center gap-1">
-                      <div 
-                        className="w-2 h-2 rounded-full border border-gray-300"
-                        style={{ backgroundColor: hexValue }}
-                      ></div>
-                      {colorName}
-                    </span>
-                  ))}
+                  {Object.entries(formData.colors).slice(0, 5).map(([colorName, colorData], index) => {
+                    // Handle both old format (string) and new format (object with hex and sizes)
+                    const hexValue = typeof colorData === 'string' ? colorData : (colorData?.hex || '#000000')
+                    return (
+                      <span key={index} className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs flex items-center gap-1">
+                        <div 
+                          className="w-2 h-2 rounded-full border border-gray-300"
+                          style={{ backgroundColor: hexValue }}
+                        ></div>
+                        {colorName}
+                      </span>
+                    )
+                  })}
                   {Object.keys(formData.colors).length > 5 && (
                     <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
                       +{Object.keys(formData.colors).length - 5} more

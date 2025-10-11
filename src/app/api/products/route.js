@@ -127,19 +127,44 @@ export async function GET(request) {
         }
       }
 
-      // Ensure colors field is properly formatted as an object with quantity
+      // Ensure colors field is properly formatted as an object with sizes
       let colors = {}
       if (product.colors) {
         if (typeof product.colors === 'object' && !Array.isArray(product.colors)) {
-          colors = product.colors
+          // Migrate old format to new format if needed
+          const processedColors = {}
+          Object.entries(product.colors).forEach(([colorName, colorData]) => {
+            if (typeof colorData === 'object') {
+              // If it has the old 'quantity' field but no 'sizes', keep it for backward compatibility
+              if (colorData.quantity !== undefined && !colorData.sizes) {
+                processedColors[colorName] = {
+                  hex: colorData.hex || getDefaultColorHex(colorName),
+                  quantity: colorData.quantity // Keep old format for existing products
+                }
+              } else {
+                // New format with sizes
+                processedColors[colorName] = {
+                  hex: colorData.hex || getDefaultColorHex(colorName),
+                  sizes: colorData.sizes || {}
+                }
+              }
+            } else {
+              // String hex value
+              processedColors[colorName] = {
+                hex: colorData,
+                sizes: {}
+              }
+            }
+          })
+          colors = processedColors
         } else if (Array.isArray(product.colors)) {
-          // Convert array format to object format with default quantity
+          // Convert array format to object format with sizes
           const colorObject = {}
           product.colors.forEach(color => {
             if (typeof color === 'string' && color.trim()) {
               colorObject[color.trim()] = {
                 hex: getDefaultColorHex(color.trim()),
-                quantity: 0
+                sizes: {}
               }
             }
           })
@@ -279,7 +304,7 @@ export async function POST(request) {
       }
     }
 
-    // Handle colors field - database expects JSONB object with quantity for direct insert
+    // Handle colors field - database expects JSONB object with sizes for direct insert
     let colorsField = productData.colors
     if (colorsField) {
       if (typeof colorsField === 'string') {
@@ -289,19 +314,46 @@ export async function POST(request) {
           colorsField = {}
         }
       } else if (Array.isArray(colorsField)) {
-        // Convert array format to object format with quantity for database storage
-        // Array: ["Blue", "Silver", "Green"] -> Object: {"Blue": {"hex": "#0000FF", "quantity": 0}, ...}
+        // Convert array format to object format with sizes for database storage
+        // Array: ["Blue", "Silver", "Green"] -> Object: {"Blue": {"hex": "#0000FF", "sizes": {}}, ...}
         const colorObject = {}
         colorsField.forEach(color => {
           if (typeof color === 'string' && color.trim()) {
             colorObject[color.trim()] = {
               hex: getDefaultColorHex(color.trim()),
-              quantity: 0
+              sizes: {}
             }
           }
         })
         colorsField = colorObject
-      } else if (typeof colorsField !== 'object') {
+      } else if (typeof colorsField === 'object') {
+        // Migrate old format to new format if needed
+        const migratedColors = {}
+        Object.entries(colorsField).forEach(([colorName, colorData]) => {
+          if (typeof colorData === 'object') {
+            // If it has the old 'quantity' field but no 'sizes', migrate it
+            if (colorData.quantity !== undefined && !colorData.sizes) {
+              migratedColors[colorName] = {
+                hex: colorData.hex || getDefaultColorHex(colorName),
+                sizes: {} // Migrate to new format
+              }
+            } else {
+              // Already in new format or has sizes
+              migratedColors[colorName] = {
+                hex: colorData.hex || getDefaultColorHex(colorName),
+                sizes: colorData.sizes || {}
+              }
+            }
+          } else {
+            // String hex value
+            migratedColors[colorName] = {
+              hex: colorData,
+              sizes: {}
+            }
+          }
+        })
+        colorsField = migratedColors
+      } else {
         colorsField = {}
       }
     } else {
@@ -352,15 +404,33 @@ export async function POST(request) {
       subcategory_id: productData.subcategory_id === '' ? null : productData.subcategory_id, // Handle empty string
       brand: productData.brand || '',
       stock_quantity: Object.values(colorsField).reduce((total, colorData) => {
-        const quantity = typeof colorData === 'object' ? (colorData?.quantity || 0) : 0
-        return total + quantity
+        if (typeof colorData === 'object') {
+          // New format with sizes
+          if (colorData.sizes && typeof colorData.sizes === 'object') {
+            return total + Object.values(colorData.sizes).reduce((sizeTotal, qty) => sizeTotal + (qty || 0), 0)
+          }
+          // Old format with quantity (for backward compatibility)
+          if (typeof colorData.quantity === 'number') {
+            return total + colorData.quantity
+          }
+        }
+        return total
       }, 0),
       sku: productData.sku || `SKU-${Date.now()}`,
       status: productData.status || 'active',
       approval_status: approvalStatus,
       in_stock: Object.values(colorsField).reduce((total, colorData) => {
-        const quantity = typeof colorData === 'object' ? (colorData?.quantity || 0) : 0
-        return total + quantity
+        if (typeof colorData === 'object') {
+          // New format with sizes
+          if (colorData.sizes && typeof colorData.sizes === 'object') {
+            return total + Object.values(colorData.sizes).reduce((sizeTotal, qty) => sizeTotal + (qty || 0), 0)
+          }
+          // Old format with quantity (for backward compatibility)
+          if (typeof colorData.quantity === 'number') {
+            return total + colorData.quantity
+          }
+        }
+        return total
       }, 0) > 0,
       is_featured: productData.is_featured || false,
       is_new_arrival: true,
@@ -408,19 +478,35 @@ export async function POST(request) {
       }
     }
 
-    // Ensure colors field is properly formatted as an object with quantity
+    // Ensure colors field is properly formatted as an object with sizes
     let colors = {}
     if (data.colors) {
       if (typeof data.colors === 'object' && !Array.isArray(data.colors)) {
-        colors = data.colors
+        // Process colors, maintaining format
+        const processedColors = {}
+        Object.entries(data.colors).forEach(([colorName, colorData]) => {
+          if (typeof colorData === 'object') {
+            processedColors[colorName] = {
+              hex: colorData.hex || getDefaultColorHex(colorName),
+              sizes: colorData.sizes || {}
+            }
+          } else {
+            // String hex value
+            processedColors[colorName] = {
+              hex: colorData,
+              sizes: {}
+            }
+          }
+        })
+        colors = processedColors
       } else if (Array.isArray(data.colors)) {
-        // Convert array format to object format with default quantity
+        // Convert array format to object format with sizes
         const colorObject = {}
         data.colors.forEach(color => {
           if (typeof color === 'string' && color.trim()) {
             colorObject[color.trim()] = {
               hex: getDefaultColorHex(color.trim()),
-              quantity: 0
+              sizes: {}
             }
           }
         })

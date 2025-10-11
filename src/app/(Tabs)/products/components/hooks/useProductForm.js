@@ -277,8 +277,17 @@ export const useProductForm = (initialData = {}) => {
     if (!colors || typeof colors !== 'object') return 0
     
     return Object.values(colors).reduce((total, colorData) => {
-      const quantity = typeof colorData === 'object' ? (colorData?.quantity || 0) : 0
-      return total + quantity
+      if (typeof colorData === 'object') {
+        // New format with sizes
+        if (colorData.sizes && typeof colorData.sizes === 'object') {
+          return total + Object.values(colorData.sizes).reduce((sizeTotal, qty) => sizeTotal + (qty || 0), 0)
+        }
+        // Old format with quantity (for backward compatibility)
+        if (typeof colorData.quantity === 'number') {
+          return total + colorData.quantity
+        }
+      }
+      return total
     }, 0)
   }, [])
 

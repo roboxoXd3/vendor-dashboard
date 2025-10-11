@@ -64,7 +64,7 @@ export default function VariantsOptionsStep({
         ...formData.colors, 
         [colorName.trim()]: {
           hex: selectedColor,
-          quantity: 0
+          sizes: {} // Initialize with empty sizes object
         }
       }
       handleInputChange({
@@ -110,16 +110,19 @@ export default function VariantsOptionsStep({
     })
   }
 
-  const handleColorQuantityChange = (colorName, quantity) => {
+  const handleColorSizeQuantityChange = (colorName, size, quantity) => {
     // Allow empty string or parse the number
     const parsedQuantity = quantity === '' ? 0 : parseInt(quantity, 10)
-    const finalQuantity = isNaN(parsedQuantity) ? 0 : parsedQuantity
+    const finalQuantity = isNaN(parsedQuantity) ? 0 : Math.max(0, parsedQuantity)
     
     const newColors = { 
       ...formData.colors,
       [colorName]: {
         ...formData.colors[colorName],
-        quantity: finalQuantity
+        sizes: {
+          ...(formData.colors[colorName]?.sizes || {}),
+          [size]: finalQuantity
+        }
       }
     }
     handleInputChange({
@@ -128,6 +131,21 @@ export default function VariantsOptionsStep({
         value: newColors
       }
     })
+  }
+
+  const getColorTotalQuantity = (colorData) => {
+    // Handle both old format (with quantity) and new format (with sizes)
+    if (typeof colorData === 'object') {
+      // New format with sizes
+      if (colorData.sizes && typeof colorData.sizes === 'object') {
+        return Object.values(colorData.sizes).reduce((sum, qty) => sum + (qty || 0), 0)
+      }
+      // Old format with quantity
+      if (typeof colorData.quantity === 'number') {
+        return colorData.quantity
+      }
+    }
+    return 0
   }
 
   const handleAddTag = () => {
@@ -344,46 +362,71 @@ export default function VariantsOptionsStep({
           {/* Display Added Colors */}
           <div>
             <h4 className="text-sm font-medium text-gray-700 mb-3">Added Colors ({Object.keys(formData.colors || {}).length})</h4>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {Object.entries(formData.colors || {}).map(([colorName, colorData]) => {
                 // Handle both old format (string) and new format (object)
                 const hexValue = typeof colorData === 'string' ? colorData : colorData?.hex || '#000000'
-                const quantity = typeof colorData === 'object' ? (colorData?.quantity || 0) : 0
+                const colorTotal = getColorTotalQuantity(colorData)
                 
                 return (
                   <div
                     key={colorName}
-                    className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200"
+                    className="p-4 bg-green-50 rounded-lg border border-green-200"
                   >
-                    <div 
-                      className="w-6 h-6 rounded-full border border-gray-300 flex-shrink-0"
-                      style={{ backgroundColor: hexValue }}
-                    ></div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-green-800">{colorName}</span>
-                        <span className="text-xs opacity-75 font-mono text-green-600">{hexValue}</span>
+                    {/* Color Header */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div 
+                        className="w-8 h-8 rounded-full border-2 border-gray-300 flex-shrink-0 shadow-sm"
+                        style={{ backgroundColor: hexValue }}
+                      ></div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-green-900">{colorName}</span>
+                          <span className="text-xs opacity-75 font-mono text-green-700 bg-green-100 px-2 py-0.5 rounded">{hexValue}</span>
+                        </div>
+                        <div className="text-xs text-green-700 mt-1">
+                          Total: <span className="font-semibold">{colorTotal}</span> units
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveColor(colorName)}
+                        className="text-red-500 hover:text-red-700 p-2 hover:bg-red-100 rounded-full transition-colors"
+                        title="Remove color"
+                      >
+                        <FaTimes size={14} />
+                      </button>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs text-gray-600">Qty:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={quantity === 0 ? '' : quantity}
-                        onChange={(e) => handleColorQuantityChange(colorName, e.target.value)}
-                        onFocus={(e) => e.target.select()}
-                        className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        placeholder="0"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveColor(colorName)}
-                      className="text-green-600 hover:text-green-800 p-1 flex-shrink-0"
-                    >
-                      <FaTimes size={10} />
-                    </button>
+                    
+                    {/* Size Quantities */}
+                    {formData.sizes && formData.sizes.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                        {formData.sizes.map((size) => {
+                          const currentQty = colorData?.sizes?.[size] || 0
+                          return (
+                            <div key={size} className="bg-white rounded-md border border-green-200 p-2">
+                              <label className="block text-xs font-medium text-gray-700 mb-1 text-center">
+                                Size {size}
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={currentQty === 0 ? '' : currentQty}
+                                onChange={(e) => handleColorSizeQuantityChange(colorName, size, e.target.value)}
+                                onFocus={(e) => e.target.select()}
+                                className="w-full px-2 py-1.5 text-sm text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                placeholder="0"
+                              />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-3 flex items-center gap-2">
+                        <span className="text-lg">⚠️</span>
+                        <span>Please add sizes above first, then you can set quantities for each size in this color.</span>
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -394,18 +437,17 @@ export default function VariantsOptionsStep({
             
             {/* Total Stock Summary */}
             {formData.colors && Object.keys(formData.colors).length > 0 && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border-2 border-blue-300">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-blue-800">Total Stock Quantity:</span>
-                  <span className="text-lg font-bold text-blue-900">
+                  <span className="text-sm font-semibold text-blue-900">Total Stock Quantity:</span>
+                  <span className="text-2xl font-bold text-blue-900">
                     {Object.values(formData.colors).reduce((total, colorData) => {
-                      const quantity = typeof colorData === 'object' ? (colorData?.quantity || 0) : 0
-                      return total + quantity
+                      return total + getColorTotalQuantity(colorData)
                     }, 0)}
                   </span>
                 </div>
-                <p className="text-xs text-blue-600 mt-1">
-                  Automatically calculated from all color quantities
+                <p className="text-xs text-blue-700 mt-1">
+                  Automatically calculated from all color and size combinations
                 </p>
               </div>
             )}

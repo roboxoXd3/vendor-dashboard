@@ -60,17 +60,20 @@ export default function MediaVideosStep({
             </div>
           </h3>
           
-          {Object.entries(formData.colors || {}).map(([colorName, hexValue], index) => (
-            <div key={index} className="mb-4 p-3 border border-gray-200 rounded-lg">
-              <div className="flex items-center gap-2 mb-3">
-                <div 
-                  className="w-4 h-4 rounded-full border border-gray-300"
-                  style={{ backgroundColor: hexValue }}
-                ></div>
-                <span className="font-medium text-gray-700">
-                  Images for {colorName}
-                </span>
-              </div>
+          {Object.entries(formData.colors || {}).map(([colorName, colorData], index) => {
+            // Handle both old format (string) and new format (object with hex and sizes)
+            const hexValue = typeof colorData === 'string' ? colorData : (colorData?.hex || '#000000')
+            return (
+              <div key={index} className="mb-4 p-3 border border-gray-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <div 
+                    className="w-4 h-4 rounded-full border border-gray-300"
+                    style={{ backgroundColor: hexValue }}
+                  ></div>
+                  <span className="font-medium text-gray-700">
+                    Images for {colorName}
+                  </span>
+                </div>
               
               <EnhancedColorImageUpload
                 color={colorName}
@@ -81,8 +84,9 @@ export default function MediaVideosStep({
                 vendorId={vendor?.id}
                 productId={productId}
               />
-            </div>
-          ))}
+              </div>
+            )
+          })}
           
           {(!formData.colors || Object.keys(formData.colors).length === 0) ? (
             <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">

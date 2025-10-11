@@ -345,7 +345,9 @@ export default function ProductPreview({ formData, categories, vendor }) {
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-3 mb-2">
-                  {Object.entries(formData.colors).map(([colorName, hexValue], index) => {
+                  {Object.entries(formData.colors).map(([colorName, colorData], index) => {
+                    // Handle both old format (string) and new format (object with hex and sizes)
+                    const hexValue = typeof colorData === 'string' ? colorData : (colorData?.hex || '#000000')
                     const hasColorImages = formData.color_images && formData.color_images[colorName] && formData.color_images[colorName].length > 0
                     return (
                       <button

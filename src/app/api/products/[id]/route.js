@@ -72,19 +72,44 @@ export async function GET(request, { params }) {
       }
     }
 
-    // Ensure colors field is properly formatted as an object with quantity
+    // Ensure colors field is properly formatted
     let colors = {}
     if (data.colors) {
       if (typeof data.colors === 'object' && !Array.isArray(data.colors)) {
-        colors = data.colors
+        // Process colors, maintaining format (both old and new)
+        const processedColors = {}
+        Object.entries(data.colors).forEach(([colorName, colorData]) => {
+          if (typeof colorData === 'object') {
+            // If it has the old 'quantity' field but no 'sizes', keep it for backward compatibility
+            if (colorData.quantity !== undefined && !colorData.sizes) {
+              processedColors[colorName] = {
+                hex: colorData.hex || getDefaultColorHex(colorName),
+                quantity: colorData.quantity
+              }
+            } else {
+              // New format with sizes
+              processedColors[colorName] = {
+                hex: colorData.hex || getDefaultColorHex(colorName),
+                sizes: colorData.sizes || {}
+              }
+            }
+          } else {
+            // String hex value
+            processedColors[colorName] = {
+              hex: colorData,
+              sizes: {}
+            }
+          }
+        })
+        colors = processedColors
       } else if (Array.isArray(data.colors)) {
-        // Convert array format to object format with default quantity
+        // Convert array format to object format with sizes
         const colorObject = {}
         data.colors.forEach(color => {
           if (typeof color === 'string' && color.trim()) {
             colorObject[color.trim()] = {
               hex: getDefaultColorHex(color.trim()),
-              quantity: 0
+              sizes: {}
             }
           }
         })
@@ -193,7 +218,7 @@ export async function PUT(request, { params }) {
       }
     }
 
-    // Handle colors field - RPC function now expects JSONB object with quantity
+    // Handle colors field - RPC function now expects JSONB object with sizes
     let colorsField = updates.colors
     if (colorsField) {
       if (typeof colorsField === 'string') {
@@ -203,19 +228,46 @@ export async function PUT(request, { params }) {
           colorsField = {}
         }
       } else if (Array.isArray(colorsField)) {
-        // Convert array format to object format with quantity for RPC function
-        // Array: ["Blue", "Silver", "Green"] -> Object: {"Blue": {"hex": "#0000FF", "quantity": 0}, ...}
+        // Convert array format to object format with sizes for RPC function
+        // Array: ["Blue", "Silver", "Green"] -> Object: {"Blue": {"hex": "#0000FF", "sizes": {}}, ...}
         const colorObject = {}
         colorsField.forEach(color => {
           if (typeof color === 'string' && color.trim()) {
             colorObject[color.trim()] = {
               hex: getDefaultColorHex(color.trim()),
-              quantity: 0
+              sizes: {}
             }
           }
         })
         colorsField = colorObject
-      } else if (typeof colorsField !== 'object') {
+      } else if (typeof colorsField === 'object') {
+        // Migrate old format to new format if needed
+        const migratedColors = {}
+        Object.entries(colorsField).forEach(([colorName, colorData]) => {
+          if (typeof colorData === 'object') {
+            // If it has the old 'quantity' field but no 'sizes', migrate it
+            if (colorData.quantity !== undefined && !colorData.sizes) {
+              migratedColors[colorName] = {
+                hex: colorData.hex || getDefaultColorHex(colorName),
+                sizes: {} // Migrate to new format
+              }
+            } else {
+              // Already in new format or has sizes
+              migratedColors[colorName] = {
+                hex: colorData.hex || getDefaultColorHex(colorName),
+                sizes: colorData.sizes || {}
+              }
+            }
+          } else {
+            // String hex value
+            migratedColors[colorName] = {
+              hex: colorData,
+              sizes: {}
+            }
+          }
+        })
+        colorsField = migratedColors
+      } else {
         colorsField = {}
       }
     } else {
@@ -300,8 +352,17 @@ export async function PUT(request, { params }) {
         p_mrp: updates.mrp ? Number(updates.mrp) : null,
         p_sale_price: updates.sale_price ? Number(updates.sale_price) : null,
         p_stock_quantity: Object.values(colorsField).reduce((total, colorData) => {
-          const quantity = typeof colorData === 'object' ? (colorData?.quantity || 0) : 0
-          return total + quantity
+          if (typeof colorData === 'object') {
+            // New format with sizes
+            if (colorData.sizes && typeof colorData.sizes === 'object') {
+              return total + Object.values(colorData.sizes).reduce((sizeTotal, qty) => sizeTotal + (qty || 0), 0)
+            }
+            // Old format with quantity (for backward compatibility)
+            if (typeof colorData.quantity === 'number') {
+              return total + colorData.quantity
+            }
+          }
+          return total
         }, 0),
         p_weight: updates.weight ? Number(updates.weight) : null,
         p_category_id: categoryId,
@@ -356,19 +417,35 @@ export async function PUT(request, { params }) {
       }
     }
 
-    // Ensure colors field is properly formatted as an object with quantity
+    // Ensure colors field is properly formatted
     let colors = {}
     if (data.colors) {
       if (typeof data.colors === 'object' && !Array.isArray(data.colors)) {
-        colors = data.colors
+        // Process colors, maintaining format
+        const processedColors = {}
+        Object.entries(data.colors).forEach(([colorName, colorData]) => {
+          if (typeof colorData === 'object') {
+            processedColors[colorName] = {
+              hex: colorData.hex || getDefaultColorHex(colorName),
+              sizes: colorData.sizes || {}
+            }
+          } else {
+            // String hex value
+            processedColors[colorName] = {
+              hex: colorData,
+              sizes: {}
+            }
+          }
+        })
+        colors = processedColors
       } else if (Array.isArray(data.colors)) {
-        // Convert array format to object format with default quantity
+        // Convert array format to object format with sizes
         const colorObject = {}
         data.colors.forEach(color => {
           if (typeof color === 'string' && color.trim()) {
             colorObject[color.trim()] = {
               hex: getDefaultColorHex(color.trim()),
-              quantity: 0
+              sizes: {}
             }
           }
         })
