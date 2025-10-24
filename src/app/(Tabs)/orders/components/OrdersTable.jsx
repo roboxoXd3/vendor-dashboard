@@ -51,13 +51,40 @@ const getVendorTotal = (order) => {
   return order.vendor_subtotal || order.total || 0;
 };
 
+// Helper function to get order currency
+const getOrderCurrency = (order) => {
+  // Try to get currency from order items first
+  const firstItem = order.order_items?.[0];
+  if (firstItem?.products?.currency) {
+    return firstItem.products.currency;
+  }
+  
+  // Fallback to order currency or default
+  return order.currency || 'USD';
+};
+
+// Helper function to format order amount with proper conversion
+const formatOrderAmount = (order, formatPrice, convertPrice, globalCurrency) => {
+  const vendorTotal = getVendorTotal(order);
+  const orderCurrency = getOrderCurrency(order);
+  
+  // If the order currency is the same as global currency, no conversion needed
+  if (orderCurrency === globalCurrency) {
+    return formatPrice(vendorTotal, globalCurrency);
+  }
+  
+  // Convert from order currency to global currency
+  const convertedAmount = convertPrice(vendorTotal, orderCurrency, globalCurrency);
+  return formatPrice(convertedAmount, globalCurrency);
+};
+
 export default function OrdersTable({
   orders,
   onSelectOrder,
   selectedOrderId,
 }) {
   const [selectedId, setSelectedId] = useState(selectedOrderId || null);
-  const { formatPrice } = useCurrencyContext();
+  const { formatPrice, convertPrice, globalCurrency } = useCurrencyContext();
 
   const handleSelect = (id) => {
     const newId = selectedId === id ? null : id;
@@ -86,8 +113,8 @@ export default function OrdersTable({
             {orders.map((order) => {
               const customerName = getCustomerName(order);
               const firstProduct = getFirstProduct(order);
-              const vendorTotal = getVendorTotal(order);
               const orderNumber = order.order_number || `#${order.id.slice(-8).toUpperCase()}`;
+              const formattedAmount = formatOrderAmount(order, formatPrice, convertPrice, globalCurrency);
               
               return (
                 <tr
@@ -137,7 +164,7 @@ export default function OrdersTable({
                     </div>
                   </td>
                   <td className="px-4 py-3 font-semibold">
-                    {formatPrice(vendorTotal, 'USD')}
+                    {formattedAmount}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -166,8 +193,8 @@ export default function OrdersTable({
         {orders.map((order) => {
           const customerName = getCustomerName(order);
           const firstProduct = getFirstProduct(order);
-          const vendorTotal = getVendorTotal(order);
           const orderNumber = order.order_number || `#${order.id.slice(-8).toUpperCase()}`;
+          const formattedAmount = formatOrderAmount(order, formatPrice, convertPrice, globalCurrency);
           
           return (
             <div
@@ -216,7 +243,7 @@ export default function OrdersTable({
 
               <div className="text-sm text-gray-600">
                 <p>
-                  <strong>Amount:</strong> {formatPrice(vendorTotal, 'USD')}
+                  <strong>Amount:</strong> {formattedAmount}
                 </p>
                 <p>
                   <strong>Date:</strong> {formatDate(order.created_at)}

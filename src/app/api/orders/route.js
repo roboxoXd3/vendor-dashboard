@@ -46,7 +46,8 @@ export async function GET(request) {
             name,
             images,
             sku,
-            vendor_id
+            vendor_id,
+            currency
           )
         ),
         shipping_addresses(

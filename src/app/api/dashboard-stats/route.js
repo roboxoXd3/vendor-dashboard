@@ -56,7 +56,7 @@ export async function GET(request) {
     // Get vendor's product IDs for order calculations
     const { data: products } = await supabase
       .from('products')
-      .select('id')
+      .select('id, currency')
       .eq('vendor_id', vendorId)
 
     let totalOrders = 0
@@ -87,11 +87,16 @@ export async function GET(request) {
         orderItems.forEach(item => {
           const order = item.orders
           const itemTotal = parseFloat(item.price) * item.quantity
+          
+          // Find the product to get currency
+          const product = products.find(p => p.id === item.product_id)
+          const currency = product?.currency || 'USD'
 
           if (!uniqueOrders.has(order.id)) {
             uniqueOrders.set(order.id, {
               status: order.status,
-              vendor_total: 0
+              vendor_total: 0,
+              currency: currency
             })
           }
 
@@ -110,12 +115,17 @@ export async function GET(request) {
       }
     }
 
+    // Get the most common currency from orders (fallback to USD)
+    const orderCurrencies = Array.from(uniqueOrders.values()).map(order => order.currency)
+    const mostCommonCurrency = orderCurrencies.length > 0 ? orderCurrencies[0] : 'USD'
+
     const stats = {
       totalProducts: productCount || 0,
       totalOrders: totalOrders,
       totalSales: totalRevenue,
       pendingOrders: pendingOrders,
       followerCount: followerCount || 0,
+      currency: mostCommonCurrency,
       monthlyRevenue: {
         [new Date().toISOString().slice(0, 7)]: totalRevenue
       }

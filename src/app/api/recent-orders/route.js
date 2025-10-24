@@ -41,7 +41,7 @@ export async function GET(request) {
     // Get vendor's product IDs first
     const { data: products, error: productsError } = await supabase
       .from('products')
-      .select('id, name')
+      .select('id, name, currency')
       .eq('vendor_id', vendorId)
 
     if (productsError) {
@@ -130,6 +130,10 @@ export async function GET(request) {
       const product = products.find(p => p.id === item.product_id)
       if (product) {
         orderData.product_names.push(product.name)
+        // Store currency from the first product (assuming all products in an order have the same currency)
+        if (!orderData.currency) {
+          orderData.currency = product.currency || 'USD'
+        }
       }
     })
 
@@ -140,6 +144,7 @@ export async function GET(request) {
         id: order.id,
         order_number: order.order_number,
         total: order.vendor_total.toFixed(2),
+        currency: order.currency || 'USD',
         status: order.status,
         created_at: order.created_at,
         user_id: order.user_id,

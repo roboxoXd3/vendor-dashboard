@@ -2,12 +2,29 @@
 
 import { useState, useEffect } from "react";
 import { FaUser } from "react-icons/fa";
+import { useCurrencyContext } from "@/contexts/CurrencyContext";
 
 export default function EscrowStatusTable() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
+  const { formatPrice, convertPrice, globalCurrency } = useCurrencyContext();
+
+  // Helper function to format escrow amount with proper conversion
+  const formatEscrowAmount = (order) => {
+    const amount = parseFloat(order.amount);
+    const orderCurrency = order.currency || 'USD';
+
+    // If the order currency is the same as global currency, no conversion needed
+    if (orderCurrency === globalCurrency) {
+      return formatPrice(amount, globalCurrency);
+    }
+
+    // Convert from order currency to global currency
+    const convertedAmount = convertPrice(amount, orderCurrency, globalCurrency);
+    return formatPrice(convertedAmount, globalCurrency);
+  };
 
   useEffect(() => {
     fetchEscrowOrders();
@@ -149,7 +166,7 @@ export default function EscrowStatusTable() {
                         )}
                       </div>
                     </td>
-                    <td className="p-3 text-md font-medium">${order.amount}</td>
+                    <td className="p-3 text-md font-medium">{formatEscrowAmount(order)}</td>
                     <td className="p-3">
                       <span className={`text-xs px-2 py-1 rounded-full ${order.statusClass}`}>
                         {order.status}
@@ -183,8 +200,7 @@ export default function EscrowStatusTable() {
                   <div>
                     <p className="text-md font-medium">{order.customer}</p>
                     <p className="text-sm text-gray-700">
-                      <strong className="text-black">Amount:</strong> $
-                      {order.amount}
+                      <strong className="text-black">Amount:</strong> {formatEscrowAmount(order)}
                     </p>
                     {order.customerEmail && (
                       <p className="text-xs text-gray-500">{order.customerEmail}</p>

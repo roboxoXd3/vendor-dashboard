@@ -72,7 +72,8 @@ export async function GET(request) {
           products!inner(
             id,
             name,
-            vendor_id
+            vendor_id,
+            currency
           )
         )
       `)
@@ -207,11 +208,16 @@ export async function GET(request) {
           })
         : 'N/A'
 
+      // Get currency from the first vendor item
+      const firstVendorItem = vendorItems[0]
+      const currency = firstVendorItem?.products?.currency || 'USD'
+
       return {
         id: order.id,
         customer: customerName,
         customerEmail: customerEmail,
         amount: vendorAmount.toFixed(2),
+        currency: currency,
         status: statusDisplay,
         statusClass: statusClass,
         releaseDate: releaseDate,
