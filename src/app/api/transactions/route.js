@@ -73,7 +73,8 @@ export async function GET(request) {
           price,
           products!inner(
             vendor_id,
-            name
+            name,
+            currency
           )
         )
       `)
@@ -91,11 +92,15 @@ export async function GET(request) {
           sum + (parseFloat(item.price) * item.quantity), 0
         )
 
+        // Get currency from first vendor item
+        const currency = vendorItems[0]?.products?.currency || 'USD'
+
         allTransactions.push({
           id: `ORD-${order.id.slice(0, 8)}`,
           type: 'Earning',
           description: `Order #${order.id.slice(0, 8)}`,
           amount: vendorAmount,
+          currency: currency,
           date: new Date(order.created_at).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -134,6 +139,7 @@ export async function GET(request) {
           type: transactionType,
           description: description,
           amount: -parseFloat(payout.amount), // Negative for withdrawals
+          currency: payout.currency || 'USD', // Get currency from payout record
           date: new Date(payout.created_at).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -158,7 +164,8 @@ export async function GET(request) {
           quantity,
           price,
           products!inner(
-            vendor_id
+            vendor_id,
+            currency
           )
         )
       `)
@@ -175,11 +182,15 @@ export async function GET(request) {
           sum + (parseFloat(item.price) * item.quantity), 0
         )
 
+        // Get currency from first vendor item
+        const currency = vendorItems[0]?.products?.currency || 'USD'
+
         allTransactions.push({
           id: `REF-${refund.id.slice(0, 8)}`,
           type: 'Refund',
           description: `Refund for Order #${refund.id.slice(0, 8)}`,
           amount: -vendorAmount, // Negative for refunds
+          currency: currency,
           date: new Date(refund.updated_at).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',

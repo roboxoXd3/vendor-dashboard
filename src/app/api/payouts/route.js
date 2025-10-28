@@ -71,7 +71,8 @@ export async function GET(request) {
         created_at,
         order_items!inner(
           products!inner(
-            vendor_id
+            vendor_id,
+            currency
           )
         )
       `)
@@ -80,11 +81,19 @@ export async function GET(request) {
 
     let thisMonthEarnings = 0
     let lastMonthEarnings = 0
+    let mostCommonCurrency = 'USD' // Default fallback
 
     if (orders && !ordersError) {
+      // Track currencies to determine the most common one
+      const currencyCount = {}
+      
       orders.forEach(order => {
         const orderDate = new Date(order.created_at)
         const orderTotal = parseFloat(order.total || 0)
+        
+        // Get currency from first product in order
+        const currency = order.order_items?.[0]?.products?.currency || 'USD'
+        currencyCount[currency] = (currencyCount[currency] || 0) + 1
         
         if (orderDate >= currentMonthStart) {
           thisMonthEarnings += orderTotal
@@ -92,6 +101,13 @@ export async function GET(request) {
           lastMonthEarnings += orderTotal
         }
       })
+      
+      // Find most common currency
+      if (Object.keys(currencyCount).length > 0) {
+        mostCommonCurrency = Object.keys(currencyCount).reduce((a, b) => 
+          currencyCount[a] > currencyCount[b] ? a : b
+        )
+      }
     }
 
     const payoutData = {
@@ -99,7 +115,8 @@ export async function GET(request) {
       pendingBalance: pendingPayouts.toFixed(2),
       lifetimeEarnings: totalEarnings.toFixed(2),
       thisMonthEarnings: thisMonthEarnings.toFixed(2),
-      lastMonthEarnings: lastMonthEarnings.toFixed(2)
+      lastMonthEarnings: lastMonthEarnings.toFixed(2),
+      currency: mostCommonCurrency
     }
 
     console.log('✅ Payout data calculated:', payoutData)

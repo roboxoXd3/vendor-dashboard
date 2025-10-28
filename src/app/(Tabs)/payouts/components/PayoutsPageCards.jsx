@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { FaWallet, FaClock, FaChartLine, FaInfoCircle } from "react-icons/fa";
+import { useCurrencyContext } from "@/contexts/CurrencyContext";
 
 export default function PayoutPageCards() {
   const [payoutData, setPayoutData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { formatPrice } = useCurrencyContext();
 
   useEffect(() => {
     fetchPayoutData();
@@ -31,13 +33,22 @@ export default function PayoutPageCards() {
     }
   };
 
+  // Helper function to format payout amounts with proper currency
+  const formatPayoutAmount = (amount, currency = null) => {
+    const numericAmount = parseFloat(amount);
+    return formatPrice(numericAmount, currency);
+  };
+
   const getCards = () => {
     if (!payoutData) return [];
+
+    // Get currency from API response or fallback to USD
+    const payoutCurrency = payoutData.currency || 'USD';
 
     return [
       {
         title: "Available Balance",
-        amount: `$${payoutData.availableBalance}`,
+        amount: formatPayoutAmount(payoutData.availableBalance, payoutCurrency),
         subtitle: "Available for withdrawal",
         icon: <FaWallet className="text-green-600" />,
         iconBg: "bg-green-100",
@@ -46,7 +57,7 @@ export default function PayoutPageCards() {
       },
       {
         title: "Pending Balance",
-        amount: `$${payoutData.pendingBalance}`,
+        amount: formatPayoutAmount(payoutData.pendingBalance, payoutCurrency),
         subtitle: "Funds in escrow (will be released in 7–14 days)",
         icon: <FaClock className="text-yellow-600" />,
         iconBg: "bg-yellow-100",
@@ -57,13 +68,13 @@ export default function PayoutPageCards() {
       },
       {
         title: "Lifetime Earnings",
-        amount: `$${payoutData.lifetimeEarnings}`,
+        amount: formatPayoutAmount(payoutData.lifetimeEarnings, payoutCurrency),
         subtitle: "Total earnings since you joined",
         icon: <FaChartLine className="text-blue-600" />,
         iconBg: "bg-blue-100",
         extra: {
-          thisMonth: `$${payoutData.thisMonthEarnings}`,
-          lastMonth: `$${payoutData.lastMonthEarnings}`,
+          thisMonth: formatPayoutAmount(payoutData.thisMonthEarnings, payoutCurrency),
+          lastMonth: formatPayoutAmount(payoutData.lastMonthEarnings, payoutCurrency),
         },
       },
     ];

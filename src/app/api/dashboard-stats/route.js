@@ -116,8 +116,11 @@ export async function GET(request) {
     }
 
     // Get the most common currency from orders (fallback to USD)
-    const orderCurrencies = Array.from(uniqueOrders.values()).map(order => order.currency)
-    const mostCommonCurrency = orderCurrencies.length > 0 ? orderCurrencies[0] : 'USD'
+    let mostCommonCurrency = 'USD'
+    if (products && products.length > 0) {
+      const orderCurrencies = Array.from(uniqueOrders.values()).map(order => order.currency)
+      mostCommonCurrency = orderCurrencies.length > 0 ? orderCurrencies[0] : 'USD'
+    }
 
     const stats = {
       totalProducts: productCount || 0,

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useCurrencyContext } from "@/contexts/CurrencyContext";
 
 export default function TransactionHistory() {
   const ITEMS_PER_PAGE = 5;
@@ -11,6 +12,7 @@ export default function TransactionHistory() {
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState(null);
   const router = useRouter();
+  const { formatPrice } = useCurrencyContext();
 
   useEffect(() => {
     fetchTransactions();
@@ -41,6 +43,18 @@ export default function TransactionHistory() {
 
   const totalPages = pagination?.pages || 0;
   const currentItems = transactions;
+
+  // Helper function to format transaction amounts with proper currency
+  const formatTransactionAmount = (amount, currency = null) => {
+    const numericAmount = parseFloat(amount);
+    const transactionCurrency = currency || 'USD';
+    
+    if (numericAmount < 0) {
+      return `-${formatPrice(Math.abs(numericAmount), transactionCurrency)}`;
+    } else {
+      return `+${formatPrice(numericAmount, transactionCurrency)}`;
+    }
+  };
 
   function handlePrevious() {
     if (currentPage > 1) {
@@ -186,9 +200,7 @@ export default function TransactionHistory() {
                           trx.amount < 0 ? "text-red-500" : "text-green-600"
                         }`}
                       >
-                        {trx.amount < 0
-                          ? `-$${Math.abs(trx.amount).toFixed(2)}`
-                          : `+$${trx.amount.toFixed(2)}`}
+                        {formatTransactionAmount(trx.amount, trx.currency)}
                       </td>
                     </tr>
                   );
@@ -242,9 +254,7 @@ export default function TransactionHistory() {
                   <span>
                     <strong className="text-black">Amount: </strong>
                     <strong>
-                      {trx.amount < 0
-                        ? `-$${Math.abs(trx.amount).toFixed(2)}`
-                        : `+$${trx.amount.toFixed(2)}`}
+                      {formatTransactionAmount(trx.amount, trx.currency)}
                     </strong>
                   </span>
                 </p>
