@@ -48,15 +48,32 @@ export async function POST(request) {
       console.log('ℹ️ No vendor profile found - creating default pending profile')
       
       try {
-        // Create a default vendor profile with pending status
+        // Extract user metadata from registration
+        const userMetadata = authData.user.user_metadata || {}
+        const businessName = userMetadata.business_name || 'Pending Setup'
+        const fullName = userMetadata.full_name || ''
+        const phone = userMetadata.phone || null
+        const businessType = userMetadata.business_type || 'individual'
+        
+        console.log('📝 Creating vendor profile with registration data:', {
+          businessName,
+          fullName,
+          phone,
+          businessType,
+          email: authData.user.email
+        })
+        
+        // Create vendor profile using data from registration
         const defaultVendorData = {
           user_id: authData.user.id,
-          business_name: 'Pending Setup',
-          business_description: 'Please complete your vendor application',
+          business_name: businessName,
+          business_description: businessName !== 'Pending Setup' 
+            ? `${businessName} - Application pending review`
+            : 'Please complete your vendor application',
           business_email: authData.user.email,
-          business_phone: null,
-          business_address: 'Address to be updated',
-          business_type: 'individual',
+          business_phone: phone,
+          business_address: null, // Will be filled in application form
+          business_type: businessType,
           business_registration_number: null,
           tax_id: null,
           status: 'pending',
@@ -90,6 +107,8 @@ export async function POST(request) {
         
         // Set vendor to the newly created profile
         vendor = newVendor
+        // Clear the error since we successfully created the vendor
+        vendorError = null
         
       } catch (error) {
         console.error('❌ Failed to create default vendor profile:', error)
@@ -100,7 +119,8 @@ export async function POST(request) {
       }
     }
 
-    if (vendorError) {
+    // Only check for error if vendor wasn't created successfully above
+    if (vendorError && !vendor) {
       console.error('❌ Error fetching vendor profile:', vendorError?.message)
       return NextResponse.json(
         { error: 'Database error while fetching vendor profile' },

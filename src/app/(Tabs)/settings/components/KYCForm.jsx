@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { transformDocsForComponent } from "@/lib/kycUtils";
 import UploadKYCDocumentsSection from "./UploadKYCDocumentsSection";
 import BusinessInformationSection from "./BusinessInformationSection";
 
@@ -12,6 +13,7 @@ export default function KYCForm() {
   const [error, setError] = useState("");
   const [kycStatus, setKycStatus] = useState("pending");
   const [lastUpdated, setLastUpdated] = useState("");
+  const [adminFeedback, setAdminFeedback] = useState(""); // Admin notes/rejection reason
 
   const [formData, setFormData] = useState({
     businessName: "",
@@ -43,6 +45,10 @@ export default function KYCForm() {
 
         if (response.ok && result.kyc) {
           const kyc = result.kyc;
+          console.log('🔍 KYC Data received:', kyc)
+          console.log('📄 Documents from API:', kyc.documents)
+          console.log('📊 Upload count:', kyc.uploadedCount)
+          
           setFormData({
             businessName: kyc.business_name || "",
             businessType: kyc.business_type || "",
@@ -50,6 +56,38 @@ export default function KYCForm() {
             taxId: kyc.tax_id || "",
             countryOfOperation: kyc.country_of_operation || ""
           });
+          
+          // Load existing documents from database
+          if (kyc.documents) {
+            const loadedDocs = transformDocsForComponent(kyc.documents)
+            console.log('🔄 Transformed docs:', loadedDocs)
+            setDocuments(prev => {
+              const updated = { ...prev, ...loadedDocs }
+              console.log('📦 Updated documents state:', updated)
+              return updated
+            })
+            
+            // Extract admin feedback (rejection or resubmission reason)
+            const feedback = kyc.documents.resubmission_reason || 
+                           kyc.documents.rejection_reason || 
+                           ""
+            console.log('🔍 Checking for admin feedback:', { 
+              resubmission_reason: kyc.documents.resubmission_reason,
+              rejection_reason: kyc.documents.rejection_reason,
+              feedback 
+            })
+            setAdminFeedback(feedback) // Set even if empty to clear previous feedback
+            if (feedback) {
+              console.log('📝 Admin feedback found and set:', feedback)
+            }
+            
+            // Show message if documents already uploaded
+            if (kyc.uploadedCount > 0) {
+              setMessage(`📁 ${kyc.uploadedCount} document(s) already uploaded. Replace by uploading new ones.`)
+            }
+          } else {
+            console.log('⚠️ No documents in kyc.documents')
+          }
           
           setKycStatus(kyc.status || "pending");
           
@@ -122,40 +160,39 @@ export default function KYCForm() {
     setMessage("");
 
     try {
-      // TODO: Handle file uploads to storage first
-      // For now, we'll just submit the form data
+      // Check if at least one document is uploaded
+      const hasDocuments = documents.id_proof?.url || 
+                          documents.business_license?.url || 
+                          documents.address_proof?.url
       
-      const submitData = {
-        businessRegistrationNumber: formData.businessRegistrationNumber,
-        taxId: formData.taxId,
-        businessType: formData.businessType,
-        documents: {
-          idProof: documents.id_proof?.url || null,
-          businessLicense: documents.business_license?.url || null,
-          addressProof: documents.address_proof?.url || null
-        }
-      };
-
+      if (!hasDocuments) {
+        setError("Please upload at least one KYC document before submitting.")
+        setSubmitting(false)
+        return
+      }
+      
       const response = await fetch('/api/vendor-kyc', {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submitData)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessRegistrationNumber: formData.businessRegistrationNumber,
+          taxId: formData.taxId,
+          businessType: formData.businessType,
+          submitForReview: true
+        })
       });
 
       const result = await response.json();
 
       if (response.ok) {
-        setMessage("🎉 KYC documents submitted successfully! Our team will review them within 2-3 business days.");
+        setMessage("🎉 KYC documents submitted successfully! Review takes 2-3 business days.");
         setKycStatus("under_review");
         setLastUpdated(new Date().toLocaleDateString());
       } else {
         setError(result.error || "Failed to submit KYC documents");
       }
     } catch (err) {
-      console.error('Error submitting KYC:', err);
       setError("Failed to submit KYC documents. Please try again.");
     } finally {
       setSubmitting(false);
@@ -164,12 +201,19 @@ export default function KYCForm() {
 
   const getStatusDisplay = () => {
     switch (kycStatus) {
+      case "draft":
+        return {
+          text: "📝 Draft",
+          color: "bg-blue-100 text-blue-800",
+          message: "You have uploaded documents. Click 'Submit for Review' below to send them to our team for verification."
+        };
       case "under_review":
         return {
           text: "🟡 Under Review",
           color: "bg-yellow-100 text-yellow-800",
-          message: "Your documents are being reviewed by our compliance team. This typically takes 2–3 business days."
+          message: "✅ Your documents have been submitted successfully! Our compliance team is reviewing them. This typically takes 2–3 business days."
         };
+      case "verified":
       case "approved":
         return {
           text: "🟢 Verified",
@@ -180,18 +224,27 @@ export default function KYCForm() {
         return {
           text: "🔴 Rejected",
           color: "bg-red-100 text-red-800",
-          message: "Your KYC documents were rejected. Please resubmit with correct information."
+          message: "Your KYC documents were rejected. Please review the admin feedback below and resubmit with correct information."
+        };
+      case "resubmission_required":
+        return {
+          text: "🟠 Resubmission Required",
+          color: "bg-orange-100 text-orange-800",
+          message: "Our team has reviewed your documents and requires additional information. Please review the feedback below, make necessary changes, and resubmit."
         };
       default:
         return {
-          text: "🟡 Pending Review",
-          color: "bg-yellow-100 text-yellow-800",
-          message: "Please complete and submit your KYC documents for verification."
+          text: "⏳ Pending Setup",
+          color: "bg-gray-100 text-gray-800",
+          message: "Please upload and submit your KYC documents for verification."
         };
     }
   };
 
   const statusInfo = getStatusDisplay();
+  
+  // Debug log for render
+  console.log('🎨 Rendering KYCForm - adminFeedback state:', adminFeedback, 'kycStatus:', kycStatus)
 
   if (loading) {
     return (
@@ -236,27 +289,62 @@ export default function KYCForm() {
         </div>
 
         {/* KYC Alert */}
-        <div className={`mb-6 border px-4 py-3 rounded ${
-          kycStatus === 'approved' 
+        <div className={`mb-6 border px-4 py-4 rounded-lg ${
+          kycStatus === 'approved' || kycStatus === 'verified'
             ? 'border-green-200 bg-green-50 text-green-800' 
             : kycStatus === 'rejected'
             ? 'border-red-200 bg-red-50 text-red-800'
-            : 'border-yellow-200 bg-yellow-50 text-yellow-800'
+            : kycStatus === 'under_review'
+            ? 'border-yellow-200 bg-yellow-50 text-yellow-800'
+            : kycStatus === 'draft'
+            ? 'border-blue-200 bg-blue-50 text-blue-800'
+            : 'border-gray-200 bg-gray-50 text-gray-800'
         }`}>
           <div className="flex items-start justify-between">
-            <div>
-              <strong className="text-sm">{statusInfo.text}</strong>
-              <p className="text-sm mt-1 px-6">
+            <div className="w-full">
+              <div className="flex items-center gap-2 mb-2">
+                <strong className="text-base">{statusInfo.text}</strong>
+                {kycStatus === 'under_review' && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-200 text-yellow-900">
+                    ⏱️ In Progress
+                  </span>
+                )}
+              </div>
+              <p className="text-sm">
                 {statusInfo.message}
               </p>
               {lastUpdated && (
-                <p className="text-xs mt-2 px-6 opacity-75">
+                <p className="text-xs mt-2 opacity-75">
                   Last updated: {lastUpdated}
                 </p>
               )}
             </div>
           </div>
         </div>
+
+        {/* Admin Feedback/Remarks (shown when rejected or resubmission requested) */}
+        {adminFeedback && (
+          <div className="mb-6 border-2 border-orange-400 bg-orange-50 px-4 py-4 rounded-lg shadow-md">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 text-3xl">
+                ⚠️
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-orange-900 mb-2 flex items-center gap-2">
+                  <span>📢 Admin Feedback - Action Required</span>
+                </h3>
+                <div className="bg-white border-l-4 border-orange-500 p-3 rounded">
+                  <p className="text-sm font-medium text-gray-900 whitespace-pre-wrap">
+                    {adminFeedback}
+                  </p>
+                </div>
+                <p className="text-xs text-orange-700 mt-3 font-medium">
+                  ⬆️ Please address the feedback above, upload corrected documents, and click "Resubmit for Review" below.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Form Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -275,14 +363,24 @@ export default function KYCForm() {
 
       <button 
         type="submit"
-        disabled={submitting || kycStatus === 'approved'}
+        disabled={submitting || kycStatus === 'approved' || kycStatus === 'verified' || kycStatus === 'under_review'}
         className={`text-white px-6 py-2 rounded text-sm mx-auto block ${
-          submitting || kycStatus === 'approved'
+          submitting || kycStatus === 'approved' || kycStatus === 'verified' || kycStatus === 'under_review'
             ? 'bg-gray-400 cursor-not-allowed' 
+            : kycStatus === 'rejected' || kycStatus === 'resubmission_required'
+            ? 'bg-orange-600 hover:bg-orange-700 cursor-pointer'
             : 'bg-[var(--color-theme)] hover:opacity-90 cursor-pointer'
         }`}
       >
-        {submitting ? 'Submitting...' : kycStatus === 'approved' ? 'Verified ✓' : 'Submit for Review'}
+        {submitting 
+          ? 'Submitting...' 
+          : kycStatus === 'approved' || kycStatus === 'verified'
+          ? '✓ Verified' 
+          : kycStatus === 'under_review'
+          ? '✓ Submitted for Review'
+          : kycStatus === 'rejected' || kycStatus === 'resubmission_required'
+          ? 'Resubmit for Review'
+          : 'Submit for Review'}
       </button>
     </form>
   );

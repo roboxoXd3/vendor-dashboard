@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import SettingsTabs from "./components/SettingsTabs";
 import KYCForm from "./components/KYCForm";
 import SecuritySettingsPage from "./components/SecuritySettingsPage";
@@ -9,6 +9,36 @@ import PayoutDetailsPage from "./components/PayoutDetailsPage";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("General Info");
+  const [kycNeedsAction, setKycNeedsAction] = useState(false);
+
+  // Check KYC status on mount
+  useEffect(() => {
+    const checkKycStatus = async () => {
+      try {
+        const response = await fetch('/api/vendor-kyc', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          const kyc = result.kyc;
+          
+          // Check if vendor needs to take action (resubmission or rejection)
+          const needsAction = kyc?.documents?.resubmission_reason || 
+                            kyc?.documents?.rejection_reason ||
+                            kyc?.status === 'resubmission_required' ||
+                            kyc?.status === 'rejected';
+          
+          setKycNeedsAction(!!needsAction);
+        }
+      } catch (err) {
+        console.error('Error checking KYC status:', err);
+      }
+    };
+    
+    checkKycStatus();
+  }, []);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -27,7 +57,11 @@ export default function SettingsPage() {
 
   return (
     <div className="p-4 w-[95vw] md:w-[80vw] space-y-6 overflow-hidden">
-      <SettingsTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+      <SettingsTabs 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        kycNeedsAction={kycNeedsAction}
+      />
       {renderTabContent()}
     </div>
   );

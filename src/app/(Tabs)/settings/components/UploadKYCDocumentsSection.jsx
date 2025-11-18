@@ -49,16 +49,18 @@ export default function UploadKYCDocumentsSection({ documents, onChange, disable
                 PDF, JPG, PNG up to 5MB
               </p>
             </label>
-            {documents?.id_proof?.file && (
+            {(documents?.id_proof?.file || documents?.id_proof?.uploaded) && (
               <div className="mt-2 px-3 py-2 rounded flex justify-between items-center text-sm bg-green-50 border border-green-300">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">📎</span>
+                  <span className="text-lg">✅</span>
                   <div>
-                    <p className="font-medium">{documents.id_proof.file.name}</p>
+                    <p className="font-medium">
+                      {documents.id_proof.file?.name || 'ID Proof Document'}
+                    </p>
                     <p
                       className={`text-sm font ${"text-[var(--color-theme)]"}`}
                     >
-                      Uploaded successfully
+                      {documents.id_proof.fromDatabase ? 'Previously uploaded ✓' : 'Uploaded successfully ✓'}
                     </p>
                   </div>
                 </div>
@@ -97,16 +99,18 @@ export default function UploadKYCDocumentsSection({ documents, onChange, disable
                 PDF, JPG, PNG up to 5MB
               </p>
             </label>
-            {documents?.business_license?.file && (
+            {(documents?.business_license?.file || documents?.business_license?.uploaded) && (
               <div className="mt-2 px-3 py-2 rounded flex justify-between items-center text-sm bg-green-50 border border-green-300">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">📎</span>
+                  <span className="text-lg">✅</span>
                   <div>
-                    <p className="font-medium">{documents.business_license.file.name}</p>
+                    <p className="font-medium">
+                      {documents.business_license.file?.name || 'Business License Document'}
+                    </p>
                     <p
                       className={`text-sm font ${"text-[var(--color-theme)]"}`}
                     >
-                      Uploaded successfully
+                      {documents.business_license.fromDatabase ? 'Previously uploaded ✓' : 'Uploaded successfully ✓'}
                     </p>
                   </div>
                 </div>
@@ -145,16 +149,18 @@ export default function UploadKYCDocumentsSection({ documents, onChange, disable
                 PDF, JPG, PNG up to 5MB
               </p>
             </label>
-            {documents?.address_proof?.file && (
+            {(documents?.address_proof?.file || documents?.address_proof?.uploaded) && (
               <div className="mt-2 px-3 py-2 rounded flex justify-between items-center text-sm bg-green-50 border border-green-300">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">📎</span>
+                  <span className="text-lg">✅</span>
                   <div>
-                    <p className="font-medium">{documents.address_proof.file.name}</p>
+                    <p className="font-medium">
+                      {documents.address_proof.file?.name || 'Address Proof Document'}
+                    </p>
                     <p
                       className={`text-sm font ${"text-[var(--color-theme)]"}`}
                     >
-                      Uploaded successfully
+                      {documents.address_proof.fromDatabase ? 'Previously uploaded ✓' : 'Uploaded successfully ✓'}
                     </p>
                   </div>
                 </div>

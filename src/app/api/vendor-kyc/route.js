@@ -1,4 +1,5 @@
 import { getSupabaseServer } from '@/lib/supabase-server'
+import { countUploadedDocs, getOverallKycStatus, updateAllDocStatuses, KYC_STATUS } from '@/lib/kycUtils'
 
 // GET KYC documents and status
 export async function GET(request) {
@@ -58,7 +59,8 @@ export async function GET(request) {
         business_registration_number: vendor.business_registration_number,
         tax_id: vendor.tax_id,
         business_type: vendor.business_type,
-        status: vendor.verification_documents ? 'submitted' : 'pending'
+        status: getOverallKycStatus(vendor.verification_documents),
+        uploadedCount: countUploadedDocs(vendor.verification_documents)
       }
     })
 
@@ -110,22 +112,33 @@ export async function POST(request) {
 
     const userId = sessionData.user_id
 
+    console.log('💾 Updating vendor KYC status to under_review')
+
+    // Fetch current verification_documents
+    const { data: currentVendor } = await supabase
+      .from('vendors')
+      .select('verification_documents')
+      .eq('user_id', userId)
+      .single()
+
+    // Update all document statuses to under_review
+    let verificationDocs = updateAllDocStatuses(
+      currentVendor?.verification_documents || {},
+      KYC_STATUS.UNDER_REVIEW
+    )
+
+    // Add submission timestamp
+    verificationDocs.submitted_at = new Date().toISOString()
+    verificationDocs.status = KYC_STATUS.UNDER_REVIEW
+
     // Prepare KYC data
     const kycData = {
       business_registration_number: body.businessRegistrationNumber || null,
       tax_id: body.taxId || null,
       business_type: body.businessType || null,
-      verification_documents: {
-        id_proof: body.documents?.idProof || null,
-        business_license: body.documents?.businessLicense || null,
-        address_proof: body.documents?.addressProof || null,
-        submitted_at: new Date().toISOString(),
-        status: 'under_review'
-      },
+      verification_documents: verificationDocs,
       updated_at: new Date().toISOString()
     }
-
-    console.log('💾 Updating vendor KYC information')
 
     // Update vendor KYC information
     const { data: updatedVendor, error: updateError } = await supabase

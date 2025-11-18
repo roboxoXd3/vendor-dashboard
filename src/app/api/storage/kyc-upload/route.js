@@ -1,4 +1,5 @@
 import { getSupabaseServer } from '@/lib/supabase-server'
+import { KYC_STATUS } from '@/lib/kycUtils'
 
 // POST /api/storage/kyc-upload
 // Handles KYC document uploads (ID proof, business license, address proof)
@@ -123,7 +124,56 @@ export async function POST(request) {
       .from('documents')
       .getPublicUrl(storagePath)
 
-    console.log('✅ KYC document uploaded successfully:', publicUrl)
+    console.log('✅ KYC document uploaded to storage:', publicUrl)
+
+    // Save to database immediately with draft status
+    try {
+      // Fetch current verification_documents
+      const { data: currentVendor } = await supabase
+        .from('vendors')
+        .select('verification_documents')
+        .eq('user_id', userId)
+        .single()
+
+      let verificationDocs = currentVendor?.verification_documents || {}
+
+      // Delete old file from storage if replacing existing document
+      if (verificationDocs[documentType]?.path) {
+        const oldPath = verificationDocs[documentType].path
+        await supabase.storage
+          .from('documents')
+          .remove([oldPath])
+        console.log(`🗑️ Replaced old ${documentType}:`, oldPath)
+      }
+
+      // Update verification_documents with new upload
+      verificationDocs[documentType] = {
+        url: publicUrl,
+        path: storagePath,
+        type: file.type,
+        status: KYC_STATUS.DRAFT,
+        uploaded_at: new Date().toISOString()
+      }
+
+      // Save to database
+      const { error: updateError } = await supabase
+        .from('vendors')
+        .update({ 
+          verification_documents: verificationDocs,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+
+      if (updateError) {
+        console.error('⚠️ Failed to save document to database:', updateError)
+        // Don't fail the request, file is already uploaded to storage
+      } else {
+        console.log('✅ Document saved to database with draft status')
+      }
+    } catch (dbError) {
+      console.error('⚠️ Database save error:', dbError)
+      // Continue - file is uploaded to storage successfully
+    }
 
     return Response.json({ 
       success: true, 

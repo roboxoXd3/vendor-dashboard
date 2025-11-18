@@ -62,6 +62,7 @@ export async function GET(request) {
     let totalOrders = 0
     let totalRevenue = 0
     let pendingOrders = 0
+    const uniqueOrders = new Map() // Declare outside to avoid scope issues
 
     if (products && products.length > 0) {
       const productIds = products.map(p => p.id)
@@ -81,7 +82,6 @@ export async function GET(request) {
 
       if (orderItems && orderItems.length > 0) {
         // Process order data to get UNIQUE orders (not sum of product orders)
-        const uniqueOrders = new Map()
         let vendorTotalRevenue = 0
 
         orderItems.forEach(item => {
