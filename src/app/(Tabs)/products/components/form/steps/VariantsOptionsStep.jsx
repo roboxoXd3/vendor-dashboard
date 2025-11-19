@@ -151,7 +151,25 @@ export default function VariantsOptionsStep({
   const handleAddTag = () => {
     const tagInput = document.getElementById('new-tag')
     if (tagInput.value.trim()) {
-      addToArray('tags', tagInput.value.trim())
+      const input = tagInput.value.trim()
+      
+      // Check if input contains commas (bulk input)
+      if (input.includes(',')) {
+        // Split by comma and clean up each tag
+        const tags = input
+          .split(',')
+          .map(tag => tag.trim())
+          .filter(tag => tag.length > 0) // Remove empty strings
+        
+        // Add each tag to the array
+        tags.forEach(tag => {
+          addToArray('tags', tag)
+        })
+      } else {
+        // Single tag input
+        addToArray('tags', input)
+      }
+      
       tagInput.value = ''
     }
   }
@@ -462,7 +480,7 @@ export default function VariantsOptionsStep({
             <input
               id="new-tag"
               type="text"
-              placeholder="Enter tag (e.g., wireless, premium, bestseller)"
+              placeholder="Single tag (e.g., wireless) or multiple tags (e.g., wireless, premium, bestseller)"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
               onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
             />
@@ -474,6 +492,10 @@ export default function VariantsOptionsStep({
               <FaPlus size={10} className="sm:w-3 sm:h-3" /> Add Tag
             </button>
           </div>
+          
+          <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4 italic">
+            Single tag: "wireless" | Multiple tags: "wireless, premium, bestseller, eco-friendly"
+          </p>
           
           <div className="flex flex-wrap gap-1 sm:gap-2">
             {formData.tags.map((tag, index) => (
