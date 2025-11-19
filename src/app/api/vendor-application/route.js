@@ -118,7 +118,7 @@ export async function GET(request) {
         // Check for vendor application using application auth
         const { data: vendor, error: vendorError } = await supabase
           .from('vendors')
-          .select('id, business_name, status, verification_status, created_at, updated_at')
+          .select('id, business_name, business_type, business_phone, status, verification_status, created_at, updated_at, admin_notes, rejection_reason')
           .eq('user_id', userId)
           .single()
 
@@ -139,10 +139,14 @@ export async function GET(request) {
           vendor: {
             id: vendor.id,
             business_name: vendor.business_name,
+            business_type: vendor.business_type,
+            business_phone: vendor.business_phone,
             status: vendor.status,
             verification_status: vendor.verification_status,
             created_at: vendor.created_at,
-            updated_at: vendor.updated_at
+            updated_at: vendor.updated_at,
+            admin_notes: vendor.admin_notes,
+            rejection_reason: vendor.rejection_reason
           }
         })
 
@@ -177,7 +181,7 @@ export async function GET(request) {
 
     const { data: vendor, error: vendorError } = await supabase
       .from('vendors')
-      .select('id, business_name, status, verification_status, created_at, updated_at')
+      .select('id, business_name, business_type, business_phone, status, verification_status, created_at, updated_at, admin_notes, rejection_reason')
       .eq('user_id', userId)
       .single()
 
@@ -198,10 +202,14 @@ export async function GET(request) {
       vendor: {
         id: vendor.id,
         business_name: vendor.business_name,
+        business_type: vendor.business_type,
+        business_phone: vendor.business_phone,
         status: vendor.status,
         verification_status: vendor.verification_status,
         created_at: vendor.created_at,
-        updated_at: vendor.updated_at
+        updated_at: vendor.updated_at,
+        admin_notes: vendor.admin_notes,
+        rejection_reason: vendor.rejection_reason
       }
     })
 

@@ -1,18 +1,99 @@
 "use client";
+import { useState, useEffect } from "react";
 import BankAccountInformationSection from "./BankAccountInformationSection";
 import { FaCircleInfo } from "react-icons/fa6";
 import {
   FaCheckCircle,
-  FaCalendar,
+  FaClock,
   FaShieldAlt,
   FaLock,
-  FaSave,
+  FaUniversity,
 } from "react-icons/fa";
-import { MdOutlinePhoneAndroid } from "react-icons/md";
 import { useCurrencyContext } from "@/contexts/CurrencyContext";
 
 export default function PayoutDetailsPage() {
   const { formatPrice } = useCurrencyContext();
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [defaultAccount, setDefaultAccount] = useState(null);
+  
+  useEffect(() => {
+    fetchBankAccounts();
+  }, []);
+
+  const fetchBankAccounts = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/bank-accounts');
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch bank accounts');
+      }
+
+      const accounts = result.data || [];
+      setBankAccounts(accounts);
+      
+      // Find default account
+      const defaultAcc = accounts.find(acc => acc.is_default) || accounts[0] || null;
+      setDefaultAccount(defaultAcc);
+    } catch (err) {
+      console.error('Error fetching bank accounts:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Listen for updates from BankAccountInformationSection
+  useEffect(() => {
+    const handleAccountUpdate = () => {
+      fetchBankAccounts();
+    };
+
+    // Custom event listener for account updates
+    window.addEventListener('bankAccountUpdated', handleAccountUpdate);
+    return () => {
+      window.removeEventListener('bankAccountUpdated', handleAccountUpdate);
+    };
+  }, []);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  const getStatusBadge = () => {
+    if (!defaultAccount) {
+      return (
+        <span className="flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-1 text-sm rounded-full">
+          <FaClock /> No Account
+        </span>
+      );
+    }
+    
+    if (defaultAccount.is_verified) {
+      return (
+        <span className="flex items-center gap-2 bg-green-100 text-green-700 px-3 py-1 text-sm rounded-full">
+          <FaCheckCircle /> Verified
+        </span>
+      );
+    } else {
+      return (
+        <span className="flex items-center gap-2 bg-yellow-100 text-yellow-700 px-3 py-1 text-sm rounded-full">
+          <FaClock /> Pending Verification
+        </span>
+      );
+    }
+  };
   
   return (
     <div className="max-w-screen mx-auto bg-white shadow-md p-4 md:p-6 rounded-lg space-y-6">
@@ -25,9 +106,7 @@ export default function PayoutDetailsPage() {
             payouts
           </p>
         </div>
-        <span className="flex items-center gap-2 bg-green-100 text-green-700 px-3 py-1 text-sm rounded-full">
-          <FaCheckCircle /> Verified
-        </span>
+        {getStatusBadge()}
       </div>
 
       {/* Main Section */}
@@ -45,53 +124,62 @@ export default function PayoutDetailsPage() {
               Setup
             </h3>
 
-            <div>
-              <span className="text-gray-500 text-[12px]">Payout Method</span>
-              <br />
-              <span className="flex items-center gap-2 text-[14px]">
-                <MdOutlinePhoneAndroid className="text-[var(--color-theme)]" />{" "}
-                UPI Transfer
-              </span>
-            </div>
-
-            <div>
-              <span className="text-gray-500 text-[12px]">Status</span>
-              <br />
-              <span className="flex items-center gap-2 text-[14px] text-[var(--color-theme)]">
-                <FaCheckCircle /> Verified
-              </span>
-            </div>
-
-            <div>
-              <span className="text-gray-500 text-[12px]">Last Updated</span>
-              <br />
-              <span className="text-black text-[14px] font-normal">
-                December 10, 2024
-              </span>
-            </div>
-
-            <div>
-              <span className="text-gray-500 text-[12px]">
-                Next Scheduled Payout
-              </span>
-              <br />
-              <span className="flex items-center gap-2 text-black text-[14px] font-medium">
-                <FaCalendar className="text-[var(--color-theme)]" /> December
-                22, 2024
-              </span>
-            </div>
-
-            <div className="p-4 bg-white rounded-lg border border-[var(--color-theme)] text-[12px]">
-              <p className="text-sm text-gray-500">Available Balance</p>
-              <div className="flex justify-between items-center mt-2">
-                <p className="text-[var(--color-theme)] text-2xl font-bold">
-                  {formatPrice(2847.50, 'USD')}
-                </p>
-                <a href="#" className="text-xs text-[var(--color-theme)]">
-                  View Details
-                </a>
+            {loading ? (
+              <div className="space-y-3">
+                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
               </div>
-            </div>
+            ) : defaultAccount ? (
+              <>
+                <div>
+                  <span className="text-gray-500 text-[12px]">Payout Method</span>
+                  <br />
+                  <span className="flex items-center gap-2 text-[14px]">
+                    <FaUniversity className="text-[var(--color-theme)]" />{" "}
+                    Bank Transfer
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-gray-500 text-[12px]">Bank Name</span>
+                  <br />
+                  <span className="text-black text-[14px] font-normal">
+                    {defaultAccount.bank_name || 'N/A'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-gray-500 text-[12px]">Account Number</span>
+                  <br />
+                  <span className="text-black text-[14px] font-normal">
+                    **** **** **** {defaultAccount.account_number?.slice(-4) || 'N/A'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-gray-500 text-[12px]">Status</span>
+                  <br />
+                  <span className="flex items-center gap-2 text-[14px] text-[var(--color-theme)]">
+                    <FaCheckCircle /> {defaultAccount.is_verified ? 'Verified' : 'Pending Verification'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-gray-500 text-[12px]">Last Updated</span>
+                  <br />
+                  <span className="text-black text-[14px] font-normal">
+                    {formatDate(defaultAccount.updated_at || defaultAccount.created_at)}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                <FaUniversity className="mx-auto mb-2 text-gray-400" size={24} />
+                <p className="text-sm">No bank account added yet</p>
+                <p className="text-xs mt-1">Add a bank account to start receiving payouts</p>
+              </div>
+            )}
           </div>
 
           {/* Notice */}
@@ -107,19 +195,11 @@ export default function PayoutDetailsPage() {
         </div>
       </div>
 
-      {/* Action Buttons */}
+      {/* Footer */}
       <div className="w-full flex flex-wrap justify-between items-center gap-4 mt-6">
         <p className="flex items-center gap-2 text-xs text-gray-500">
           <FaLock /> All payment information is encrypted and stored securely
         </p>
-        <div className="flex gap-2">
-          <button className="px-4 py-2 rounded border text-gray-600 hover:bg-gray-100">
-            Cancel Changes
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 rounded bg-[var(--color-theme)] text-white cursor-pointer">
-            <FaSave /> Save Payout Details
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -4,12 +4,22 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Building, Mail, Phone, MapPin, FileText, User, CreditCard } from 'lucide-react'
 import { useCurrencyContext } from '@/contexts/CurrencyContext'
 
-export default function VendorApplication({ onSuccess, onCancel, mode = 'quick' }) {
+export default function VendorApplication({
+  onSuccess,
+  onCancel,
+  mode = 'quick',
+  initialValues = {},
+  submitLabel,
+  apiEndpoint: apiEndpointOverride,
+  readOnlyFields = []
+}) {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState(mode === 'quick' ? 1 : 2) // Skip intro for detailed mode
   const { formatPrice } = useCurrencyContext()
+  const serializedInitialValues = JSON.stringify(initialValues)
+  const isFieldReadOnly = (fieldName) => readOnlyFields.includes(fieldName)
   
   // Get user metadata from Supabase Auth (stored during registration)
   const getUserMetadata = () => {
@@ -60,13 +70,13 @@ export default function VendorApplication({ onSuccess, onCancel, mode = 'quick' 
       
       setFormData(prev => ({
         ...prev,
-        businessName: metadata.businessName,
-        businessEmail: metadata.businessEmail,
-        businessPhone: metadata.businessPhone,
-        businessType: metadata.businessType,
+        businessName: prev.businessName || metadata.businessName,
+        businessEmail: prev.businessEmail || metadata.businessEmail,
+        businessPhone: prev.businessPhone || metadata.businessPhone,
+        businessType: prev.businessType || metadata.businessType,
         bankAccountInfo: {
           ...prev.bankAccountInfo,
-          accountHolderName: metadata.fullName
+          accountHolderName: prev.bankAccountInfo.accountHolderName || metadata.fullName
         }
       }))
       
@@ -78,6 +88,21 @@ export default function VendorApplication({ onSuccess, onCancel, mode = 'quick' 
       })
     }
   }, [user])
+
+  useEffect(() => {
+    if (!initialValues || Object.keys(initialValues).length === 0) {
+      return
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      ...initialValues,
+      bankAccountInfo: {
+        ...prev.bankAccountInfo,
+        ...(initialValues.bankAccountInfo || {})
+      }
+    }))
+  }, [serializedInitialValues, initialValues])
 
   const businessTypes = [
     { value: 'individual', label: 'Individual/Sole Proprietorship' },
@@ -105,6 +130,9 @@ export default function VendorApplication({ onSuccess, onCancel, mode = 'quick' 
         }
       }))
     } else {
+      if (isFieldReadOnly(name)) {
+        return
+      }
       setFormData(prev => ({
         ...prev,
         [name]: value
@@ -121,9 +149,9 @@ export default function VendorApplication({ onSuccess, onCancel, mode = 'quick' 
       console.log('🔄 Submitting vendor application...', { mode, formData })
       
       // Use different API endpoints based on mode
-      const apiEndpoint = mode === 'quick' 
+      const apiEndpoint = apiEndpointOverride || (mode === 'quick' 
         ? '/api/auth/create-vendor-profile' 
-        : '/api/vendor-application'
+        : '/api/vendor-application')
       
       const response = await fetch(apiEndpoint, {
         method: 'POST',
@@ -342,7 +370,8 @@ export default function VendorApplication({ onSuccess, onCancel, mode = 'quick' 
                   name="businessEmail"
                   value={formData.businessEmail}
                   onChange={handleInputChange}
-                  className={`w-full ${isQuickMode ? 'pl-10' : ''} pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500`}
+                  disabled={isFieldReadOnly('businessEmail')}
+                  className={`w-full ${isQuickMode ? 'pl-10' : ''} pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${isFieldReadOnly('businessEmail') ? 'bg-gray-100 cursor-not-allowed opacity-90' : ''}`}
                   placeholder="business@example.com"
                   required
                 />
@@ -585,9 +614,7 @@ export default function VendorApplication({ onSuccess, onCancel, mode = 'quick' 
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                 {isQuickMode ? 'Submitting...' : 'Submitting Application...'}
               </>
-            ) : (
-              isQuickMode ? 'Submit Application' : 'Submit Application'
-            )}
+            ) : submitLabel || (isQuickMode ? 'Submit Application' : 'Submit Application')}
           </button>
           
           {onCancel && !isQuickMode && (

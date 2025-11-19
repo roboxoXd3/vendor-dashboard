@@ -1,22 +1,18 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaUniversity, FaPlus, FaCheck, FaClock, FaTimes } from "react-icons/fa";
+import { useRouter } from "next/navigation";
+import { FaUniversity, FaPlus, FaCheck, FaClock, FaTrash, FaEye } from "react-icons/fa";
 import { SiPaypal } from "react-icons/si";
 import { useCurrencyContext } from "@/contexts/CurrencyContext";
+import toast from "react-hot-toast";
 
 export default function PayoutMethods() {
+  const router = useRouter();
   const [bankAccounts, setBankAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [addingAccount, setAddingAccount] = useState(false);
+  const [deletingAccountId, setDeletingAccountId] = useState(null);
   const { formatPrice } = useCurrencyContext();
-  const [formData, setFormData] = useState({
-    bank_name: '',
-    bank_code: '',
-    account_number: '',
-    account_name: ''
-  });
 
   useEffect(() => {
     fetchBankAccounts();
@@ -43,6 +39,8 @@ export default function PayoutMethods() {
 
   const handleMakeDefault = async (accountId) => {
     try {
+      const loadingToast = toast.loading('Updating bank account...');
+      
       const response = await fetch(`/api/bank-accounts/${accountId}`, {
         method: 'PUT',
         headers: {
@@ -57,51 +55,56 @@ export default function PayoutMethods() {
         throw new Error(result.error || 'Failed to update bank account');
       }
 
+      toast.dismiss(loadingToast);
+      toast.success('Bank account set as default successfully');
+
       // Refresh the list
       await fetchBankAccounts();
     } catch (err) {
       console.error('Error updating bank account:', err);
-      alert('Failed to update bank account: ' + err.message);
+      toast.error('Failed to update bank account: ' + err.message);
     }
   };
 
-  const handleAddAccount = async (e) => {
-    e.preventDefault();
-    
+  const handleAddNew = () => {
+    // Redirect to settings page with Payout Details tab
+    router.push('/settings?tab=Payout Details');
+  };
+
+  const handleViewAll = () => {
+    // Redirect to settings page with Payout Details tab
+    router.push('/settings?tab=Payout Details');
+  };
+
+  const handleDeleteAccount = async (accountId) => {
+    if (!confirm('Are you sure you want to delete this bank account? This action cannot be undone.')) {
+      return;
+    }
+
     try {
-      setAddingAccount(true);
-      const response = await fetch('/api/bank-accounts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+      setDeletingAccountId(accountId);
+      const loadingToast = toast.loading('Deleting bank account...');
+      
+      const response = await fetch(`/api/bank-accounts/${accountId}`, {
+        method: 'DELETE',
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to add bank account');
+        throw new Error(result.error || 'Failed to delete bank account');
       }
 
-      // Reset form and close modal
-      setFormData({
-        bank_name: '',
-        bank_code: '',
-        account_number: '',
-        account_name: ''
-      });
-      setShowAddForm(false);
-      
+      toast.dismiss(loadingToast);
+      toast.success('Bank account deleted successfully');
+
       // Refresh the list
       await fetchBankAccounts();
-      
-      alert('Bank account added successfully! It will be verified by admin.');
     } catch (err) {
-      console.error('Error adding bank account:', err);
-      alert('Failed to add bank account: ' + err.message);
+      console.error('Error deleting bank account:', err);
+      toast.error('Failed to delete bank account: ' + err.message);
     } finally {
-      setAddingAccount(false);
+      setDeletingAccountId(null);
     }
   };
 
@@ -172,7 +175,7 @@ export default function PayoutMethods() {
       <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
         <h2 className="text-sm font-semibold text-gray-700">Payout Methods</h2>
         <button 
-          onClick={() => setShowAddForm(true)}
+          onClick={handleAddNew}
           className="text-[var(--color-theme)] text-sm hover:underline focus:outline-none flex items-center gap-1"
         >
           <FaPlus size={12} />
@@ -185,147 +188,78 @@ export default function PayoutMethods() {
           <FaUniversity className="mx-auto mb-3 text-gray-400" size={32} />
           <p className="text-sm">No bank accounts added yet</p>
           <button
-            onClick={() => setShowAddForm(true)}
+            onClick={handleAddNew}
             className="mt-2 text-[var(--color-theme)] text-sm hover:underline"
           >
             Add your first bank account
           </button>
         </div>
       ) : (
-        bankAccounts.map((account) => (
-          <div
-            key={account.id}
-            className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded border mb-3 gap-3 
-              ${
-                account.is_default
-                  ? "bg-[var(--color-theme-light)] border-gray-300"
-                  : "border-gray-300"
-              }`}
-          >
-            <div className="flex items-center gap-3">
-              <FaUniversity className="text-gray-700" size={20} />
-              <div className="flex flex-col">
-                <span className="text-md font-semibold">{account.bank_name}</span>
-                <span className="text-sm text-gray-500">
-                  **** **** **** {account.account_number.slice(-4)}
-                </span>
-                <span className="text-xs text-gray-400">{account.account_name}</span>
+        <>
+          {bankAccounts.slice(0, 1).map((account) => (
+            <div
+              key={account.id}
+              className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded border mb-3 gap-3 
+                ${
+                  account.is_default
+                    ? "bg-[var(--color-theme-light)] border-gray-300"
+                    : "border-gray-300"
+                }`}
+            >
+              <div className="flex items-center gap-3">
+                <FaUniversity className="text-gray-700" size={20} />
+                <div className="flex flex-col">
+                  <span className="text-md font-semibold">{account.bank_name}</span>
+                  <span className="text-sm text-gray-500">
+                    **** **** **** {account.account_number.slice(-4)}
+                  </span>
+                  <span className="text-xs text-gray-400">{account.account_name}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {getStatusBadge(account)}
+                
+                {account.is_default ? (
+                  <span className="bg-[var(--color-theme)] text-xs text-white px-3 py-1 rounded-xl">
+                    Default
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleMakeDefault(account.id)}
+                    className="text-xs text-[var(--color-theme)] hover:underline focus:outline-none"
+                    disabled={!account.is_verified}
+                    title={!account.is_verified ? "Account must be verified to set as default" : ""}
+                  >
+                    Make Default
+                  </button>
+                )}
+                
+                <button
+                  onClick={() => handleDeleteAccount(account.id)}
+                  disabled={deletingAccountId === account.id || account.is_default}
+                  className="text-xs text-red-600 hover:text-red-700 hover:underline focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  title={account.is_default ? "Cannot delete default account" : "Delete account"}
+                >
+                  <FaTrash size={10} />
+                  {deletingAccountId === account.id ? 'Deleting...' : 'Delete'}
+                </button>
               </div>
             </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {getStatusBadge(account)}
-              
-              {account.is_default ? (
-                <span className="bg-[var(--color-theme)] text-xs text-white px-3 py-1 rounded-xl">
-                  Default
-                </span>
-              ) : (
-                <button
-                  onClick={() => handleMakeDefault(account.id)}
-                  className="text-xs text-[var(--color-theme)] hover:underline focus:outline-none"
-                  disabled={!account.is_verified}
-                  title={!account.is_verified ? "Account must be verified to set as default" : ""}
-                >
-                  Make Default
-                </button>
-              )}
-            </div>
-          </div>
-        ))
-      )}
-
-      {/* Add Bank Account Modal */}
-      {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Add Bank Account</h3>
+          ))}
+          
+          {bankAccounts.length > 2 && (
+            <div className="mt-3 pt-3 border-t border-gray-200">
               <button
-                onClick={() => setShowAddForm(false)}
-                className="text-gray-400 hover:text-gray-600"
+                onClick={handleViewAll}
+                className="w-full text-[var(--color-theme)] text-sm hover:underline focus:outline-none flex items-center justify-center gap-2 py-2"
               >
-                <FaTimes />
+                <FaEye size={14} />
+                View All ({bankAccounts.length} accounts)
               </button>
             </div>
-
-            <form onSubmit={handleAddAccount} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bank Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.bank_name}
-                  onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g. First Bank of Nigeria"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bank Code
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.bank_code}
-                  onChange={(e) => setFormData({ ...formData, bank_code: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g. 011"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Account Number
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.account_number}
-                  onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g. 1234567890"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Account Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.account_name}
-                  onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g. John Doe"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                  disabled={addingAccount}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={addingAccount}
-                  className="flex-1 px-4 py-2 text-white bg-[var(--color-theme)] rounded-md hover:opacity-90 disabled:opacity-50"
-                >
-                  {addingAccount ? 'Adding...' : 'Add Account'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+          )}
+        </>
       )}
 
       <p className="text-xs text-gray-500 mt-4 leading-relaxed">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import SettingsTabs from "./components/SettingsTabs";
 import KYCForm from "./components/KYCForm";
 import SecuritySettingsPage from "./components/SecuritySettingsPage";
@@ -8,8 +9,21 @@ import GeneralInfoForm from "./components/GeneralInfoForm";
 import PayoutDetailsPage from "./components/PayoutDetailsPage";
 
 export default function SettingsPage() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("General Info");
   const [kycNeedsAction, setKycNeedsAction] = useState(false);
+
+  // Check for tab query parameter on mount
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam) {
+      // Validate that the tab exists
+      const validTabs = ["General Info", "Business & KYC", "Payout Details", "Security"];
+      if (validTabs.includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
+    }
+  }, [searchParams]);
 
   // Check KYC status on mount
   useEffect(() => {

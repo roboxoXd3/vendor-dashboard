@@ -73,7 +73,7 @@ export const bulkUploadService = {
       }
       
       // Validate numeric fields
-      const numericFields = ['price', 'mrp', 'sale_price', 'stock_quantity', 'weight', 'length', 'width', 'height']
+      const numericFields = ['price', 'mrp', 'sale_price', 'discount_percentage', 'stock_quantity', 'weight', 'length', 'width', 'height']
       numericFields.forEach(field => {
         if (row[field] && row[field].trim() && isNaN(parseFloat(row[field]))) {
           errors.push(`Row ${rowNumber}: ${field} must be a valid number`)
@@ -81,10 +81,10 @@ export const bulkUploadService = {
       })
       
       // Validate boolean fields
-      const booleanFields = ['is_featured', 'shipping_required']
+      const booleanFields = ['is_featured', 'is_new_arrival', 'is_on_sale', 'in_stock', 'shipping_required', 'sizing_required']
       booleanFields.forEach(field => {
         if (row[field] && row[field].trim() && 
-            !['true', 'false', '1', '0', 'yes', 'no'].includes(row[field].toLowerCase())) {
+            !['true', 'false', '1', '0', 'yes', 'no', ''].includes(row[field].toLowerCase())) {
           errors.push(`Row ${rowNumber}: ${field} must be true/false`)
         }
       })
@@ -112,10 +112,15 @@ export const bulkUploadService = {
         brand: 'AudioTech',
         sku: 'AT-WH-001',
         category_name: 'Electronics',
+        subcategory_name: '',
         price: '199.99',
         mrp: '249.99',
         sale_price: '179.99',
+        discount_percentage: '20',
+        currency: 'USD',
+        base_currency: 'USD',
         stock_quantity: '50',
+        in_stock: 'true',
         weight: '0.3',
         length: '20',
         width: '18',
@@ -130,7 +135,15 @@ export const bulkUploadService = {
         image_urls: 'https://example.com/headphones-main.jpg,https://example.com/headphones-side.jpg',
         video_url: 'https://example.com/headphones-demo.mp4',
         is_featured: 'true',
-        shipping_required: 'true'
+        is_new_arrival: 'true',
+        is_on_sale: 'true',
+        shipping_required: 'true',
+        sizing_required: 'false',
+        product_type: 'Electronics',
+        status: 'active',
+        meta_title: 'Premium Wireless Headphones - AudioTech',
+        meta_description: 'Buy premium wireless headphones with noise cancellation. High-quality audio experience for music lovers.',
+        size_chart_override: 'auto'
       },
       {
         name: 'Cotton T-Shirt',
@@ -139,10 +152,15 @@ export const bulkUploadService = {
         brand: 'ComfortWear',
         sku: 'CW-TS-002',
         category_name: 'Fashion',
+        subcategory_name: 'T-Shirts',
         price: '29.99',
         mrp: '39.99',
         sale_price: '',
+        discount_percentage: '0',
+        currency: 'USD',
+        base_currency: 'USD',
         stock_quantity: '100',
+        in_stock: 'true',
         weight: '0.2',
         length: '70',
         width: '50',
@@ -157,7 +175,15 @@ export const bulkUploadService = {
         image_urls: 'https://example.com/tshirt-front.jpg,https://example.com/tshirt-back.jpg',
         video_url: '',
         is_featured: 'false',
-        shipping_required: 'true'
+        is_new_arrival: 'false',
+        is_on_sale: 'false',
+        shipping_required: 'true',
+        sizing_required: 'true',
+        product_type: 'Apparel',
+        status: 'active',
+        meta_title: 'Cotton T-Shirt - ComfortWear Organic',
+        meta_description: '100% organic cotton t-shirt. Comfortable everyday wear with modern fit. Available in multiple sizes and colors.',
+        size_chart_override: 'auto'
       },
       {
         name: 'Ceramic Coffee Mug',
@@ -166,10 +192,15 @@ export const bulkUploadService = {
         brand: 'HomeArt',
         sku: 'HA-CM-003',
         category_name: 'Home & Garden',
+        subcategory_name: 'Kitchenware',
         price: '24.99',
         mrp: '34.99',
         sale_price: '19.99',
+        discount_percentage: '15',
+        currency: 'USD',
+        base_currency: 'USD',
         stock_quantity: '75',
+        in_stock: 'true',
         weight: '0.4',
         length: '10',
         width: '8',
@@ -184,7 +215,15 @@ export const bulkUploadService = {
         image_urls: 'https://example.com/mug-main.jpg,https://example.com/mug-colors.jpg',
         video_url: '',
         is_featured: 'false',
-        shipping_required: 'true'
+        is_new_arrival: 'true',
+        is_on_sale: 'true',
+        shipping_required: 'true',
+        sizing_required: 'false',
+        product_type: 'Home & Kitchen',
+        status: 'active',
+        meta_title: 'Ceramic Coffee Mug - Handcrafted Kitchen Essential',
+        meta_description: 'Beautiful handcrafted ceramic mug. Microwave and dishwasher safe. Perfect for coffee and tea lovers.',
+        size_chart_override: 'auto'
       },
       {
         name: 'Yoga Mat Premium',
@@ -193,10 +232,15 @@ export const bulkUploadService = {
         brand: 'FitZen',
         sku: 'FZ-YM-004',
         category_name: 'Sports',
+        subcategory_name: 'Fitness Equipment',
         price: '79.99',
         mrp: '99.99',
         sale_price: '69.99',
+        discount_percentage: '10',
+        currency: 'USD',
+        base_currency: 'USD',
         stock_quantity: '30',
+        in_stock: 'true',
         weight: '1.2',
         length: '183',
         width: '61',
@@ -211,7 +255,15 @@ export const bulkUploadService = {
         image_urls: 'https://example.com/yoga-mat-main.jpg,https://example.com/yoga-mat-colors.jpg',
         video_url: '',
         is_featured: 'true',
-        shipping_required: 'true'
+        is_new_arrival: 'false',
+        is_on_sale: 'true',
+        shipping_required: 'true',
+        sizing_required: 'false',
+        product_type: 'Sports & Fitness',
+        status: 'active',
+        meta_title: 'Premium Yoga Mat - Non-Slip Exercise Mat',
+        meta_description: '6mm thick premium yoga mat. Eco-friendly materials. Perfect for yoga, pilates, and fitness routines.',
+        size_chart_override: 'auto'
       },
       {
         name: 'Moisturizing Face Cream',
@@ -220,10 +272,15 @@ export const bulkUploadService = {
         brand: 'GlowLux',
         sku: 'GL-FC-005',
         category_name: 'Beauty',
+        subcategory_name: 'Skincare',
         price: '49.99',
         mrp: '69.99',
         sale_price: '39.99',
+        discount_percentage: '15',
+        currency: 'USD',
+        base_currency: 'USD',
         stock_quantity: '60',
+        in_stock: 'true',
         weight: '0.15',
         length: '8',
         width: '8',
@@ -238,7 +295,15 @@ export const bulkUploadService = {
         image_urls: 'https://example.com/face-cream-main.jpg,https://example.com/face-cream-texture.jpg',
         video_url: '',
         is_featured: 'false',
-        shipping_required: 'true'
+        is_new_arrival: 'true',
+        is_on_sale: 'true',
+        shipping_required: 'true',
+        sizing_required: 'false',
+        product_type: 'Beauty & Personal Care',
+        status: 'active',
+        meta_title: 'Moisturizing Face Cream - Daily Hydration',
+        meta_description: 'Luxurious face cream with hyaluronic acid and vitamin E. 24-hour hydration for healthy, glowing skin.',
+        size_chart_override: 'auto'
       }
     ]
 
@@ -298,6 +363,13 @@ export const bulkUploadService = {
         return ['true', '1', 'yes'].includes(lowerValue)
       }
 
+      // Process subcategory if provided
+      let subcategoryId = null
+      if (productRow.subcategory_name?.trim() && categoryMap) {
+        // Note: This would need a subcategory map if subcategories are stored separately
+        // For now, we'll leave it as null and let the backend handle it
+      }
+
       const processedProduct = {
         name: productRow.name.trim(),
         subtitle: productRow.subtitle?.trim() || '',
@@ -305,9 +377,13 @@ export const bulkUploadService = {
         brand: productRow.brand?.trim() || '',
         sku: productRow.sku?.trim() || `SKU-${Date.now()}-${rowNumber}`,
         category_id: categoryId,
+        subcategory_id: subcategoryId,
         price: parseFloat(productRow.price),
         mrp: productRow.mrp ? parseFloat(productRow.mrp) : null,
         sale_price: productRow.sale_price ? parseFloat(productRow.sale_price) : null,
+        discount_percentage: productRow.discount_percentage ? parseFloat(productRow.discount_percentage) : null,
+        currency: productRow.currency?.trim() || 'USD',
+        base_currency: productRow.base_currency?.trim() || productRow.currency?.trim() || 'USD',
         stock_quantity: parseInt(productRow.stock_quantity) || 0,
         weight: productRow.weight ? parseFloat(productRow.weight) : null,
         dimensions: Object.keys(dimensions).length > 0 ? dimensions : null,
@@ -321,12 +397,18 @@ export const bulkUploadService = {
         image_urls: processImageUrls(productRow.image_urls),
         video_url: productRow.video_url?.trim() || null,
         is_featured: processBoolean(productRow.is_featured),
+        is_new_arrival: productRow.is_new_arrival ? processBoolean(productRow.is_new_arrival) : false,
+        is_on_sale: productRow.is_on_sale ? processBoolean(productRow.is_on_sale) : false,
         shipping_required: productRow.shipping_required !== 'false' && productRow.shipping_required !== false,
+        sizing_required: productRow.sizing_required ? processBoolean(productRow.sizing_required) : false,
+        product_type: productRow.product_type?.trim() || null,
+        status: productRow.status?.trim() || 'active',
+        meta_title: productRow.meta_title?.trim() || null,
+        meta_description: productRow.meta_description?.trim() || null,
+        size_chart_override: productRow.size_chart_override?.trim() || 'auto',
         // Default values
         approval_status: 'pending',
-        in_stock: parseInt(productRow.stock_quantity) > 0,
-        is_new_arrival: true,
-        status: 'active'
+        in_stock: productRow.in_stock ? processBoolean(productRow.in_stock) : (parseInt(productRow.stock_quantity) > 0)
       }
 
       return { success: true, data: processedProduct }

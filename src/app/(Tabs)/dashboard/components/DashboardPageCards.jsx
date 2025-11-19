@@ -1,6 +1,5 @@
-'use client'
+"use client";
 import { FaDollarSign, FaShoppingCart, FaTag, FaBox, FaUsers } from "react-icons/fa";
-import { FaArrowUp, FaArrowDown } from "react-icons/fa6";
 import { useDashboardStats } from '@/hooks/useVendor';
 import { useCurrencyContext } from '@/contexts/CurrencyContext';
 
@@ -34,10 +33,8 @@ export default function DashboardPageCards({ filters = {} }) {
   }
 
   const stats = statsData?.data;
-  const avgOrderValue = stats?.totalOrders > 0 ? stats.totalSales / stats.totalOrders : 0;
-
-  // Format revenue with proper currency
-  const formattedRevenue = formatPrice(stats?.totalSales || 0, 'USD', {
+  const resolvedCurrency = stats?.currency || globalCurrency || "USD";
+  const formattedRevenue = formatPrice(stats?.totalSales || 0, resolvedCurrency, {
     showSymbol: true,
     decimals: 2
   });
@@ -48,36 +45,28 @@ export default function DashboardPageCards({ filters = {} }) {
       value: formattedRevenue,
       icon: <FaDollarSign size={20} color="green" />,
       color: "bg-green-200",
-      percent: "12%",
-      label: "Compared to last month",
-      trend: "up"
+      description: "Revenue from completed & delivered orders"
     },
     {
       title: "Total Orders",
       value: (stats?.totalOrders || 0).toLocaleString(),
       icon: <FaShoppingCart size={20} color="blue" />,
       color: "bg-blue-200",
-      percent: "8%",
-      label: "Compared to last month",
-      trend: "up"
+      description: "Unique orders in the selected period"
     },
     {
       title: "Total Products",
       value: (stats?.totalProducts || 0).toLocaleString(),
       icon: <FaBox size={20} color="purple" />,
       color: "bg-purple-200",
-      percent: "5%",
-      label: "Active products",
-      trend: "up"
+      description: "Active products currently in your catalog"
     },
     {
       title: "Followers",
       value: (stats?.followerCount || 0).toLocaleString(),
       icon: <FaUsers size={20} color="indigo" />,
       color: "bg-indigo-200",
-      percent: "15%",
-      label: "People following your store",
-      trend: "up"
+      description: "People following your store"
     },
   ];
 
@@ -98,22 +87,12 @@ export default function DashboardPageCards({ filters = {} }) {
               </div>
             </div>
             <div className="mt-2 flex flex-col">
-              <div className="flex items-center gap-2 mb-1 w-fit relative">
-                <p className="font-bold text-lg">{item.value}</p>
-                <span className={`text-sm font-semibold flex items-center absolute right-[-40px] bottom-[-3px] ${
-                  item.trend === 'up' ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {item.trend === 'up' ? (
-                    <FaArrowUp className="pt-1 text-sm" />
-                  ) : (
-                    <FaArrowDown className="pt-1 text-sm" />
-                  )}
-                  {item.percent}
-                </span>
-              </div>
-              <p className="text-xs text-gray-500">
-                {item.label}
-              </p>
+              <p className="font-bold text-lg">{item.value}</p>
+              {item.description && (
+                <p className="text-xs text-gray-500">
+                  {item.description}
+                </p>
+              )}
             </div>
           </div>
         </div>

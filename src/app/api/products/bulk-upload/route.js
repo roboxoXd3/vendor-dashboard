@@ -138,6 +138,9 @@ export async function POST(request) {
           price: parseFloat(product.price),
           mrp: product.mrp ? parseFloat(product.mrp) : null,
           sale_price: product.sale_price ? parseFloat(product.sale_price) : null,
+          discount_percentage: product.discount_percentage ? parseFloat(product.discount_percentage) : null,
+          currency: product.currency?.trim() || 'USD',
+          base_currency: product.base_currency?.trim() || product.currency?.trim() || 'USD',
           stock_quantity: parseInt(product.stock_quantity) || 0,
           weight: product.weight ? parseFloat(product.weight) : null,
           dimensions: Object.keys(dimensions).length > 0 ? dimensions : null,
@@ -154,11 +157,17 @@ export async function POST(request) {
           video_url: product.video_url?.trim() || null,
           
           is_featured: processBoolean(product.is_featured),
+          is_new_arrival: product.is_new_arrival ? processBoolean(product.is_new_arrival) : true,
+          is_on_sale: product.is_on_sale ? processBoolean(product.is_on_sale) : false,
           shipping_required: product.shipping_required !== 'false' && product.shipping_required !== false,
+          sizing_required: product.sizing_required ? processBoolean(product.sizing_required) : false,
+          product_type: product.product_type?.trim() || null,
+          status: product.status?.trim() || 'active',
+          meta_title: product.meta_title?.trim() || null,
+          meta_description: product.meta_description?.trim() || null,
+          size_chart_override: product.size_chart_override?.trim() || 'auto',
           approval_status: approvalStatus, // Based on vendor status
-          in_stock: parseInt(product.stock_quantity) > 0,
-          is_new_arrival: true,
-          status: 'active',
+          in_stock: product.in_stock ? processBoolean(product.in_stock) : (parseInt(product.stock_quantity) > 0),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }

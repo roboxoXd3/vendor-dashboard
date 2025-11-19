@@ -1,8 +1,9 @@
-'use client'
+"use client"
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import VendorApplication from './VendorApplication'
+import VendorResubmissionForm from './VendorResubmissionForm'
 import { getSupabase } from '@/lib/supabase'
 
 export default function ProtectedRoute({ children }) {
@@ -140,9 +141,10 @@ export default function ProtectedRoute({ children }) {
 // Vendor Pending Page Component
 export function VendorPendingPage() {
   const { user, vendor, signOut, fetchVendorProfile, loading: authLoading } = useAuth()
-  const [showApplication, setShowApplication] = useState(false)
+  const [formMode, setFormMode] = useState(null)
   const [applicationStatus, setApplicationStatus] = useState(null)
   const [loading, setLoading] = useState(true)
+  const supportUrl = 'https://ecomwebsite-production.up.railway.app/contact'
 
   useEffect(() => {
     console.log('🔄 VendorPendingPage: Checking vendor status', {
@@ -201,9 +203,31 @@ export function VendorPendingPage() {
 
   const handleApplicationSuccess = async (result) => {
     console.log('✅ Application submitted successfully:', result)
-    setShowApplication(false)
+    setFormMode(null)
     await fetchVendorProfile(user.id)
     await checkApplicationStatus()
+  }
+
+  const handleResubmissionSuccess = async (result) => {
+    console.log('✅ Application resubmitted successfully:', result)
+    setFormMode(null)
+    await fetchVendorProfile(user.id)
+    await checkApplicationStatus()
+  }
+
+  const rejectionReason = vendor?.admin_notes 
+    || vendor?.rejection_reason 
+    || applicationStatus?.vendor?.admin_notes 
+    || applicationStatus?.vendor?.rejection_reason 
+    || null
+
+  const getResubmissionInitialValues = () => {
+    return {
+      fullName: user?.user_metadata?.full_name || '',
+      businessName: vendor?.business_name || applicationStatus?.vendor?.business_name || '',
+      businessType: vendor?.business_type || applicationStatus?.vendor?.business_type || 'individual',
+      phoneNumber: vendor?.business_phone || applicationStatus?.vendor?.business_phone || user?.user_metadata?.phone || ''
+    }
   }
 
   const getStatusMessage = () => {
@@ -230,8 +254,10 @@ export function VendorPendingPage() {
       return {
         title: "Application Needs Attention",
         message: "Your application requires additional information or has been declined. Please contact our support team for assistance.",
-        action: "Contact Support",
-        showApplyButton: false
+        action: "Edit & Resubmit Application",
+        showApplyButton: false,
+        showResubmitButton: true,
+        resubmitLabel: "Edit & Resubmit Application"
       }
     }
 
@@ -263,14 +289,28 @@ export function VendorPendingPage() {
     )
   }
 
-  if (showApplication) {
-    const status = getStatusMessage()
+  if (formMode === 'apply-quick' || formMode === 'apply-detailed') {
+    const isQuick = formMode === 'apply-quick'
     return (
       <div className="min-h-screen bg-gray-50 py-8 flex items-center justify-center">
         <VendorApplication
-          mode={status.useQuickApplication ? 'quick' : 'detailed'}
+          mode={isQuick ? 'quick' : 'detailed'}
           onSuccess={handleApplicationSuccess}
-          onCancel={() => setShowApplication(false)}
+          onCancel={() => setFormMode(null)}
+        />
+      </div>
+    )
+  }
+
+  if (formMode === 'resubmit') {
+    const initialValues = getResubmissionInitialValues()
+    return (
+      <div className="min-h-screen bg-gray-50 py-8 flex items-center justify-center">
+        <VendorResubmissionForm
+          initialValues={initialValues}
+          rejectionReason={rejectionReason}
+          onSuccess={handleResubmissionSuccess}
+          onCancel={() => setFormMode(null)}
         />
       </div>
     )
@@ -311,23 +351,39 @@ export function VendorPendingPage() {
           </div>
         )}
 
+        {rejectionReason && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-left">
+            <h3 className="text-sm font-semibold text-red-700 mb-1">Admin Feedback</h3>
+            <p className="text-sm text-red-600 whitespace-pre-line">{rejectionReason}</p>
+          </div>
+        )}
+
         <div className="space-y-3">
-          {status.showApplyButton ? (
+          {status.showApplyButton && (
             <button
-              onClick={() => setShowApplication(true)}
+              onClick={() => setFormMode(status.useQuickApplication ? 'apply-quick' : 'apply-detailed')}
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-lg transition-colors font-semibold"
             >
               {status.action}
             </button>
-          ) : (
+          )}
+
+          {status.showResubmitButton && (
             <button
-              onClick={() => window.location.href = 'mailto:support@besmartmall.com'}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors"
+              onClick={() => setFormMode('resubmit')}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-lg transition-colors font-semibold"
             >
-              Contact Support
+              {status.resubmitLabel || 'Edit & Resubmit Application'}
             </button>
           )}
-          
+
+          <button
+            onClick={() => window.location.href = supportUrl}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors"
+          >
+            Contact Support
+          </button>
+
           <button
             onClick={signOut}
             className="w-full bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition-colors"

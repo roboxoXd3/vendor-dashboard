@@ -23,11 +23,9 @@ export async function POST(request) {
     const updateData = {
       status: action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'pending',
       is_active: action === 'approve',
-      updated_at: new Date().toISOString()
-    }
-
-    if (notes) {
-      updateData.admin_notes = notes
+      updated_at: new Date().toISOString(),
+      admin_notes: action === 'reject' ? (notes || null) : null,
+      rejection_reason: action === 'reject' ? (notes || null) : null
     }
 
     const { data: updatedVendor, error: updateError } = await supabase
@@ -66,6 +64,7 @@ export async function POST(request) {
 // Get all pending vendor applications (for admin use)
 export async function GET() {
   try {
+    const supabase = getSupabaseClient()
     const { data: pendingVendors, error } = await supabase
       .from('vendors')
       .select(`

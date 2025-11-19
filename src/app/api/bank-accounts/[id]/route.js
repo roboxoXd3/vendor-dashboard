@@ -111,3 +111,107 @@ export async function PUT(request, { params }) {
     }, { status: 500 })
   }
 }
+
+// DELETE /api/bank-accounts/[id] - Delete bank account
+export async function DELETE(request, { params }) {
+  try {
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get('vendor_session_token')?.value
+    const supabase = getSupabaseServer()
+    const { id } = params
+
+    console.log('🏦 Deleting bank account:', id)
+    
+    if (!sessionToken) {
+      console.log('❌ No session token found')
+      return Response.json({ 
+        error: 'Authentication required - please login first' 
+      }, { status: 401 })
+    }
+
+    // Find active session in database
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('vendor_sessions')
+      .select('*')
+      .eq('session_token', sessionToken)
+      .eq('is_active', true)
+      .gt('expires_at', new Date().toISOString())
+      .single()
+    
+    if (sessionError || !sessionData) {
+      console.log('❌ Invalid or expired session')
+      return Response.json({ 
+        error: 'Invalid or expired session' 
+      }, { status: 401 })
+    }
+
+    // Get user ID from session
+    const userId = sessionData.user_id
+    console.log('✅ Valid session found for user:', userId)
+
+    // Get vendor data
+    const { data: vendor, error: vendorError } = await supabase
+      .from('vendors')
+      .select('id')
+      .eq('user_id', userId)
+      .single()
+
+    if (vendorError || !vendor) {
+      console.log('❌ Vendor not found')
+      return Response.json({ 
+        error: 'Vendor not found' 
+      }, { status: 404 })
+    }
+
+    // Verify the bank account belongs to this vendor
+    const { data: bankAccount, error: bankAccountError } = await supabase
+      .from('vendor_bank_accounts')
+      .select('*')
+      .eq('id', id)
+      .eq('vendor_id', vendor.id)
+      .single()
+
+    if (bankAccountError || !bankAccount) {
+      console.log('❌ Bank account not found or not owned by vendor')
+      return Response.json({ 
+        error: 'Bank account not found' 
+      }, { status: 404 })
+    }
+
+    // Prevent deletion of default account
+    if (bankAccount.is_default) {
+      console.log('❌ Cannot delete default bank account')
+      return Response.json({ 
+        error: 'Cannot delete default bank account. Please set another account as default first.' 
+      }, { status: 400 })
+    }
+
+    // Delete the bank account
+    const { error: deleteError } = await supabase
+      .from('vendor_bank_accounts')
+      .delete()
+      .eq('id', id)
+      .eq('vendor_id', vendor.id)
+
+    if (deleteError) {
+      console.error('❌ Error deleting bank account:', deleteError)
+      return Response.json({ 
+        error: 'Failed to delete bank account' 
+      }, { status: 500 })
+    }
+
+    console.log('✅ Bank account deleted successfully:', id)
+
+    return Response.json({
+      success: true,
+      message: 'Bank account deleted successfully'
+    })
+
+  } catch (error) {
+    console.error('❌ Delete bank account API error:', error)
+    return Response.json({ 
+      error: 'Internal server error' 
+    }, { status: 500 })
+  }
+}
