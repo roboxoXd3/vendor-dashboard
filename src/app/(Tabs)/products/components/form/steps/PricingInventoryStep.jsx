@@ -19,11 +19,11 @@ export default function PricingInventoryStep({
         label: `${currency.code} (${currency.symbol})`
       }))
     : [
+        { value: "NGN", label: "NGN (₦)" },
         { value: "USD", label: "USD ($)" },
         { value: "EUR", label: "EUR (€)" },
         { value: "GBP", label: "GBP (£)" },
-        { value: "INR", label: "INR (₹)" },
-        { value: "NGN", label: "NGN (₦)" }
+        { value: "INR", label: "INR (₹)" }
       ]
 
   return (

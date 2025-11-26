@@ -447,7 +447,7 @@ export async function POST(request) {
       size_chart_template_id: productData.size_chart_template_id === '' ? null : productData.size_chart_template_id,
       size_guide_type: productData.size_guide_type || 'template',
       custom_size_chart_data: productData.custom_size_chart_data || null,
-      currency: productData.currency || 'USD',
+      currency: productData.currency || 'NGN',
       meta_title: productData.meta_title || null,
       meta_description: productData.meta_description || null,
       created_at: new Date().toISOString(),
