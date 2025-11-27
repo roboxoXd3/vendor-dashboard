@@ -1,7 +1,7 @@
 'use client'
 import { createContext, useContext, useEffect, useState } from 'react'
 import { getSupabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { cookieAuthService } from '@/services/cookieAuthService'
 import toast from 'react-hot-toast'
 
@@ -15,6 +15,7 @@ export function AuthProvider({ children }) {
   const [isClient, setIsClient] = useState(false)
   const [sessionToken, setSessionToken] = useState(null)
   const router = useRouter()
+  const pathname = usePathname()
 
   // Set client flag to prevent hydration mismatches
   useEffect(() => {
@@ -26,7 +27,7 @@ export function AuthProvider({ children }) {
     if (!isClient) return
     
     // Skip auth checks on reset password page - it handles its own authentication
-    if (typeof window !== 'undefined' && window.location.pathname === '/reset-password') {
+    if (pathname === '/reset-password') {
       setLoading(false)
       return
     }
@@ -90,7 +91,7 @@ export function AuthProvider({ children }) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [isClient])
+  }, [isClient, pathname])
 
   // Cookie-based login function
   const signInWithToken = async (email, password) => {
