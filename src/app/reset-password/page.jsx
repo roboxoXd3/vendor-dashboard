@@ -138,6 +138,7 @@ function ResetPasswordContent() {
           }
           
           console.log('✅ Session set successfully:', data.session?.user?.email);
+          setValidatingSession(false);
         } else {
           // Check if we already have a valid session
           const { data: { session }, error } = await supabase.auth.getSession();
@@ -148,10 +149,12 @@ function ResetPasswordContent() {
             console.log('  - Hash params:', Object.fromEntries(hashParams));
             console.log('  - Search params:', Object.fromEntries(new URLSearchParams(window.location.search)));
             setError("Invalid or expired reset link. Please request a new password reset.");
+            setValidatingSession(false);
             return;
           }
           
           console.log('✅ Existing session found:', session.user?.email);
+          setValidatingSession(false);
         }
         
         console.log('✅ Ready for password reset');

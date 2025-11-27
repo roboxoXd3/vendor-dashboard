@@ -25,6 +25,12 @@ export function AuthProvider({ children }) {
     // Only run auth logic on client side
     if (!isClient) return
     
+    // Skip auth checks on reset password page - it handles its own authentication
+    if (typeof window !== 'undefined' && window.location.pathname === '/reset-password') {
+      setLoading(false)
+      return
+    }
+    
     const initializeAuth = async () => {
       try {
         // Validate session from cookies
