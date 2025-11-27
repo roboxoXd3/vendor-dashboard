@@ -18,6 +18,16 @@ function ResetPasswordContent() {
   const router = useRouter();
 
   useEffect(() => {
+    // Fix duplicate path issue: if URL has /reset-password/reset-password, redirect to /reset-password
+    if (typeof window !== 'undefined') {
+      const currentPath = window.location.pathname;
+      if (currentPath === '/reset-password/reset-password' || currentPath.startsWith('/reset-password/reset-password')) {
+        const searchParams = window.location.search;
+        window.location.replace(`/reset-password${searchParams}`);
+        return;
+      }
+    }
+    
     // Handle password reset tokens from URL
     const handlePasswordReset = async () => {
       try {
