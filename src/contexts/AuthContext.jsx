@@ -27,7 +27,8 @@ export function AuthProvider({ children }) {
     if (!isClient) return
     
     // Skip auth checks on reset password page - it handles its own authentication
-    if (pathname === '/reset-password') {
+    // Check if pathname starts with /reset-password to handle any sub-paths
+    if (pathname && pathname.startsWith('/reset-password')) {
       setLoading(false)
       return
     }
