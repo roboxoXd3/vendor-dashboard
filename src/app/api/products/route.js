@@ -77,7 +77,29 @@ export async function GET(request) {
 
     // Add filters
     if (search) {
-      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
+      // First, find categories that match the search term
+      const { data: matchingCategories } = await supabase
+        .from('categories')
+        .select('id')
+        .ilike('name', `%${search}%`)
+      
+      const matchingCategoryIds = matchingCategories?.map(c => c.id) || []
+      
+      // Build search conditions: name, subtitle, SKU
+      const searchConditions = [
+        `name.ilike.%${search}%`,
+        `subtitle.ilike.%${search}%`,
+        `sku.ilike.%${search}%`
+      ]
+      
+      // If we have matching categories, add category_id to search conditions
+      if (matchingCategoryIds.length > 0) {
+        // Add category_id filter using in() syntax
+        searchConditions.push(`category_id.in.(${matchingCategoryIds.join(',')})`)
+      }
+      
+      // Combine all search conditions with OR
+      query = query.or(searchConditions.join(','))
     }
 
     if (category) {
