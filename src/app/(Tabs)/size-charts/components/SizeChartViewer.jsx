@@ -144,12 +144,40 @@ export default function SizeChartViewer({
         </div>
       </div>
 
+      {/* Mobile Size Chart Image */}
+      {chart.image_url && (
+        <div className="md:hidden bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+          <h3 className="text-base font-semibold text-gray-900 mb-3">Size Chart Image</h3>
+          <div className="rounded-lg overflow-hidden">
+            <img
+              src={chart.image_url}
+              alt="Size chart"
+              className="w-full h-auto object-contain bg-gray-50"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Mobile Measurement Instructions */}
       {chart.measurement_instructions && (
         <div className="md:hidden bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
           <h3 className="text-base font-semibold text-gray-900 mb-3">Measurement Instructions</h3>
           <div className="p-3 bg-blue-50 rounded-lg">
             <p className="text-sm text-gray-800 leading-relaxed">{chart.measurement_instructions}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Size Chart Image */}
+      {chart.image_url && (
+        <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Size Chart Image</h3>
+          <div className="rounded-lg overflow-hidden bg-gray-50 flex justify-center">
+            <img
+              src={chart.image_url}
+              alt="Size chart"
+              className="max-w-full h-auto max-h-96 object-contain"
+            />
           </div>
         </div>
       )}

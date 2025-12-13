@@ -31,6 +31,8 @@ export default function ProductCard({ product, onUpdate }) {
         return "bg-emerald-500";
       case "Out of Stock":
         return "bg-red-500";
+      case "Low Stock":
+        return "bg-orange-500";
       default:
         return "bg-gray-400";
     }
@@ -90,6 +92,10 @@ export default function ProductCard({ product, onUpdate }) {
     if (product.is_featured) tags.push("Featured");
     if (product.stock_quantity > 0) {
       tags.push("In Stock");
+      // Add Low Stock badge if stock is less than 10
+      if (product.stock_quantity < 10) {
+        tags.push("Low Stock");
+      }
     } else {
       tags.push("Out of Stock");
     }

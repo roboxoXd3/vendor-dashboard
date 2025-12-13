@@ -60,6 +60,7 @@ export async function POST(request) {
       measurement_instructions, 
       entries, 
       vendor_id,
+      image_url,
       dynamic_fields = []
     } = body;
 
@@ -78,6 +79,7 @@ export async function POST(request) {
         category_id: category_id || null,
         measurement_types,
         measurement_instructions: measurement_instructions || null,
+        image_url: image_url || null,
         template_data: {
           entries: entries || []
         },

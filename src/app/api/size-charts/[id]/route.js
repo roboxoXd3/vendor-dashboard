@@ -60,6 +60,7 @@ export async function PUT(request, { params }) {
       measurement_types, 
       measurement_instructions, 
       entries, 
+      image_url,
       dynamic_fields = []
     } = body;
 
@@ -73,6 +74,48 @@ export async function PUT(request, { params }) {
 
     const supabase = getSupabaseServer();
 
+    // Get the existing size chart to check for old image
+    const { data: existingChart, error: fetchError } = await supabase
+      .from('vendor_size_chart_templates')
+      .select('image_url')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching existing chart:', fetchError);
+    }
+
+    // Delete old image if it's being replaced or removed
+    if (existingChart?.image_url && existingChart.image_url !== image_url) {
+      try {
+        // Extract bucket and path from URL
+        // Supabase storage URL format: https://project.supabase.co/storage/v1/object/public/BUCKET/PATH
+        const url = new URL(existingChart.image_url);
+        const pathParts = url.pathname.split('/').filter(p => p);
+        
+        // Find 'storage' in path and extract bucket and file path
+        const storageIndex = pathParts.indexOf('storage');
+        if (storageIndex !== -1 && pathParts.length > storageIndex + 4) {
+          const bucket = pathParts[storageIndex + 4];
+          const filePath = pathParts.slice(storageIndex + 5).join('/');
+          
+          const { error: deleteError } = await supabase.storage
+            .from(bucket)
+            .remove([filePath]);
+
+          if (deleteError) {
+            console.error('Failed to delete old image:', deleteError);
+            // Don't fail the update if image deletion fails
+          } else {
+            console.log('✅ Deleted old size chart image:', filePath);
+          }
+        }
+      } catch (error) {
+        console.error('Error deleting old image:', error);
+        // Don't fail the update if image deletion fails
+      }
+    }
+
     // Update the size chart template
     const { data: sizeChart, error: chartError } = await supabase
       .from('vendor_size_chart_templates')
@@ -81,6 +124,7 @@ export async function PUT(request, { params }) {
         category_id: category_id || null,
         measurement_types,
         measurement_instructions: measurement_instructions || null,
+        image_url: image_url || null,
         template_data: {
           entries: entries || []
         },
@@ -151,6 +195,43 @@ export async function DELETE(request, { params }) {
     }
 
     const supabase = getSupabaseServer();
+
+    // Get the size chart to check for image before deleting
+    const { data: existingChart, error: fetchError } = await supabase
+      .from('vendor_size_chart_templates')
+      .select('image_url')
+      .eq('id', id)
+      .single();
+
+    // Delete the image from storage if it exists
+    if (existingChart?.image_url && !fetchError) {
+      try {
+        // Extract bucket and path from URL
+        const url = new URL(existingChart.image_url);
+        const pathParts = url.pathname.split('/').filter(p => p);
+        
+        // Find 'storage' in path and extract bucket and file path
+        const storageIndex = pathParts.indexOf('storage');
+        if (storageIndex !== -1 && pathParts.length > storageIndex + 4) {
+          const bucket = pathParts[storageIndex + 4];
+          const filePath = pathParts.slice(storageIndex + 5).join('/');
+          
+          const { error: deleteError } = await supabase.storage
+            .from(bucket)
+            .remove([filePath]);
+
+          if (deleteError) {
+            console.error('Failed to delete size chart image:', deleteError);
+            // Don't fail the delete if image deletion fails
+          } else {
+            console.log('✅ Deleted size chart image:', filePath);
+          }
+        }
+      } catch (error) {
+        console.error('Error deleting size chart image:', error);
+        // Don't fail the delete if image deletion fails
+      }
+    }
 
     // Soft delete by setting is_active to false
     const { error: deleteError } = await supabase

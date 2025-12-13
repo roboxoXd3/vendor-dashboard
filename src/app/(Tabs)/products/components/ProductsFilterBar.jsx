@@ -3,12 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { FaUpload, FaDownload } from "react-icons/fa";
-import { useCurrencyContext } from "@/contexts/CurrencyContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ProductsFilterBar({ onFiltersChange }) {
   const router = useRouter();
+  const { vendor } = useAuth();
   const [categories, setCategories] = useState([]);
-  const { formatPrice } = useCurrencyContext();
   const [filters, setFilters] = useState({
     search: '',
     category: '',
@@ -16,6 +16,7 @@ export default function ProductsFilterBar({ onFiltersChange }) {
     sortBy: 'created_at',
     sortOrder: 'desc'
   });
+  const [isExporting, setIsExporting] = useState(false);
 
   // Debounced search
   const [searchInput, setSearchInput] = useState('');
@@ -63,6 +64,104 @@ export default function ProductsFilterBar({ onFiltersChange }) {
   useEffect(() => {
     onFiltersChange?.(filters);
   }, [filters, onFiltersChange]);
+
+  // Export products function
+  const handleExportProducts = async () => {
+    if (!vendor?.id) {
+      alert('Please log in to export products');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      // Build query parameters with current filters and high limit to get all products
+      const params = new URLSearchParams({
+        vendorId: vendor.id,
+        page: '1',
+        limit: '10000', // High limit to get all products
+        sortBy: filters.sortBy,
+        sortOrder: filters.sortOrder
+      });
+
+      if (filters.search) params.append('search', filters.search);
+      if (filters.category) params.append('category', filters.category);
+      if (filters.status) params.append('status', filters.status);
+
+      const response = await fetch(`/api/products?${params.toString()}`);
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch products');
+      }
+
+      const products = result.data || [];
+
+      if (products.length === 0) {
+        alert('No products found to export');
+        setIsExporting(false);
+        return;
+      }
+
+      // Convert to CSV
+      const csvHeaders = [
+        'Product ID',
+        'Name',
+        'SKU',
+        'Category',
+        'Status',
+        'Price',
+        'Stock Quantity',
+        'In Stock',
+        'Created Date',
+        'Last Updated'
+      ];
+
+      const csvRows = products.map(product => {
+        const categoryName = product.categories?.name || 'N/A';
+        const createdDate = product.created_at 
+          ? new Date(product.created_at).toLocaleDateString()
+          : 'N/A';
+        const updatedDate = product.updated_at 
+          ? new Date(product.updated_at).toLocaleDateString()
+          : 'N/A';
+        
+        return [
+          product.id || '',
+          (product.name || '').replace(/"/g, '""'), // Escape quotes
+          product.sku || '',
+          categoryName.replace(/"/g, '""'),
+          product.status || '',
+          product.price || '0',
+          product.stock_quantity || '0',
+          product.in_stock ? 'Yes' : 'No',
+          createdDate,
+          updatedDate
+        ];
+      });
+
+      const csvContent = [
+        csvHeaders.join(','),
+        ...csvRows.map(row => row.map(field => `"${field}"`).join(','))
+      ].join('\n');
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `products-export-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting products:', error);
+      alert(`Failed to export products: ${error.message}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-4 mb-6">
       {/* Top Action Buttons */}
@@ -85,42 +184,14 @@ export default function ProductsFilterBar({ onFiltersChange }) {
         </button>
 
         <button 
-          onClick={() => {
-            // Export products data
-            const reportData = {
-              reportType: 'Products Export',
-              generatedAt: new Date().toISOString(),
-              filters: filters
-            };
-            
-            // Convert to CSV
-            const csvHeaders = ['Product ID', 'Name', 'Category', 'Status', 'Price', 'Stock', 'Created Date', 'Last Updated'];
-            const csvRows = [
-              ['Sample Product 1', 'Sample Product 1', 'Electronics', 'Active', formatPrice(99.99, 'USD'), '50', '2024-01-01', '2024-01-15'],
-              ['Sample Product 2', 'Sample Product 2', 'Clothing', 'Active', formatPrice(29.99, 'USD'), '25', '2024-01-02', '2024-01-16'],
-              ['Sample Product 3', 'Sample Product 3', 'Home', 'Draft', formatPrice(149.99, 'USD'), '0', '2024-01-03', '2024-01-17']
-            ];
-            
-            const csvContent = [
-              csvHeaders.join(','),
-              ...csvRows.map(row => row.map(field => `"${field}"`).join(','))
-            ].join('\n');
-            
-            // Create and download file
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `products-export-${new Date().toISOString().split('T')[0]}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
-          }}
-          className="flex items-center justify-center gap-2 bg-green-600 text-white px-5 py-1 rounded-lg transition-all text-sm font-medium shadow-md w-full sm:w-auto cursor-pointer hover:bg-green-700 hover:shadow-lg active:scale-[0.98]"
+          onClick={handleExportProducts}
+          disabled={isExporting}
+          className={`flex items-center justify-center gap-2 bg-green-600 text-white px-5 py-1 rounded-lg transition-all text-sm font-medium shadow-md w-full sm:w-auto cursor-pointer hover:bg-green-700 hover:shadow-lg active:scale-[0.98] ${
+            isExporting ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
         >
           <FaDownload className="h-4 w-4" />
-          Export Products
+          {isExporting ? 'Exporting...' : 'Export Products'}
         </button>
       </div>
 

@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaPlus, FaTrash, FaSave, FaTimes } from "react-icons/fa";
+import { FaPlus, FaTrash, FaSave, FaTimes, FaImage, FaUpload } from "react-icons/fa";
+import { useAuth } from "@/contexts/AuthContext";
+import ImageUpload from "@/components/ImageUpload";
 
 export default function SizeChartForm({ 
   chart = null, 
@@ -9,11 +11,13 @@ export default function SizeChartForm({
   categories = [],
   loading = false 
 }) {
+  const { vendor } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     category_id: '',
     measurement_types: ['Chest', 'Waist', 'Length'],
     measurement_instructions: '',
+    image_url: '',
     entries: [
       { size: 'S', measurements: { 'Chest': '', 'Waist': '', 'Length': '' } },
       { size: 'M', measurements: { 'Chest': '', 'Waist': '', 'Length': '' } },
@@ -23,6 +27,8 @@ export default function SizeChartForm({
 
   const [newFieldName, setNewFieldName] = useState('');
   const [showAddField, setShowAddField] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [oldImageUrl, setOldImageUrl] = useState(null);
 
   useEffect(() => {
     if (chart) {
@@ -34,12 +40,17 @@ export default function SizeChartForm({
         category_id: chart.category_id || '',
         measurement_types: chart.measurement_types || ['Chest', 'Waist', 'Length'],
         measurement_instructions: chart.measurement_instructions || '',
+        image_url: chart.image_url || '',
         entries: entries.length > 0 ? entries : [
           { size: 'S', measurements: { 'Chest': '', 'Waist': '', 'Length': '' } },
           { size: 'M', measurements: { 'Chest': '', 'Waist': '', 'Length': '' } },
           { size: 'L', measurements: { 'Chest': '', 'Waist': '', 'Length': '' } },
         ]
       });
+      // Track the original image URL for deletion if changed
+      setOldImageUrl(chart.image_url || null);
+    } else {
+      setOldImageUrl(null);
     }
   }, [chart]);
 
@@ -149,6 +160,70 @@ export default function SizeChartForm({
     }
   };
 
+  // Helper function to delete image from storage
+  const deleteImageFromStorage = async (imageUrl) => {
+    if (!imageUrl) return;
+
+    try {
+      // Extract bucket and path from URL
+      // Supabase storage URL format: https://project.supabase.co/storage/v1/object/public/BUCKET/PATH
+      const url = new URL(imageUrl);
+      const pathParts = url.pathname.split('/').filter(p => p);
+      
+      // Find 'storage' in path and extract bucket and file path
+      const storageIndex = pathParts.indexOf('storage');
+      if (storageIndex !== -1 && pathParts.length > storageIndex + 4) {
+        const bucket = pathParts[storageIndex + 4];
+        const filePath = pathParts.slice(storageIndex + 5).join('/');
+
+        // Call API to delete the image
+        const response = await fetch('/api/storage/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bucket, path: filePath })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('Failed to delete image:', error);
+        } else {
+          console.log('✅ Deleted old image from storage:', filePath);
+        }
+      } else {
+        console.warn('Could not parse image URL for deletion:', imageUrl);
+      }
+    } catch (error) {
+      console.error('Error deleting image:', error);
+    }
+  };
+
+  const handleImageUpload = async (imageUrl) => {
+    // If there was an old image, delete it from storage
+    if (oldImageUrl && oldImageUrl !== imageUrl) {
+      await deleteImageFromStorage(oldImageUrl);
+    }
+    
+    setFormData(prev => ({ ...prev, image_url: imageUrl }));
+    setOldImageUrl(imageUrl); // Update old image to new one
+    setUploadingImage(false);
+  };
+
+  const handleImageRemove = async () => {
+    // Delete the current image from storage
+    if (formData.image_url) {
+      await deleteImageFromStorage(formData.image_url);
+    }
+    
+    setFormData(prev => ({ ...prev, image_url: '' }));
+    setOldImageUrl(null);
+  };
+
+  const handleImageError = (error) => {
+    console.error('Image upload error:', error);
+    alert(`Failed to upload image: ${error}`);
+    setUploadingImage(false);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave(formData);
@@ -221,6 +296,44 @@ export default function SizeChartForm({
               </select>
               <p className="text-xs text-gray-500 mt-2 bg-blue-50 p-2 rounded-lg">
                 💡 Selecting a category will automatically set appropriate measurement types
+              </p>
+            </div>
+
+            {/* Image Upload Section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Size Chart Image (Optional)
+              </label>
+              {formData.image_url ? (
+                <div className="relative">
+                  <img
+                    src={formData.image_url}
+                    alt="Size chart preview"
+                    className="w-full h-48 object-contain border border-gray-300 rounded-xl bg-gray-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleImageRemove}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
+                  >
+                    <FaTimes size={14} />
+                  </button>
+                </div>
+              ) : (
+                <ImageUpload
+                  vendorId={vendor?.id}
+                  productId={null}
+                  type="size-charts"
+                  onUploadSuccess={handleImageUpload}
+                  onUploadError={handleImageError}
+                  onRemoveImage={handleImageRemove}
+                  existingImages={[]}
+                  multiple={false}
+                  className="w-full"
+                />
+              )}
+              <p className="text-xs text-gray-500 mt-2">
+                💡 Upload an image to visually represent the size chart (e.g., measurement guide diagram)
               </p>
             </div>
           </div>
@@ -499,6 +612,44 @@ export default function SizeChartForm({
               💡 Selecting a category will automatically set appropriate measurement types
             </p>
           </div>
+        </div>
+
+        {/* Image Upload Section - Desktop */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Size Chart Image (Optional)
+          </label>
+          {formData.image_url ? (
+            <div className="relative inline-block">
+              <img
+                src={formData.image_url}
+                alt="Size chart preview"
+                className="max-w-full h-64 object-contain border border-gray-300 rounded-lg bg-gray-50"
+              />
+              <button
+                type="button"
+                onClick={handleImageRemove}
+                className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
+              >
+                <FaTimes size={12} />
+              </button>
+            </div>
+          ) : (
+            <ImageUpload
+              vendorId={vendor?.id}
+              productId={null}
+              type="size-charts"
+              onUploadSuccess={handleImageUpload}
+              onUploadError={handleImageError}
+              onRemoveImage={handleImageRemove}
+              existingImages={[]}
+              multiple={false}
+              className="w-full"
+            />
+          )}
+          <p className="text-xs text-gray-500 mt-1">
+            💡 Upload an image to visually represent the size chart (e.g., measurement guide diagram)
+          </p>
         </div>
 
         {/* Desktop Measurement Types */}
