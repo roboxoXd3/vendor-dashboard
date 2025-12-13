@@ -69,7 +69,7 @@ export default function ProductsFilterBar({ onFiltersChange }) {
       <div className="flex flex-col sm:flex-row gap-3 w-full">
         <button
           onClick={() => router.push('/products/create')}
-          className="flex items-center justify-center gap-2 text-white px-5 py-2.5 rounded-lg transition-all text-sm font-medium shadow-md w-full sm:w-auto cursor-pointer hover:opacity-90 hover:shadow-lg active:scale-[0.98]"
+          className="flex items-center justify-center gap-2 text-white px-5 py-1 rounded-lg transition-all text-sm font-medium shadow-md w-full sm:w-auto cursor-pointer hover:opacity-90 hover:shadow-lg active:scale-[0.98]"
           style={{ backgroundColor: "var(--color-theme)" }}
         >
           <span className="text-lg font-bold">+</span>
@@ -78,7 +78,7 @@ export default function ProductsFilterBar({ onFiltersChange }) {
 
         <button 
           onClick={() => router.push('/products/bulk-upload')}
-          className="flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg transition-all text-sm font-medium shadow-md w-full sm:w-auto cursor-pointer hover:bg-blue-700 hover:shadow-lg active:scale-[0.98]"
+          className="flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-1 rounded-lg transition-all text-sm font-medium shadow-md w-full sm:w-auto cursor-pointer hover:bg-blue-700 hover:shadow-lg active:scale-[0.98]"
         >
           <FaUpload className="h-4 w-4" />
           Bulk Upload
@@ -117,7 +117,7 @@ export default function ProductsFilterBar({ onFiltersChange }) {
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
           }}
-          className="flex items-center justify-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-lg transition-all text-sm font-medium shadow-md w-full sm:w-auto cursor-pointer hover:bg-green-700 hover:shadow-lg active:scale-[0.98]"
+          className="flex items-center justify-center gap-2 bg-green-600 text-white px-5 py-1 rounded-lg transition-all text-sm font-medium shadow-md w-full sm:w-auto cursor-pointer hover:bg-green-700 hover:shadow-lg active:scale-[0.98]"
         >
           <FaDownload className="h-4 w-4" />
           Export Products

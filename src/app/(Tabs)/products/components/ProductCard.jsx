@@ -194,7 +194,7 @@ export default function ProductCard({ product, onUpdate }) {
                 }}
               />
             )}
-            <div className="absolute top-2 right-2 flex flex-wrap gap-2">
+            <div className="absolute top-2 left-2 flex flex-wrap gap-2">
               {tags.map((tag) => (
                 <Tag key={tag} label={tag} color={getTagColor(tag)} />
               ))}
