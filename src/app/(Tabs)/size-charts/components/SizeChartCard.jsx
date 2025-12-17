@@ -59,6 +59,20 @@ export default function SizeChartCard({
           </button>
         </div>
       </div>
+
+      {/* Image Preview (if uploaded) */}
+      {chart.image_url && (
+        <div className="mb-4">
+          <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+            <img
+              src={chart.image_url}
+              alt="Size chart"
+              className="w-full h-32 object-contain"
+              loading="lazy"
+            />
+          </div>
+        </div>
+      )}
       
       {/* Size Chart Preview */}
       <div className="mb-4">

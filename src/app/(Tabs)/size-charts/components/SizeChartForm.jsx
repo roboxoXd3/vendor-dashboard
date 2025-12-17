@@ -322,7 +322,9 @@ export default function SizeChartForm({
               ) : (
                 <ImageUpload
                   vendorId={vendor?.id}
-                  productId={null}
+                  // Use a stable, non-temp folder so the uploaded image persists
+                  // (temp uploads may be auto-cleaned if the user navigates away)
+                  productId="size-charts"
                   type="size-charts"
                   onUploadSuccess={handleImageUpload}
                   onUploadError={handleImageError}
@@ -637,7 +639,9 @@ export default function SizeChartForm({
           ) : (
             <ImageUpload
               vendorId={vendor?.id}
-              productId={null}
+              // Use a stable, non-temp folder so the uploaded image persists
+              // (temp uploads may be auto-cleaned if the user navigates away)
+              productId="size-charts"
               type="size-charts"
               onUploadSuccess={handleImageUpload}
               onUploadError={handleImageError}
