@@ -59,7 +59,7 @@ export default function SizeChartCard({
           </button>
         </div>
       </div>
-
+      
       {/* Image Preview (if uploaded) */}
       {chart.image_url && (
         <div className="mb-4">
