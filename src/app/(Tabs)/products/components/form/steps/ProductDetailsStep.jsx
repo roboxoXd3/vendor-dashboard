@@ -12,10 +12,18 @@ export default function ProductDetailsStep({
 }) {
   const handleAddBoxContent = () => {
     const input = document.getElementById('new-box-content')
-    if (input.value.trim()) {
-      addToArray('box_contents', input.value.trim())
-      input.value = ''
-    }
+    if (!input?.value) return
+
+    const items = input.value
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean)
+
+    if (!items.length) return
+
+    items.forEach(item => addToArray('box_contents', item))
+
+    input.value = ''
   }
 
   const handleAddUsageInstruction = () => {
