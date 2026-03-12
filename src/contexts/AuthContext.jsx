@@ -26,9 +26,16 @@ export function AuthProvider({ children }) {
     // Only run auth logic on client side
     if (!isClient) return
     
-    // Skip auth checks on reset password page - it handles its own authentication
-    // Check if pathname starts with /reset-password to handle any sub-paths
-    if (pathname && pathname.startsWith('/reset-password')) {
+    // Public, unprotected routes that must be accessible without auth
+    const publicPrefixes = [
+      '/reset-password',        // main site reset
+      '/auth/reset-password',   // vendor reset
+      '/auth/forgot-password',  // vendor forgot password
+      '/privacy',               // privacy policy (adjust if different)
+      '/terms',                 // terms & conditions (adjust if different)
+    ]
+
+    if (pathname && publicPrefixes.some((prefix) => pathname.startsWith(prefix))) {
       setLoading(false)
       return
     }
@@ -262,9 +269,9 @@ export function AuthProvider({ children }) {
       
       const supabase = getSupabase()
       
-      // Use the vendor dashboard's deployed URL
+      // Use the vendor dashboard's deployed URL with auth-specific reset route
       const vendorDashboardUrl = 'https://vendor-dashboard-production.up.railway.app'
-      const resetUrl = `${vendorDashboardUrl}/reset-password`
+      const resetUrl = `${vendorDashboardUrl}/auth/reset-password`
       
       console.log('🔗 Vendor Dashboard Reset URL:', resetUrl)
       
