@@ -261,6 +261,9 @@ export default function ProductCard({ product, onUpdate }) {
             )}
           </div>
         </div>
+        <div className="text-xs text-gray-600 border-t border-gray-100 pt-2 mt-2">
+          COD: <span className={product?.cod_allowed ? "text-emerald-600 font-medium" : "text-gray-500"}>{product?.cod_allowed ? "Yes" : "No"}</span>
+        </div>
       </div>
 
       <div className="flex justify-between items-center text-sm text-gray-600 border-t p-3 pt-3">

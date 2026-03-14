@@ -401,6 +401,15 @@ export async function PUT(request, { params }) {
       throw error
     }
 
+    // Persist cod_allowed via direct update (column may not be in RPC)
+    if (updates.cod_allowed !== undefined) {
+      await supabase
+        .from('products')
+        .update({ cod_allowed: updates.cod_allowed === true, updated_at: new Date().toISOString() })
+        .eq('id', id)
+      if (data) data.cod_allowed = updates.cod_allowed === true
+    }
+
     // Parse images field back to array for response (handle both old single URL format and new JSON array format)
     let images = []
     if (data.images) {

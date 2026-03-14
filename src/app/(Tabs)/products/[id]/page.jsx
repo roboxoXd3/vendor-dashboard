@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useVendorReviews } from "@/hooks/useReviews";
 import { useVendorQA } from "@/hooks/useQA";
 import { useCurrencyContext } from "@/contexts/CurrencyContext";
+import { productKeys } from "@/hooks/useProducts";
+import { productsService } from "@/services/productsService";
 import { 
   FiArrowLeft, 
   FiEdit, 
@@ -36,15 +39,37 @@ export default function ProductDetailPage({ params }) {
   const router = useRouter();
   const { vendor } = useAuth();
   const { formatPrice, formatProductPrice } = useCurrencyContext();
-  const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [resolvedId, setResolvedId] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedReview, setSelectedReview] = useState(null);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [showResponseModal, setShowResponseModal] = useState(false);
   const [showAnswerModal, setShowAnswerModal] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [productId, setProductId] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    params.then((p) => {
+      if (!cancelled) setResolvedId(p.id);
+    }).catch(() => { if (!cancelled) setResolvedId(null); });
+    return () => { cancelled = true; };
+  }, [params]);
+
+  const {
+    data: productResult,
+    isLoading: loading,
+    error: productError,
+    refetch: refetchProduct
+  } = useQuery({
+    queryKey: productKeys.detail(resolvedId),
+    queryFn: () => productsService.getProduct(resolvedId, vendor?.id),
+    enabled: !!resolvedId && !!vendor?.id,
+    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const product = productResult?.data ?? null;
+  const productId = resolvedId;
 
   // Fetch product reviews
   const {
@@ -63,47 +88,6 @@ export default function ProductDetailPage({ params }) {
     productId: productId,
     limit: 10
   });
-
-  useEffect(() => {
-    const loadProduct = async () => {
-      try {
-        const resolvedParams = await params;
-        const id = resolvedParams.id;
-        setProductId(id);
-        
-        if (id && vendor?.id) {
-          await fetchProduct(id);
-        }
-      } catch (error) {
-        console.error('Error loading params:', error);
-        setLoading(false);
-      }
-    };
-    
-    loadProduct();
-  }, [params, vendor?.id]);
-
-  const fetchProduct = async (id) => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/products/${id}?vendorId=${vendor.id}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch product');
-      }
-      
-      const result = await response.json();
-      if (result.success) {
-        setProduct(result.data);
-      } else {
-        throw new Error(result.error || 'Product not found');
-      }
-    } catch (error) {
-      console.error('Error fetching product:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleRespondToReview = (review) => {
     setSelectedReview(review);

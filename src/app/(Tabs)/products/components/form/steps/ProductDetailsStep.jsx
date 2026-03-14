@@ -192,6 +192,20 @@ export default function ProductDetailsStep({
                 <p className="text-xs sm:text-sm text-gray-500">This product needs to be shipped</p>
               </div>
             </label>
+
+            <label className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 border border-gray-200 rounded-lg bg-white cursor-pointer hover:bg-gray-50 sm:col-span-2">
+              <input
+                type="checkbox"
+                name="cod_allowed"
+                checked={formData.cod_allowed}
+                onChange={handleInputChange}
+                className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 flex-shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <span className="font-medium text-gray-900 text-sm sm:text-base">Pay on Delivery (COD)</span>
+                <p className="text-xs sm:text-sm text-gray-500">Allow customers to pay when the product is delivered</p>
+              </div>
+            </label>
           </div>
         </div>
       </div>

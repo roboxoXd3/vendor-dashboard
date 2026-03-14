@@ -49,6 +49,7 @@ export const useProductForm = (initialData = {}) => {
     is_featured: false,
     is_new_arrival: true,
     shipping_required: true,
+    cod_allowed: false,
     
     // Size Chart Settings
     size_chart_override: 'auto',
@@ -261,7 +262,8 @@ export const useProductForm = (initialData = {}) => {
       safety_notes: [],
       is_featured: false,
       is_new_arrival: true,
-      shipping_required: true
+      shipping_required: true,
+      cod_allowed: false
     })
   }, [])
 

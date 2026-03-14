@@ -50,12 +50,14 @@ export const productsService = {
     }
   },
 
-  // Get single product
-  async getProduct(productId) {
+  // Get single product (vendorId optional, for vendor-scoped requests)
+  async getProduct(productId, vendorId = null) {
     try {
       console.log('📦 Fetching single product:', productId)
-      
-      const response = await fetch(`/api/products/${productId}`)
+      const url = vendorId
+        ? `/api/products/${productId}?vendorId=${vendorId}`
+        : `/api/products/${productId}`
+      const response = await fetch(url)
       const result = await response.json()
 
       if (!response.ok) {

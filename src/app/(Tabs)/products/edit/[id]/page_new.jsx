@@ -93,7 +93,8 @@ export default function EditProductPage({ params }) {
           
           is_featured: product.is_featured || false,
           is_new_arrival: product.is_new_arrival || false,
-          shipping_required: product.shipping_required !== false
+          shipping_required: product.shipping_required !== false,
+          cod_allowed: product.cod_allowed === true
         }
 
         console.log('📦 Loaded product data:', formData)

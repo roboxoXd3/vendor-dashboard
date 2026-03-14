@@ -457,6 +457,7 @@ export async function POST(request) {
       is_featured: productData.is_featured || false,
       is_new_arrival: true,
       shipping_required: productData.shipping_required !== false,
+      cod_allowed: productData.cod_allowed === true,
       weight: productData.weight ? Number(productData.weight) : null,
       dimensions: dimensionsField,
       tags: tagsField,

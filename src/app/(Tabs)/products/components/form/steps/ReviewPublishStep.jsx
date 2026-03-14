@@ -245,6 +245,9 @@ export default function ReviewPublishStep({
             <div className={`px-3 py-1 rounded-full ${formData.shipping_required ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
               {formData.shipping_required ? '📦 Shipping Required' : 'No Shipping'}
             </div>
+            <div className={`px-3 py-1 rounded-full ${formData.cod_allowed ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'}`}>
+              {formData.cod_allowed ? '💵 Pay on Delivery (COD)' : 'No COD'}
+            </div>
           </div>
         </div>
 

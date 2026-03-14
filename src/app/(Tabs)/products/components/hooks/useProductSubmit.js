@@ -1,12 +1,15 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
+import { productKeys } from '@/hooks/useProducts'
 import { imageCleanupService } from '@/services/imageCleanupService'
 
 export const useProductSubmit = (vendor) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   const createProduct = async (formData) => {
     try {
@@ -45,7 +48,8 @@ export const useProductSubmit = (vendor) => {
       const result = await response.json()
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to create product')
+        const message = result.message || result.error || 'Failed to create product'
+        throw new Error(message)
       }
 
       // Confirm all images as permanent (remove from temp tracking)
@@ -59,7 +63,8 @@ export const useProductSubmit = (vendor) => {
       })
       
       // Product created successfully, all media confirmed as permanent
-      
+      queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+
       return result.data
     } catch (err) {
       console.error('❌ Error creating product:', err)
@@ -120,7 +125,9 @@ export const useProductSubmit = (vendor) => {
       })
       
       // Product updated successfully, all media confirmed as permanent
-      
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) })
+      queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+
       return result.data
     } catch (err) {
       console.error('❌ Error updating product:', err)

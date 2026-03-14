@@ -94,7 +94,8 @@ export default function EditProductPage({ params }) {
           is_featured: product.is_featured || false,
           is_new_arrival: product.is_new_arrival || false,
           shipping_required: product.shipping_required !== false,
-          
+          cod_allowed: product.cod_allowed === true,
+
           // Size chart related fields
           size_chart_override: product.size_chart_override || 'auto',
           size_chart_template_id: product.size_chart_template_id || '',
