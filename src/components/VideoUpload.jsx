@@ -1,12 +1,17 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { FaUpload, FaVideo, FaTrash, FaPlay, FaTimes, FaSpinner, FaCheck, FaExclamationTriangle } from 'react-icons/fa'
-import { imageUploadService } from '@/services/imageUploadService'
-import { imageCleanupService } from '@/services/imageCleanupService'
+import { FaUpload, FaVideo, FaPlay, FaTimes, FaSpinner, FaCheck, FaExclamationTriangle } from 'react-icons/fa'
+import { productMediaService, isValidProductId } from '@/services/productMediaService'
+
+function isPendingPreview(url) {
+  return typeof url === 'string' && url.startsWith('blob:')
+}
 
 export default function VideoUpload({ 
   onVideoUploaded, 
   onVideoRemoved, 
+  onPendingVideoAdd,
+  onPendingVideoRemove,
   existingVideoUrl = null,
   vendorId,
   productId = null,
@@ -14,14 +19,15 @@ export default function VideoUpload({
   className = ''
 }) {
   const [uploading, setUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadPhase, setUploadPhase] = useState(null) // 'uploading' | 'processing' | null
+  const [uploadStatus, setUploadStatus] = useState(null)
+  const [statusMessage, setStatusMessage] = useState('')
   const [videoUrl, setVideoUrl] = useState(existingVideoUrl)
   const [showPreview, setShowPreview] = useState(false)
   const [dragOver, setDragOver] = useState(false)
-  const [uploadStatus, setUploadStatus] = useState(null) // 'success', 'error', null
   const fileInputRef = useRef(null)
+  const canUploadImmediately = isValidProductId(productId)
 
-  // Update video URL when existingVideoUrl prop changes
   useEffect(() => {
     setVideoUrl(existingVideoUrl)
   }, [existingVideoUrl])
@@ -30,18 +36,16 @@ export default function VideoUpload({
     const file = files?.[0] || files
     if (!file) return
 
-    // Validate file type
     if (!file.type.startsWith('video/')) {
       setUploadStatus('error')
       alert('Please select a valid video file')
       return
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024 // 5MB
+    const maxSize = 50 * 1024 * 1024
     if (file.size > maxSize) {
       setUploadStatus('error')
-      alert('Video file size must be less than 5MB')
+      alert('Video file size must be less than 50MB')
       return
     }
 
@@ -54,7 +58,6 @@ export default function VideoUpload({
       return
     }
 
-    // If there's already a video, confirm replacement
     if (videoUrl) {
       const confirmReplace = window.confirm(
         'A video is already uploaded for this product. Do you want to replace it with the new video?'
@@ -65,45 +68,56 @@ export default function VideoUpload({
     }
 
     setUploading(true)
-    setUploadProgress(0)
+    setUploadPhase('uploading')
     setUploadStatus(null)
+    setStatusMessage('')
 
     try {
-      // Upload to videos bucket with temp folder
-      const result = await imageUploadService.uploadFile(
-        file, 
-        vendorId, 
-        productId || 'temp', 
-        'videos'
-      )
-
-      if (result.error) {
-        throw new Error(result.error.message)
+      if (!canUploadImmediately) {
+        const previewUrl = URL.createObjectURL(file)
+        onPendingVideoAdd?.(file, previewUrl)
+        setVideoUrl(previewUrl)
+        setUploadStatus('success')
+        setStatusMessage('Video will upload to R2 when you publish the product.')
+        onVideoUploaded?.(previewUrl)
+        return
       }
 
-      // Track the uploaded video for cleanup
-      imageCleanupService.trackTempImage(result.publicUrl)
+      setStatusMessage('Uploading video file...')
+      const { jobId, status } = await productMediaService.initiateVideoUpload(productId, file)
+      setUploadPhase('processing')
+      setStatusMessage(
+        status === 'processing'
+          ? `Upload accepted. Processing video (job: ${jobId.slice(0, 8)}...)`
+          : 'Processing video upload...'
+      )
 
-      // Update local state
-      setVideoUrl(result.publicUrl)
+      const resultUrl = await productMediaService.pollVideoUpload(jobId, {
+        intervalMs: 4000,
+        onStatus: (job) => {
+          if (job.status === 'pending' || job.status === 'processing') {
+            setStatusMessage('Checking upload status...')
+          }
+          if (job.status === 'completed') {
+            setStatusMessage('Video processing completed.')
+          }
+        },
+      })
+
+      setVideoUrl(resultUrl)
       setUploadStatus('success')
-      
-      // Notify parent component
-      onVideoUploaded?.(result.publicUrl)
-
-      // Clear success status after 3 seconds
+      setStatusMessage('Video uploaded successfully.')
+      onVideoUploaded?.(resultUrl)
       setTimeout(() => setUploadStatus(null), 3000)
-
     } catch (error) {
       console.error('Video upload error:', error)
       setUploadStatus('error')
+      setStatusMessage(error.message)
       alert(`Failed to upload video: ${error.message}`)
-      
-      // Clear error status after 5 seconds
       setTimeout(() => setUploadStatus(null), 5000)
     } finally {
       setUploading(false)
-      setUploadProgress(0)
+      setUploadPhase(null)
     }
   }
 
@@ -111,14 +125,15 @@ export default function VideoUpload({
     const confirmRemove = window.confirm('Are you sure you want to remove this video?')
     if (!confirmRemove) return
 
-    // Track for cleanup if it's a temp video
-    if (videoUrl && videoUrl.includes('/temp/')) {
-      imageCleanupService.trackTempImage(videoUrl)
+    if (isPendingPreview(videoUrl)) {
+      URL.revokeObjectURL(videoUrl)
+      onPendingVideoRemove?.(videoUrl)
     }
 
     setVideoUrl(null)
     setShowPreview(false)
     setUploadStatus(null)
+    setStatusMessage('')
     onVideoRemoved?.()
   }
 
@@ -136,13 +151,12 @@ export default function VideoUpload({
     e.preventDefault()
     setDragOver(false)
     if (disabled) return
-    
-    const files = e.dataTransfer.files
-    handleFileSelect(files)
+    handleFileSelect(e.dataTransfer.files)
   }
 
   const handleFileInputChange = (e) => {
     handleFileSelect(e.target.files)
+    e.target.value = ''
   }
 
   const openFileDialog = () => {
@@ -151,11 +165,10 @@ export default function VideoUpload({
     }
   }
 
-  const isTemporary = videoUrl && videoUrl.includes('/temp/')
+  const isPending = isPendingPreview(videoUrl)
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* Existing Video Display */}
       {videoUrl && (
         <div className="relative group">
           <div className="bg-gray-100 border-2 border-gray-200 rounded-lg p-4">
@@ -164,11 +177,11 @@ export default function VideoUpload({
                 <FaVideo className="text-red-500" />
                 <span className="font-medium text-gray-900">Product Video</span>
                 <div className={`px-2 py-1 rounded-full text-xs ${
-                  isTemporary 
-                    ? 'bg-yellow-100 text-yellow-800' 
+                  isPending
+                    ? 'bg-yellow-100 text-yellow-800'
                     : 'bg-green-100 text-green-800'
                 }`}>
-                  {isTemporary ? '🟡 Temporary' : '🟢 Saved'}
+                  {isPending ? '🟡 Pending upload' : '🟢 Saved'}
                 </div>
               </div>
               <button
@@ -180,22 +193,18 @@ export default function VideoUpload({
               </button>
             </div>
 
-            {/* Video Preview */}
             <div className="relative bg-black rounded-lg overflow-hidden">
               {showPreview ? (
                 <video
                   src={videoUrl}
                   controls
                   className="w-full h-48 object-contain"
-                  onError={() => {
-                    console.error('Video failed to load:', videoUrl)
-                    setShowPreview(false)
-                  }}
+                  onError={() => setShowPreview(false)}
                 >
                   Your browser does not support the video tag.
                 </video>
               ) : (
-                <div 
+                <div
                   className="w-full h-48 flex items-center justify-center cursor-pointer hover:bg-gray-800 transition-colors"
                   onClick={() => setShowPreview(true)}
                 >
@@ -207,7 +216,6 @@ export default function VideoUpload({
               )}
             </div>
 
-            {/* Video URL Display */}
             <div className="mt-3 p-2 bg-gray-50 rounded text-xs">
               <p className="font-medium text-gray-700 mb-1">Video URL:</p>
               <p className="text-gray-600 break-all">{videoUrl}</p>
@@ -216,7 +224,6 @@ export default function VideoUpload({
         </div>
       )}
 
-      {/* Upload Area */}
       {!videoUrl && (
         <div
           className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
@@ -244,15 +251,12 @@ export default function VideoUpload({
             <div className="space-y-4">
               <FaSpinner className="mx-auto text-4xl text-red-600 animate-spin" />
               <div className="space-y-2">
-                <p className="text-gray-600">Uploading video...</p>
-                {uploadProgress > 0 && (
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-red-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
-                  </div>
-                )}
+                <p className="text-gray-600">
+                  {statusMessage ||
+                    (uploadPhase === 'processing'
+                      ? 'Waiting for video processing to complete...'
+                      : 'Uploading video...')}
+                </p>
               </div>
             </div>
           ) : (
@@ -266,65 +270,54 @@ export default function VideoUpload({
               {!uploadStatus && (
                 <FaUpload className="mx-auto text-4xl text-gray-400" />
               )}
-              
+
               <div>
                 <p className={`text-lg font-medium ${
                   uploadStatus === 'success' ? 'text-green-600' :
                   uploadStatus === 'error' ? 'text-red-600' : 'text-gray-900'
                 }`}>
-                  {uploadStatus === 'success' ? 'Video Uploaded Successfully!' :
+                  {uploadStatus === 'success' ? 'Video Ready' :
                    uploadStatus === 'error' ? 'Upload Failed' :
                    disabled ? 'Video Upload Disabled' : 'Upload Product Video'}
                 </p>
                 <p className="text-gray-600">
-                  {uploadStatus === 'success' ? 'Your video has been uploaded and is ready to use.' :
-                   uploadStatus === 'error' ? 'Please try uploading again.' :
-                   disabled ? 'Complete required fields first' :
-                   'Drag & drop a video here, or click to select'}
+                  {statusMessage ||
+                    (disabled ? 'Complete required fields first' :
+                    'Drag & drop a video here, or click to select')}
                 </p>
                 <p className="text-sm text-gray-500 mt-2">
-                  Supports: MP4, MOV, AVI, WebM (max 5MB)
+                  Supports: MP4, MOV, AVI, WebM (max 50MB)
                 </p>
+                {!canUploadImmediately && (
+                  <p className="text-sm text-amber-600 mt-2">
+                    Video will upload to R2 when you publish the product.
+                  </p>
+                )}
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Video Status Info */}
       {videoUrl && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div className="flex items-center gap-2 text-sm">
             <FaVideo className="text-red-500" />
             <span className="font-medium">Video Status:</span>
             <div className={`flex items-center gap-1 ${
-              isTemporary ? 'text-yellow-700' : 'text-green-700'
+              isPending ? 'text-yellow-700' : 'text-green-700'
             }`}>
               <div className={`w-2 h-2 rounded-full ${
-                isTemporary ? 'bg-yellow-500' : 'bg-green-500'
+                isPending ? 'bg-yellow-500' : 'bg-green-500'
               }`}></div>
-              <span>{isTemporary ? 'Temporary Upload' : 'Permanently Saved'}</span>
+              <span>{isPending ? 'Pending Upload' : 'Stored in R2'}</span>
             </div>
           </div>
           <p className="text-xs text-blue-600 mt-1">
-            💡 {isTemporary 
-              ? 'This video will be automatically deleted if you leave without saving the product.'
-              : 'This video is permanently stored and linked to your product.'
-            }
+            {isPending
+              ? 'This video will be uploaded when you save the product.'
+              : 'This video is stored in Cloudflare R2 and linked to your product.'}
           </p>
-        </div>
-      )}
-
-      {/* Debug Info (Development Only) */}
-      {process.env.NODE_ENV === 'development' && videoUrl && (
-        <div className="bg-gray-100 p-3 rounded text-xs">
-          <p className="font-medium mb-2">Debug - Video Info:</p>
-          <div className="space-y-1">
-            <div>URL: {videoUrl}</div>
-            <div>Temporary: {isTemporary ? 'Yes' : 'No'}</div>
-            <div>Vendor ID: {vendorId}</div>
-            <div>Product ID: {productId || 'temp'}</div>
-          </div>
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { FaPlus } from 'react-icons/fa'
 import { useAuth } from '@/contexts/AuthContext'
+import { sizeChartMediaService } from '@/services/sizeChartMediaService'
 import SizeChartCard from './components/SizeChartCard'
 import SizeChartForm from './components/SizeChartForm'
 import SizeChartViewer from './components/SizeChartViewer'
@@ -19,29 +20,41 @@ export default function SizeChartsPage() {
   const [selectedChart, setSelectedChart] = useState(null)
 
   useEffect(() => {
-    if (vendor?.id) {
-      loadSizeCharts()
-      loadCategories()
+    if (!vendor?.id) return
+
+    const init = async () => {
+      setLoading(true)
+      try {
+        const categoryList = await loadCategories()
+        await loadSizeCharts(categoryList)
+      } finally {
+        setLoading(false)
+      }
     }
+
+    init()
   }, [vendor?.id])
 
-  const loadSizeCharts = async () => {
-    if (!vendor?.id) return
-    
+  const loadSizeCharts = async (categoryList = categories) => {
     try {
-      setLoading(true)
-      const response = await fetch(`/api/size-charts?vendorId=${vendor.id}`)
+      const response = await fetch('/api/size-charts')
       const data = await response.json()
-      
+
       if (data.success) {
-        setSizeCharts(data.sizeCharts || [])
+        const charts = data.sizeCharts || []
+        const chartsWithCategoryNames = charts.map((chart) => ({
+          ...chart,
+          category_name:
+            chart.category_name ||
+            categoryList.find((cat) => cat.id === chart.category_id)?.name ||
+            null,
+        }))
+        setSizeCharts(chartsWithCategoryNames)
       } else {
         console.error('Error loading size charts:', data.error)
       }
     } catch (error) {
       console.error('Error loading size charts:', error)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -49,9 +62,12 @@ export default function SizeChartsPage() {
     try {
       const response = await fetch('/api/categories')
       const data = await response.json()
-      setCategories(data.categories || [])
+      const categoryList = data.categories || []
+      setCategories(categoryList)
+      return categoryList
     } catch (error) {
       console.error('Error loading categories:', error)
+      return []
     }
   }
 
@@ -89,7 +105,7 @@ export default function SizeChartsPage() {
       })
       
       if (response.ok) {
-        await loadSizeCharts()
+        await loadSizeCharts(categories)
       } else {
         const error = await response.json()
         alert(`Failed to delete size chart: ${error.error}`)
@@ -100,33 +116,42 @@ export default function SizeChartsPage() {
     }
   }
 
-  const handleSave = async (formData) => {
+  const handleSave = async (formData, pendingImageFile = null) => {
     try {
       setSaving(true)
       const url = selectedChart?.id ? `/api/size-charts/${selectedChart.id}` : '/api/size-charts'
       const method = selectedChart?.id ? 'PUT' : 'POST'
-      
+
+      const payload = { ...formData, vendor_id: vendor.id }
+      if (payload.image_url?.startsWith('blob:')) {
+        delete payload.image_url
+      }
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          vendor_id: vendor.id
-        })
+        body: JSON.stringify(payload),
       })
 
       const data = await response.json()
-      
-      if (data.success) {
-        await loadSizeCharts()
-        setView('list')
-        setSelectedChart(null)
-      } else {
+
+      if (!data.success) {
         alert(`Failed to save size chart: ${data.error}`)
+        return
       }
+
+      const templateId = data.sizeChart?.id || selectedChart?.id
+
+      if (pendingImageFile && templateId) {
+        await sizeChartMediaService.uploadImage(templateId, pendingImageFile)
+      }
+
+      await loadSizeCharts(categories)
+      setView('list')
+      setSelectedChart(null)
     } catch (error) {
       console.error('Error saving size chart:', error)
-      alert('Failed to save size chart. Please try again.')
+      alert(`Failed to save size chart: ${error.message}`)
     } finally {
       setSaving(false)
     }

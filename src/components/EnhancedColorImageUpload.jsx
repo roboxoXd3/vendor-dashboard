@@ -7,8 +7,11 @@ export default function EnhancedColorImageUpload({
   color,
   onUploadSuccess,
   onRemoveImage,
+  onPendingFileAdd,
+  onPendingFileRemove,
+  onColorUploadSuccess,
   existingImages = [],
-  mainImages = [], // New prop for main product images
+  mainImages = [],
   vendorId,
   productId,
   className = ''
@@ -187,8 +190,12 @@ export default function EnhancedColorImageUpload({
         vendorId={vendorId}
         productId={productId}
         type={`color-${color.toLowerCase().replace(/\s+/g, '-')}`}
+        colorName={color}
         onUploadSuccess={onUploadSuccess}
         onRemoveImage={onRemoveImage}
+        onPendingFileAdd={onPendingFileAdd}
+        onPendingFileRemove={onPendingFileRemove}
+        onColorUploadSuccess={onColorUploadSuccess}
         existingImages={existingImages}
         multiple={true}
         className="w-full"

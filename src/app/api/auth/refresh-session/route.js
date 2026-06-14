@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { getSupabaseServer } from '@/lib/supabase-server'
+import { getSupabaseServer, getSupabaseClient } from '@/lib/supabase-server'
 import CryptoJS from 'crypto-js'
 
 export async function POST() {
@@ -40,6 +40,28 @@ export async function POST() {
     const newRefreshToken = CryptoJS.lib.WordArray.random(32).toString()
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
+    let deviceInfo = sessionData.device_info || {}
+    const supabaseRefreshToken = deviceInfo.supabase_refresh_token
+
+    if (supabaseRefreshToken) {
+      try {
+        const supabaseClient = getSupabaseClient()
+        const { data: authData, error: authError } = await supabaseClient.auth.refreshSession({
+          refresh_token: supabaseRefreshToken,
+        })
+
+        if (!authError && authData?.session) {
+          deviceInfo = {
+            ...deviceInfo,
+            supabase_access_token: authData.session.access_token,
+            supabase_refresh_token: authData.session.refresh_token,
+          }
+        }
+      } catch (tokenError) {
+        console.error('⚠️ Could not refresh BeSmart auth token:', tokenError)
+      }
+    }
+
     // Update session with new tokens
     const { error: updateError } = await supabase
       .from('vendor_sessions')
@@ -47,7 +69,8 @@ export async function POST() {
         session_token: newSessionToken,
         refresh_token: newRefreshToken,
         expires_at: expiresAt.toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        device_info: deviceInfo,
       })
       .eq('id', sessionData.id)
 

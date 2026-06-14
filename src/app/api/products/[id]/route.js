@@ -1,4 +1,5 @@
 import { getSupabaseServer } from '@/lib/supabase-server'
+import { normalizeColorEntry } from '@/lib/product-colors'
 
 // Helper function to get default hex colors for common color names
 function getDefaultColorHex(colorName) {
@@ -244,27 +245,11 @@ export async function PUT(request, { params }) {
         // Migrate old format to new format if needed
         const migratedColors = {}
         Object.entries(colorsField).forEach(([colorName, colorData]) => {
-          if (typeof colorData === 'object') {
-            // If it has the old 'quantity' field but no 'sizes', migrate it
-            if (colorData.quantity !== undefined && !colorData.sizes) {
-              migratedColors[colorName] = {
-                hex: colorData.hex || getDefaultColorHex(colorName),
-                sizes: {} // Migrate to new format
-              }
-            } else {
-              // Already in new format or has sizes
-              migratedColors[colorName] = {
-                hex: colorData.hex || getDefaultColorHex(colorName),
-                sizes: colorData.sizes || {}
-              }
-            }
-          } else {
-            // String hex value
-            migratedColors[colorName] = {
-              hex: colorData,
-              sizes: {}
-            }
-          }
+          migratedColors[colorName] = normalizeColorEntry(
+            colorName,
+            colorData,
+            getDefaultColorHex
+          )
         })
         colorsField = migratedColors
       } else {

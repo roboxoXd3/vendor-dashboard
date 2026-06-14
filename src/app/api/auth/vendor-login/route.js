@@ -162,7 +162,9 @@ export async function POST(request) {
           is_active: true,
           device_info: {
             userAgent: request.headers.get('user-agent'),
-            ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip')
+            ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+            supabase_access_token: authData.session.access_token,
+            supabase_refresh_token: authData.session.refresh_token,
           }
         })
         .select()

@@ -7,6 +7,7 @@ export default function ReviewPublishStep({
   categories,
   vendor,
   loading,
+  uploadingMedia = false,
   onBack,
   isEdit = false
 }) {
@@ -111,9 +112,19 @@ export default function ReviewPublishStep({
                   <div className="text-xs text-gray-600 break-all">
                     <span className="font-medium">URL:</span> {formData.video_url}
                   </div>
+                  {formData.video_url.includes('r2.dev') && (
+                    <div className="text-xs text-green-600">
+                      ✓ Uploaded to R2 storage
+                    </div>
+                  )}
                   {formData.video_url.includes('supabase') && (
                     <div className="text-xs text-green-600">
                       ✓ Uploaded to storage
+                    </div>
+                  )}
+                  {formData.video_url.startsWith('blob:') && (
+                    <div className="text-xs text-amber-600">
+                      Pending upload on publish
                     </div>
                   )}
                 </div>
@@ -251,11 +262,15 @@ export default function ReviewPublishStep({
           </div>
         </div>
 
-        {loading && (
+        {(loading || uploadingMedia) && (
           <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 mr-3"></div>
             <span className="text-emerald-600 font-medium">
-              {isEdit ? 'Updating product...' : 'Creating product...'}
+              {uploadingMedia
+                ? 'Uploading images and video to R2...'
+                : isEdit
+                  ? 'Updating product...'
+                  : 'Creating product...'}
             </span>
           </div>
         )}

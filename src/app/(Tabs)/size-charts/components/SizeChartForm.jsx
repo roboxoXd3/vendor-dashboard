@@ -1,17 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
 import { FaPlus, FaTrash, FaSave, FaTimes, FaImage, FaUpload } from "react-icons/fa";
-import { useAuth } from "@/contexts/AuthContext";
-import ImageUpload from "@/components/ImageUpload";
+import SizeChartImageUpload from "@/components/SizeChartImageUpload";
 
-export default function SizeChartForm({ 
+export default function SizeChartForm({
   chart = null, 
   onSave, 
   onCancel, 
   categories = [],
   loading = false 
 }) {
-  const { vendor } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     category_id: '',
@@ -28,7 +26,7 @@ export default function SizeChartForm({
   const [newFieldName, setNewFieldName] = useState('');
   const [showAddField, setShowAddField] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [oldImageUrl, setOldImageUrl] = useState(null);
+  const [pendingImageFile, setPendingImageFile] = useState(null);
 
   useEffect(() => {
     if (chart) {
@@ -47,10 +45,8 @@ export default function SizeChartForm({
           { size: 'L', measurements: { 'Chest': '', 'Waist': '', 'Length': '' } },
         ]
       });
-      // Track the original image URL for deletion if changed
-      setOldImageUrl(chart.image_url || null);
     } else {
-      setOldImageUrl(null);
+      setPendingImageFile(null);
     }
   }, [chart]);
 
@@ -160,73 +156,25 @@ export default function SizeChartForm({
     }
   };
 
-  // Helper function to delete image from storage
-  const deleteImageFromStorage = async (imageUrl) => {
-    if (!imageUrl) return;
-
-    try {
-      // Extract bucket and path from URL
-      // Supabase storage URL format: https://project.supabase.co/storage/v1/object/public/BUCKET/PATH
-      const url = new URL(imageUrl);
-      const pathParts = url.pathname.split('/').filter(p => p);
-      
-      // Find 'storage' in path and extract bucket and file path
-      const storageIndex = pathParts.indexOf('storage');
-      if (storageIndex !== -1 && pathParts.length > storageIndex + 4) {
-        const bucket = pathParts[storageIndex + 4];
-        const filePath = pathParts.slice(storageIndex + 5).join('/');
-
-        // Call API to delete the image
-        const response = await fetch('/api/storage/delete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bucket, path: filePath })
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          console.error('Failed to delete image:', error);
-        } else {
-          console.log('✅ Deleted old image from storage:', filePath);
-        }
-      } else {
-        console.warn('Could not parse image URL for deletion:', imageUrl);
-      }
-    } catch (error) {
-      console.error('Error deleting image:', error);
-    }
+  const handleImageChange = (imageUrl) => {
+    setFormData((prev) => ({ ...prev, image_url: imageUrl || '' }));
   };
 
-  const handleImageUpload = async (imageUrl) => {
-    // If there was an old image, delete it from storage
-    if (oldImageUrl && oldImageUrl !== imageUrl) {
-      await deleteImageFromStorage(oldImageUrl);
-    }
-    
-    setFormData(prev => ({ ...prev, image_url: imageUrl }));
-    setOldImageUrl(imageUrl); // Update old image to new one
-    setUploadingImage(false);
+  const handlePendingFileChange = (file) => {
+    setPendingImageFile(file);
   };
 
-  const handleImageRemove = async () => {
-    // Delete the current image from storage
-    if (formData.image_url) {
-      await deleteImageFromStorage(formData.image_url);
+  const handleImageRemove = () => {
+    if (formData.image_url?.startsWith('blob:')) {
+      URL.revokeObjectURL(formData.image_url);
     }
-    
-    setFormData(prev => ({ ...prev, image_url: '' }));
-    setOldImageUrl(null);
-  };
-
-  const handleImageError = (error) => {
-    console.error('Image upload error:', error);
-    alert(`Failed to upload image: ${error}`);
-    setUploadingImage(false);
+    setFormData((prev) => ({ ...prev, image_url: '' }));
+    setPendingImageFile(null);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+    onSave(formData, pendingImageFile);
   };
 
   return (
@@ -304,35 +252,22 @@ export default function SizeChartForm({
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 Size Chart Image (Optional)
               </label>
-              {formData.image_url ? (
-                <div className="relative">
-                  <img
-                    src={formData.image_url}
-                    alt="Size chart preview"
-                    className="w-full h-48 object-contain border border-gray-300 rounded-xl bg-gray-50"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleImageRemove}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
-                  >
-                    <FaTimes size={14} />
-                  </button>
-                </div>
-              ) : (
-                <ImageUpload
-                  vendorId={vendor?.id}
-                  // Use a stable, non-temp folder so the uploaded image persists
-                  // (temp uploads may be auto-cleaned if the user navigates away)
-                  productId="size-charts"
-                  type="size-charts"
-                  onUploadSuccess={handleImageUpload}
-                  onUploadError={handleImageError}
-                  onRemoveImage={handleImageRemove}
-                  existingImages={[]}
-                  multiple={false}
-                  className="w-full"
-                />
+              <SizeChartImageUpload
+                templateId={chart?.id || null}
+                imageUrl={formData.image_url}
+                onImageChange={handleImageChange}
+                onPendingFileChange={handlePendingFileChange}
+                disabled={uploadingImage || loading}
+                className="w-full"
+              />
+              {formData.image_url && (
+                <button
+                  type="button"
+                  onClick={handleImageRemove}
+                  className="mt-2 text-sm text-red-600 hover:text-red-700"
+                >
+                  Remove image
+                </button>
               )}
               <p className="text-xs text-gray-500 mt-2">
                 💡 Upload an image to visually represent the size chart (e.g., measurement guide diagram)
@@ -621,35 +556,22 @@ export default function SizeChartForm({
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Size Chart Image (Optional)
           </label>
-          {formData.image_url ? (
-            <div className="relative inline-block">
-              <img
-                src={formData.image_url}
-                alt="Size chart preview"
-                className="max-w-full h-64 object-contain border border-gray-300 rounded-lg bg-gray-50"
-              />
-              <button
-                type="button"
-                onClick={handleImageRemove}
-                className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
-              >
-                <FaTimes size={12} />
-              </button>
-            </div>
-          ) : (
-            <ImageUpload
-              vendorId={vendor?.id}
-              // Use a stable, non-temp folder so the uploaded image persists
-              // (temp uploads may be auto-cleaned if the user navigates away)
-              productId="size-charts"
-              type="size-charts"
-              onUploadSuccess={handleImageUpload}
-              onUploadError={handleImageError}
-              onRemoveImage={handleImageRemove}
-              existingImages={[]}
-              multiple={false}
-              className="w-full"
-            />
+          <SizeChartImageUpload
+            templateId={chart?.id || null}
+            imageUrl={formData.image_url}
+            onImageChange={handleImageChange}
+            onPendingFileChange={handlePendingFileChange}
+            disabled={uploadingImage || loading}
+            className="w-full"
+          />
+          {formData.image_url && (
+            <button
+              type="button"
+              onClick={handleImageRemove}
+              className="mt-2 text-sm text-red-600 hover:text-red-700"
+            >
+              Remove image
+            </button>
           )}
           <p className="text-xs text-gray-500 mt-1">
             💡 Upload an image to visually represent the size chart (e.g., measurement guide diagram)

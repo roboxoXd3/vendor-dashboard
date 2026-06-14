@@ -1,6 +1,11 @@
 'use client'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import currencyService from '@/services/currencyService'
+import { mergeColorEntries } from '@/lib/product-colors'
+
+function isBlobUrl(url) {
+  return typeof url === 'string' && url.startsWith('blob:')
+}
 
 export const useProductForm = (initialData = {}) => {
   const [formData, setFormData] = useState({
@@ -66,6 +71,85 @@ export const useProductForm = (initialData = {}) => {
   const [exchangeRates, setExchangeRates] = useState({})
   const [isLoadingCurrencies, setIsLoadingCurrencies] = useState(false)
   const [currencyError, setCurrencyError] = useState(null)
+
+  const pendingMediaRef = useRef({
+    mainImages: [],
+    colorImages: {},
+    video: null,
+    previewMap: new Map(),
+  })
+
+  const addPendingFile = useCallback((file, { type, colorName, previewUrl }) => {
+    if (type === 'main' || type === 'images') {
+      pendingMediaRef.current.mainImages.push(file)
+    } else if (colorName) {
+      if (!pendingMediaRef.current.colorImages[colorName]) {
+        pendingMediaRef.current.colorImages[colorName] = []
+      }
+      pendingMediaRef.current.colorImages[colorName].push(file)
+    }
+    pendingMediaRef.current.previewMap.set(previewUrl, { file, type, colorName })
+  }, [])
+
+  const removePendingFile = useCallback((previewUrl, { colorName } = {}) => {
+    const entry = pendingMediaRef.current.previewMap.get(previewUrl)
+    if (!entry) return
+
+    if (entry.type === 'main' || entry.type === 'images') {
+      pendingMediaRef.current.mainImages = pendingMediaRef.current.mainImages.filter(
+        (file) => file !== entry.file
+      )
+    } else if (entry.colorName || colorName) {
+      const color = entry.colorName || colorName
+      pendingMediaRef.current.colorImages[color] = (
+        pendingMediaRef.current.colorImages[color] || []
+      ).filter((file) => file !== entry.file)
+    }
+
+    pendingMediaRef.current.previewMap.delete(previewUrl)
+  }, [])
+
+  const addPendingVideo = useCallback((file, previewUrl) => {
+    pendingMediaRef.current.video = file
+    pendingMediaRef.current.previewMap.set(previewUrl, { file, type: 'video' })
+  }, [])
+
+  const removePendingVideo = useCallback((previewUrl) => {
+    const entry = pendingMediaRef.current.previewMap.get(previewUrl)
+    if (entry?.file === pendingMediaRef.current.video) {
+      pendingMediaRef.current.video = null
+    }
+    pendingMediaRef.current.previewMap.delete(previewUrl)
+  }, [])
+
+  const getPendingMedia = useCallback(() => ({
+    mainImages: [...pendingMediaRef.current.mainImages],
+    colorImages: Object.fromEntries(
+      Object.entries(pendingMediaRef.current.colorImages).map(([color, files]) => [color, [...files]])
+    ),
+    video: pendingMediaRef.current.video,
+  }), [])
+
+  const clearPendingMedia = useCallback(() => {
+    pendingMediaRef.current = {
+      mainImages: [],
+      colorImages: {},
+      video: null,
+      previewMap: new Map(),
+    }
+  }, [])
+
+  const sanitizeMediaFields = useCallback((data) => ({
+    ...data,
+    images: (data.images || []).filter((url) => !isBlobUrl(url)),
+    video_url: isBlobUrl(data.video_url) ? '' : (data.video_url || ''),
+    color_images: Object.fromEntries(
+      Object.entries(data.color_images || {}).map(([color, urls]) => [
+        color,
+        (urls || []).filter((url) => !isBlobUrl(url)),
+      ])
+    ),
+  }), [])
 
   // Load currency data on mount
   useEffect(() => {
@@ -179,10 +263,13 @@ export const useProductForm = (initialData = {}) => {
     }))
   }, [])
 
-  const handleImageUploaded = useCallback((imageUrl) => {
-    setFormData(prev => ({
+  const handleImageUploaded = useCallback((imageUrl, meta = null) => {
+    if (!imageUrl) return
+
+    setFormData((prev) => ({
       ...prev,
-      images: [...prev.images, imageUrl]
+      colors: meta?.colors ? mergeColorEntries(prev.colors, meta.colors) : prev.colors,
+      images: [...prev.images, imageUrl],
     }))
   }, [])
 
@@ -207,15 +294,16 @@ export const useProductForm = (initialData = {}) => {
     }))
   }, [])
 
-  const addColorImage = useCallback((color, imageUrl) => {
+  const addColorImage = useCallback((color, imageUrl, apiColors = null) => {
     if (!color || !imageUrl) return
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
+      colors: apiColors ? mergeColorEntries(prev.colors, apiColors) : prev.colors,
       color_images: {
         ...prev.color_images,
-        [color]: [...(prev.color_images[color] || []), imageUrl]
-      }
+        [color]: [...(prev.color_images[color] || []), imageUrl],
+      },
     }))
   }, [])
 
@@ -322,6 +410,13 @@ export const useProductForm = (initialData = {}) => {
     isLoadingCurrencies,
     currencyError,
     convertPrices,
-    loadCurrencyData
+    loadCurrencyData,
+    addPendingFile,
+    removePendingFile,
+    addPendingVideo,
+    removePendingVideo,
+    getPendingMedia,
+    clearPendingMedia,
+    sanitizeMediaFields,
   }
 }

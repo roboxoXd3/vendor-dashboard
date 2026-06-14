@@ -1,16 +1,24 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { FaUpload, FaImage, FaTimes, FaSpinner, FaCheck, FaExclamationTriangle } from 'react-icons/fa'
+import { FaUpload, FaTimes, FaSpinner, FaCheck, FaExclamationTriangle } from 'react-icons/fa'
 import { imageUploadService } from '@/services/imageUploadService'
-import { imageCleanupService } from '@/services/imageCleanupService'
+import { isValidProductId } from '@/services/productMediaService'
+
+function isPendingPreview(url) {
+  return typeof url === 'string' && url.startsWith('blob:')
+}
 
 export default function ImageUpload({ 
   vendorId, 
   productId = null, 
-  type = 'main', 
+  type = 'main',
+  colorName = null,
   onUploadSuccess, 
   onUploadError,
   onRemoveImage,
+  onPendingFileAdd,
+  onPendingFileRemove,
+  onColorUploadSuccess,
   existingImages = [],
   multiple = true,
   className = '',
@@ -21,88 +29,111 @@ export default function ImageUpload({
   const [uploadProgress, setUploadProgress] = useState([])
   const [images, setImages] = useState(existingImages)
   const fileInputRef = useRef(null)
-  
+  const canUploadImmediately = isValidProductId(productId)
 
-
-  // Update images when existingImages prop changes
   useEffect(() => {
     setImages(existingImages)
   }, [existingImages])
+
+  const uploadSingleFile = async (file) => {
+    if (!canUploadImmediately) {
+      const previewUrl = URL.createObjectURL(file)
+      onPendingFileAdd?.(file, { type, colorName, previewUrl })
+      return previewUrl
+    }
+
+    const result = await imageUploadService.uploadFile(
+      file,
+      vendorId,
+      productId,
+      type,
+      { colorName }
+    )
+
+    if (result.error) {
+      throw new Error(`Failed to upload ${file.name}: ${result.error.message}`)
+    }
+
+    if ((type.startsWith('color-') || colorName) && result.colors) {
+      onColorUploadSuccess?.({
+        colorName,
+        imageUrl: result.publicUrl,
+        colors: result.colors,
+      })
+      return result.publicUrl
+    }
+
+    if (type === 'main' && canUploadImmediately) {
+      onUploadSuccess?.(
+        result.publicUrl,
+        result.colors ? { colors: result.colors } : undefined
+      )
+      return result.publicUrl
+    }
+
+    return result.publicUrl
+  }
 
   const handleFileSelect = async (files) => {
     if (!files || files.length === 0) return
 
     const fileArray = Array.from(files)
-    
-    // Validate files
-    const validationResults = fileArray.map(file => ({
+
+    const validationResults = fileArray.map((file) => ({
       file,
-      validation: imageUploadService.validateImageFile(file)
+      validation: imageUploadService.validateImageFile(file),
     }))
 
-    // Check for validation errors
-    const invalidFiles = validationResults.filter(result => !result.validation.isValid)
+    const invalidFiles = validationResults.filter((result) => !result.validation.isValid)
     if (invalidFiles.length > 0) {
-      const errorMessages = invalidFiles.map(result => 
-        `${result.file.name}: ${result.validation.errors.join(', ')}`
+      const errorMessages = invalidFiles.map(
+        (result) => `${result.file.name}: ${result.validation.errors.join(', ')}`
       )
       onUploadError?.(errorMessages.join('\n'))
       return
     }
 
-    // Upload files
     setUploading(true)
-    setUploadProgress(fileArray.map(file => ({ name: file.name, status: 'uploading' })))
+    setUploadProgress(fileArray.map((file) => ({ name: file.name, status: 'uploading' })))
 
     try {
-      const uploadPromises = fileArray.map(async (file) => {
-        const result = await imageUploadService.uploadFile(file, vendorId, productId || 'temp', type)
-        if (result.error) {
-          throw new Error(`Failed to upload ${file.name}: ${result.error.message}`)
-        }
-        
-        // Track the uploaded image for cleanup
-        imageCleanupService.trackTempImage(result.publicUrl)
-        
-        return result.publicUrl
-      })
-
-      const uploadedUrls = await Promise.all(uploadPromises)
-      
-      // Update local state
+      const uploadedUrls = await Promise.all(fileArray.map((file) => uploadSingleFile(file)))
       const newImages = multiple ? [...images, ...uploadedUrls] : uploadedUrls
       setImages(newImages)
-      
-      // Notify parent component
-      if (multiple) {
-        uploadedUrls.forEach(url => onUploadSuccess?.(url))
-      } else {
-        onUploadSuccess?.(uploadedUrls[0])
+
+      const isColorUpload = type.startsWith('color-') || colorName
+      const isMainUpload = type === 'main'
+
+      if (!isColorUpload && !isMainUpload) {
+        if (multiple) {
+          uploadedUrls.forEach((url) => onUploadSuccess?.(url))
+        } else {
+          onUploadSuccess?.(uploadedUrls[0])
+        }
+      } else if (!canUploadImmediately) {
+        uploadedUrls.forEach((url) => onUploadSuccess?.(url))
       }
 
-      setUploadProgress(fileArray.map(file => ({ name: file.name, status: 'success' })))
-      
-      // Clear progress after 2 seconds
+      setUploadProgress(fileArray.map((file) => ({ name: file.name, status: 'success' })))
       setTimeout(() => setUploadProgress([]), 2000)
-      
     } catch (error) {
       console.error('Upload error:', error)
       onUploadError?.(error.message)
-      setUploadProgress(fileArray.map(file => ({ name: file.name, status: 'error' })))
+      setUploadProgress(fileArray.map((file) => ({ name: file.name, status: 'error' })))
     } finally {
       setUploading(false)
     }
   }
 
   const handleRemoveImage = (imageUrl) => {
-    const newImages = images.filter(img => img !== imageUrl)
+    const newImages = images.filter((img) => img !== imageUrl)
     setImages(newImages)
-    
-    // Track for cleanup if it's a temp image
-    if (typeof imageUrl === 'string' && imageUrl.includes('/temp/')) {
-      imageCleanupService.trackTempImage(imageUrl)
+
+    if (isPendingPreview(imageUrl)) {
+      URL.revokeObjectURL(imageUrl)
+      onPendingFileRemove?.(imageUrl, { type, colorName })
     }
-    
+
     onRemoveImage?.(imageUrl)
   }
 
@@ -119,24 +150,26 @@ export default function ImageUpload({
   const handleDrop = (e) => {
     e.preventDefault()
     setDragOver(false)
-    const files = e.dataTransfer.files
-    handleFileSelect(files)
+    handleFileSelect(e.dataTransfer.files)
   }
 
   const handleFileInputChange = (e) => {
     handleFileSelect(e.target.files)
+    e.target.value = ''
   }
 
   const openFileDialog = () => {
     fileInputRef.current?.click()
   }
 
+  const pendingCount = images.filter((img) => isPendingPreview(img)).length
+  const savedCount = images.length - pendingCount
+
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* Existing Images Display */}
       {images.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {images.filter(img => typeof img === 'string').map((imageUrl, index) => (
+          {images.filter((img) => typeof img === 'string').map((imageUrl, index) => (
             <div key={index} className="relative group">
               <img
                 src={imageUrl}
@@ -154,7 +187,7 @@ export default function ImageUpload({
               </button>
               <div className="absolute bottom-2 left-2 right-2">
                 <div className="bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded truncate">
-                  {(typeof imageUrl === 'string' && imageUrl.includes('/temp/')) ? '🟡 Temporary' : '🟢 Saved'}
+                  {isPendingPreview(imageUrl) ? '🟡 Pending upload' : '🟢 Saved'}
                 </div>
               </div>
             </div>
@@ -162,7 +195,6 @@ export default function ImageUpload({
         </div>
       )}
 
-      {/* Upload Area */}
       <div
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
           dragOver
@@ -190,7 +222,9 @@ export default function ImageUpload({
           <div className="space-y-4">
             <FaSpinner className="mx-auto text-4xl text-emerald-600 animate-spin" />
             <div className="space-y-2">
-              <p className="text-gray-600">Uploading images...</p>
+              <p className="text-gray-600">
+                {canUploadImmediately ? 'Uploading images...' : 'Preparing images...'}
+              </p>
               {uploadProgress.map((progress, index) => (
                 <div key={index} className="flex items-center justify-center gap-2 text-sm">
                   {progress.status === 'uploading' && <FaSpinner className="animate-spin text-emerald-600" />}
@@ -219,63 +253,51 @@ export default function ImageUpload({
               <p className="text-sm text-gray-500 mt-2">
                 Supports: JPEG, PNG, WebP, GIF (max 5MB each)
               </p>
+              {!canUploadImmediately && (
+                <p className="text-sm text-amber-600 mt-2">
+                  Images will upload to R2 when you publish the product.
+                </p>
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Image Status Info */}
       {images.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div className="flex items-center gap-2 text-sm">
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-green-700">
-                {images.filter(img => typeof img === 'string' && !img.includes('/temp/')).length} Saved
-              </span>
+              <span className="text-green-700">{savedCount} Saved</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-              <span className="text-yellow-700">
-                {images.filter(img => typeof img === 'string' && img.includes('/temp/')).length} Temporary
-              </span>
+              <span className="text-yellow-700">{pendingCount} Pending</span>
             </div>
           </div>
           <p className="text-xs text-blue-600 mt-1">
-            💡 Temporary images will be automatically deleted if you leave without saving the product.
+            {canUploadImmediately
+              ? 'Uploaded images are stored in Cloudflare R2.'
+              : 'Pending images will be uploaded when you create the product.'}
           </p>
-        </div>
-      )}
-
-      {/* Image URLs Display (for debugging) */}
-      {process.env.NODE_ENV === 'development' && images.length > 0 && (
-        <div className="bg-gray-100 p-3 rounded text-xs">
-          <p className="font-medium mb-2">Debug - Image URLs:</p>
-          {images.map((url, index) => (
-            <div key={index} className="mb-1 break-all">
-              {index + 1}. {typeof url === 'string' ? url : `[Object: ${typeof url}]`}
-            </div>
-          ))}
         </div>
       )}
     </div>
   )
 }
 
-// Preset components for common use cases
 export function MainImageUpload({ 
   vendorId, 
   productId, 
   onUploadSuccess, 
   onUploadError, 
   onRemoveImage,
+  onPendingFileAdd,
+  onPendingFileRemove,
   existingImages = [] 
 }) {
-  // Ensure existingImages is always an array
-  const safeExistingImages = Array.isArray(existingImages) ? existingImages : [];
-  
+  const safeExistingImages = Array.isArray(existingImages) ? existingImages : []
 
-  
   return (
     <ImageUpload
       vendorId={vendorId}
@@ -284,6 +306,8 @@ export function MainImageUpload({
       onUploadSuccess={onUploadSuccess}
       onUploadError={onUploadError}
       onRemoveImage={onRemoveImage}
+      onPendingFileAdd={onPendingFileAdd}
+      onPendingFileRemove={onPendingFileRemove}
       existingImages={safeExistingImages}
       multiple={true}
       className="w-full"
@@ -298,19 +322,25 @@ export function ColorImageUpload({
   onUploadSuccess, 
   onUploadError, 
   onRemoveImage,
+  onPendingFileAdd,
+  onPendingFileRemove,
+  onColorUploadSuccess,
   existingImages = [] 
 }) {
-  // Ensure existingImages is always an array
-  const safeExistingImages = Array.isArray(existingImages) ? existingImages : [];
-  
+  const safeExistingImages = Array.isArray(existingImages) ? existingImages : []
+
   return (
     <ImageUpload
       vendorId={vendorId}
       productId={productId}
       type={`color-${color.toLowerCase().replace(/\s+/g, '-')}`}
+      colorName={color}
       onUploadSuccess={onUploadSuccess}
       onUploadError={onUploadError}
       onRemoveImage={onRemoveImage}
+      onPendingFileAdd={onPendingFileAdd}
+      onPendingFileRemove={onPendingFileRemove}
+      onColorUploadSuccess={onColorUploadSuccess}
       existingImages={safeExistingImages}
       multiple={true}
       className="w-full"

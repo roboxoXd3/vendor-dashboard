@@ -14,6 +14,10 @@ export default function MediaVideosStep({
   handleVideoRemoved,
   addColorImage,
   removeColorImage,
+  onPendingFileAdd,
+  onPendingFileRemove,
+  onPendingVideoAdd,
+  onPendingVideoRemove,
   vendor,
   productId,
   onNext, 
@@ -44,6 +48,8 @@ export default function MediaVideosStep({
           <MainImageUpload
             onUploadSuccess={handleImageUploaded}
             onRemoveImage={handleImageRemoved}
+            onPendingFileAdd={onPendingFileAdd}
+            onPendingFileRemove={onPendingFileRemove}
             existingImages={formData.images}
             vendorId={vendor?.id}
             productId={productId}
@@ -78,9 +84,14 @@ export default function MediaVideosStep({
               <EnhancedColorImageUpload
                 color={colorName}
                 onUploadSuccess={(imageUrl) => addColorImage(colorName, imageUrl)}
+                onColorUploadSuccess={({ colorName: name, imageUrl, colors }) =>
+                  addColorImage(name || colorName, imageUrl, colors)
+                }
                 onRemoveImage={(imageUrl) => removeColorImage(colorName, imageUrl)}
+                onPendingFileAdd={onPendingFileAdd}
+                onPendingFileRemove={onPendingFileRemove}
                 existingImages={formData.color_images[colorName] || []}
-                mainImages={formData.images || []} // Pass main images for selection
+                mainImages={formData.images || []}
                 vendorId={vendor?.id}
                 productId={productId}
               />
@@ -139,6 +150,8 @@ export default function MediaVideosStep({
           <VideoUpload
             onVideoUploaded={handleVideoUploaded}
             onVideoRemoved={handleVideoRemoved}
+            onPendingVideoAdd={onPendingVideoAdd}
+            onPendingVideoRemove={onPendingVideoRemove}
             existingVideoUrl={formData.video_url}
             vendorId={vendor?.id}
             productId={productId}
@@ -159,7 +172,7 @@ export default function MediaVideosStep({
             />
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            Supported: Upload video files (max 5MB) or enter YouTube, Vimeo URLs
+            Supported: Upload video files (max 50MB) or enter YouTube, Vimeo URLs
           </p>
         </div>
       </div>

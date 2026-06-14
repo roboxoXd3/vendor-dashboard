@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { FaArrowLeft, FaMobile } from 'react-icons/fa'
-import { imageCleanupService } from '@/services/imageCleanupService'
 
 // Import step components
 import BasicInformationStep from './steps/BasicInformationStep'
@@ -44,6 +43,13 @@ export default function ProductForm({
     addColorImage,
     removeColorImage,
     updateFormData,
+    addPendingFile,
+    removePendingFile,
+    addPendingVideo,
+    removePendingVideo,
+    getPendingMedia,
+    clearPendingMedia,
+    sanitizeMediaFields,
     // Currency-related
     supportedCurrencies,
     exchangeRates,
@@ -54,7 +60,7 @@ export default function ProductForm({
   } = useProductForm(initialData)
 
   const { categories } = useCategories()
-  const { loading, handleSubmit } = useProductSubmit(vendor)
+  const { loading, uploadingMedia, handleSubmit } = useProductSubmit(vendor)
 
   // Load initial data for edit mode
   useEffect(() => {
@@ -62,25 +68,6 @@ export default function ProductForm({
       updateFormData(initialData)
     }
   }, [initialData, updateFormData])
-
-  // Cleanup temporary images on component unmount or page navigation
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      // Trigger cleanup when user navigates away
-      imageCleanupService.cleanupTempImages()
-    }
-
-    // Add event listener for page unload
-    window.addEventListener('beforeunload', handleBeforeUnload)
-
-    return () => {
-      // Cleanup on component unmount
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-      setTimeout(() => {
-        imageCleanupService.cleanupTempImages()
-      }, 1000)
-    }
-  }, [])
 
   const steps = [
     { number: 1, title: 'Basic Info', description: 'Product name, description, and category' },
@@ -93,7 +80,14 @@ export default function ProductForm({
 
   const onSubmit = async (e) => {
     e.preventDefault()
-    await handleSubmit(formData, productId)
+    await handleSubmit(
+      formData,
+      productId,
+      null,
+      getPendingMedia(),
+      sanitizeMediaFields,
+      clearPendingMedia
+    )
   }
 
   const renderStep = () => {
@@ -135,8 +129,12 @@ export default function ProductForm({
             handleVideoRemoved={handleVideoRemoved}
             addColorImage={addColorImage}
             removeColorImage={removeColorImage}
+            onPendingFileAdd={addPendingFile}
+            onPendingFileRemove={removePendingFile}
+            onPendingVideoAdd={addPendingVideo}
+            onPendingVideoRemove={removePendingVideo}
             vendor={vendor}
-            productId={productId || 'temp'}
+            productId={productId}
           />
         )
       case 5:
@@ -148,6 +146,7 @@ export default function ProductForm({
             categories={categories}
             vendor={vendor}
             loading={loading}
+            uploadingMedia={uploadingMedia}
             onBack={stepProps.onBack}
             isEdit={isEdit}
           />
