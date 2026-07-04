@@ -69,6 +69,10 @@ export const useProductSubmit = (vendor) => {
 
   const createProduct = async (formData, pendingMedia = null, sanitizeMediaFields = null) => {
     try {
+      if (!vendor?.id) {
+        throw new Error('Your vendor profile is still loading. Please wait a moment and try again.')
+      }
+
       setLoading(true)
       setError(null)
 
@@ -147,6 +151,10 @@ export const useProductSubmit = (vendor) => {
 
   const updateProduct = async (productId, formData, pendingMedia = null, sanitizeMediaFields = null) => {
     try {
+      if (!vendor?.id) {
+        throw new Error('Your vendor profile is still loading. Please wait a moment and try again.')
+      }
+
       setLoading(true)
       setError(null)
 

@@ -14,7 +14,13 @@ export default function ProductCard({ product, onUpdate }) {
   const { vendor } = useAuth();
   const deleteProductMutation = useDeleteProduct();
   const { formatProductPrice } = useCurrencyContext();
-  
+
+  // Bail out before touching any product fields (formatProductPrice included)
+  // if product is missing — avoids crashing the whole page over one bad row.
+  if (!product) {
+    return null;
+  }
+
   // Get formatted prices in global currency
   const formattedPrices = formatProductPrice(product);
   const getTagColor = (tag) => {
@@ -176,11 +182,6 @@ export default function ProductCard({ product, onUpdate }) {
 
 
 
-  // Early return if product is not available
-  if (!product) {
-    return null;
-  }
-
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col gap-2 relative">
       <div className="relative">
@@ -206,7 +207,7 @@ export default function ProductCard({ product, onUpdate }) {
               ))}
             </div>
             {hasVideo && (
-              <div className="absolute top-2 left-2">
+              <div className="absolute top-2 right-2">
                 <div className="bg-black bg-opacity-70 text-white px-2 py-1 rounded-full flex items-center gap-1 text-xs">
                   <FaVideo size={10} />
                   <span>Video</span>

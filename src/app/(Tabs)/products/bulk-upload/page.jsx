@@ -81,6 +81,11 @@ export default function BulkUploadPage() {
   const handleUpload = async () => {
     if (!csvData) return
 
+    if (!vendor?.id) {
+      alert('Your vendor profile is still loading. Please wait a moment and try again.')
+      return
+    }
+
     try {
       if (uploadType === 'csv') {
         const results = await uploadProducts(csvData)

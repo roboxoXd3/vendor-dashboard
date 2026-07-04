@@ -1,13 +1,11 @@
 import { isValidUuid } from '@/lib/validators'
 
 /**
- * Product create/update helpers for BeSmart (Django) API.
- *
- * Option B flow (create):
- * 1. POST /api/vendors/own-products/  →  product ID from Django
- * 2. Upsert same ID to Supabase  →  dashboard list
- * 3. Upload images/video via /api/products/{id}/upload-*  →  R2
- * 4. PUT /api/products/{id}  →  save R2 URLs in Supabase
+ * Product create/update helpers for BeSmart (Django) API — Django is the
+ * sole source of truth (no Supabase mirror):
+ * 1. POST /api/vendors/own-products/            →  create, returns product ID
+ * 2. POST /api/vendors/own-products/{id}/upload-*  →  images/video to R2
+ * 3. PATCH /api/vendors/own-products/{id}/       →  partial update
  */
 
 function cleanStringArray(values) {
@@ -146,6 +144,63 @@ export function buildBesmartProductCreatePayload(productData, vendorId, approval
   return payload
 }
 
+const STRING_ARRAY_FIELDS = ['sizes', 'tags', 'box_contents', 'usage_instructions', 'care_instructions', 'safety_notes']
+const JSON_OBJECT_FIELDS = ['color_images', 'dimensions']
+const UUID_OR_NULL_FIELDS = ['category_id', 'subcategory_id', 'size_chart_template_id']
+const NUMERIC_FIELDS = ['price', 'mrp', 'sale_price', 'weight']
+
+function toStringArray(value) {
+  if (Array.isArray(value)) return cleanStringArray(value)
+  if (typeof value === 'string') return cleanStringArray(value.split(','))
+  return []
+}
+
+function toJsonObject(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value)
+      return parsed && typeof parsed === 'object' ? parsed : {}
+    } catch {
+      return {}
+    }
+  }
+  return {}
+}
+
+/**
+ * Build a partial-update payload for PATCH /api/vendors/own-products/{id}/ —
+ * only includes keys actually present in `updates` (true partial update),
+ * with the same per-field type coercion buildBesmartProductCreatePayload uses.
+ */
+export function buildBesmartProductUpdatePayload(updates) {
+  const payload = {}
+
+  for (const [key, value] of Object.entries(updates || {})) {
+    if (key === 'colors') {
+      payload.colors = sanitizeColorsForBesmart(toJsonObject(value))
+    } else if (key === 'images') {
+      payload.images = stringifyJsonField(Array.isArray(value) ? value : value, '[]')
+    } else if (STRING_ARRAY_FIELDS.includes(key)) {
+      payload[key] = toStringArray(value)
+    } else if (JSON_OBJECT_FIELDS.includes(key)) {
+      payload[key] = key === 'dimensions' ? sanitizeDimensions(value) : toJsonObject(value)
+    } else if (key === 'custom_size_chart_data') {
+      payload[key] = value ? stringifyJsonField(value) : null
+    } else if (UUID_OR_NULL_FIELDS.includes(key)) {
+      payload[key] = isValidUuid(value) ? value : null
+    } else if (NUMERIC_FIELDS.includes(key)) {
+      payload[key] = value === '' || value == null ? null : Number(value)
+    } else if (key === 'cod_allowed' || key === 'shipping_required' || key === 'is_featured' || key === 'is_new_arrival') {
+      payload[key] = value === true
+    } else {
+      payload[key] = value
+    }
+  }
+
+  return payload
+}
+
 export function parseProductImages(images) {
   if (!images) return []
   if (Array.isArray(images)) return images
@@ -157,11 +212,32 @@ export function parseProductImages(images) {
   }
 }
 
+const DEFAULT_COLOR_HEX = '#808080'
+
+/** Normalize colors that may still be in a legacy shape (bare hex string, or {quantity} without sizes) */
+function normalizeProductColors(colors) {
+  if (!colors || typeof colors !== 'object' || Array.isArray(colors)) return {}
+  const normalized = {}
+  for (const [name, data] of Object.entries(colors)) {
+    if (typeof data === 'object' && data !== null) {
+      normalized[name] = {
+        hex: data.hex || DEFAULT_COLOR_HEX,
+        sizes: data.sizes || {},
+        ...(data.image_url ? { image_url: data.image_url } : {}),
+      }
+    } else {
+      normalized[name] = { hex: (typeof data === 'string' && data) || DEFAULT_COLOR_HEX, sizes: {} }
+    }
+  }
+  return normalized
+}
+
 export function transformBesmartProduct(product) {
   if (!product) return product
   return {
     ...product,
     images: parseProductImages(product.images),
+    colors: normalizeProductColors(product.colors),
     price: product.price != null ? Number(product.price) : product.price,
     sale_price: product.sale_price != null ? Number(product.sale_price) : product.sale_price,
   }

@@ -1,58 +1,20 @@
-import { getSupabaseServer } from '@/lib/supabase-server'
+import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
 import { countUploadedDocs, getOverallKycStatus, updateAllDocStatuses, KYC_STATUS } from '@/lib/kycUtils'
 
 // GET KYC documents and status
-export async function GET(request) {
+export async function GET() {
   try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const sessionToken = cookieStore.get('vendor_session_token')?.value
-    const supabase = getSupabaseServer()
-
-    if (!sessionToken) {
-      return Response.json({ 
-        error: 'Authentication required - please login first' 
-      }, { status: 401 })
+    const { response, error, status } = await besmartRequest('/api/vendors/profile/')
+    if (error) {
+      return Response.json({ error }, { status })
     }
-
-    // Find active session in database
-    const { data: sessionData, error: sessionError } = await supabase
-      .from('vendor_sessions')
-      .select('*')
-      .eq('session_token', sessionToken)
-      .eq('is_active', true)
-      .single()
-
-    if (sessionError || !sessionData) {
-      return Response.json({ 
-        error: 'Invalid or expired session' 
-      }, { status: 401 })
+    if (!response.ok) {
+      const message = await parseBesmartError(response)
+      return Response.json({ error: 'Failed to fetch KYC information', details: message }, { status: response.status })
     }
+    const vendor = await response.json()
 
-    // Check if session is expired
-    if (new Date(sessionData.expires_at) < new Date()) {
-      return Response.json({ 
-        error: 'Session expired - please login again' 
-      }, { status: 401 })
-    }
-
-    const userId = sessionData.user_id
-
-    // Fetch vendor KYC information
-    const { data: vendor, error: vendorError } = await supabase
-      .from('vendors')
-      .select('verification_documents, business_registration_number, tax_id, business_type')
-      .eq('user_id', userId)
-      .single()
-
-    if (vendorError) {
-      console.error('❌ Error fetching vendor KYC info:', vendorError)
-      return Response.json({ 
-        error: 'Failed to fetch KYC information' 
-      }, { status: 500 })
-    }
-
-    return Response.json({ 
+    return Response.json({
       success: true,
       kyc: {
         documents: vendor.verification_documents || {},
@@ -66,8 +28,8 @@ export async function GET(request) {
 
   } catch (error) {
     console.error('❌ KYC GET error:', error)
-    return Response.json({ 
-      error: 'Internal server error' 
+    return Response.json({
+      error: 'Internal server error'
     }, { status: 500 })
   }
 }
@@ -76,100 +38,56 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const sessionToken = cookieStore.get('vendor_session_token')?.value
-    const supabase = getSupabaseServer()
 
-    console.log('🔄 Submitting KYC documents...')
-
-    if (!sessionToken) {
-      return Response.json({ 
-        error: 'Authentication required - please login first' 
-      }, { status: 401 })
+    const current = await besmartRequest('/api/vendors/profile/')
+    if (current.error) {
+      return Response.json({ error: current.error }, { status: current.status })
     }
-
-    // Find active session in database
-    const { data: sessionData, error: sessionError } = await supabase
-      .from('vendor_sessions')
-      .select('*')
-      .eq('session_token', sessionToken)
-      .eq('is_active', true)
-      .single()
-
-    if (sessionError || !sessionData) {
-      return Response.json({ 
-        error: 'Invalid or expired session' 
-      }, { status: 401 })
+    if (!current.response.ok) {
+      const message = await parseBesmartError(current.response)
+      return Response.json({ error: 'Failed to submit KYC documents', details: message }, { status: current.response.status })
     }
+    const currentVendor = await current.response.json()
 
-    // Check if session is expired
-    if (new Date(sessionData.expires_at) < new Date()) {
-      return Response.json({ 
-        error: 'Session expired - please login again' 
-      }, { status: 401 })
-    }
-
-    const userId = sessionData.user_id
-
-    console.log('💾 Updating vendor KYC status to under_review')
-
-    // Fetch current verification_documents
-    const { data: currentVendor } = await supabase
-      .from('vendors')
-      .select('verification_documents')
-      .eq('user_id', userId)
-      .single()
-
-    // Update all document statuses to under_review
     let verificationDocs = updateAllDocStatuses(
       currentVendor?.verification_documents || {},
       KYC_STATUS.UNDER_REVIEW
     )
-
-    // Add submission timestamp
     verificationDocs.submitted_at = new Date().toISOString()
     verificationDocs.status = KYC_STATUS.UNDER_REVIEW
 
-    // Prepare KYC data
-    const kycData = {
-      business_registration_number: body.businessRegistrationNumber || null,
-      tax_id: body.taxId || null,
-      business_type: body.businessType || null,
-      verification_documents: verificationDocs,
-      updated_at: new Date().toISOString()
+    const { response, error, status } = await besmartRequest('/api/vendors/profile/', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        business_registration_number: body.businessRegistrationNumber || null,
+        tax_id: body.taxId || null,
+        business_type: body.businessType || null,
+        verification_documents: verificationDocs,
+      }),
+    })
+
+    if (error) {
+      return Response.json({ error }, { status })
     }
-
-    // Update vendor KYC information
-    const { data: updatedVendor, error: updateError } = await supabase
-      .from('vendors')
-      .update(kycData)
-      .eq('user_id', userId)
-      .select('*')
-      .single()
-
-    if (updateError) {
-      console.error('❌ Error updating KYC information:', updateError)
-      return Response.json({ 
-        error: 'Failed to submit KYC documents' 
-      }, { status: 500 })
+    if (!response.ok) {
+      const message = await parseBesmartError(response)
+      return Response.json({ error: 'Failed to submit KYC documents', details: message }, { status: response.status })
     }
-
-    console.log('✅ KYC documents submitted successfully')
 
     return Response.json({
       success: true,
       message: 'KYC documents submitted successfully for review',
       kyc: {
         status: 'under_review',
-        submitted_at: kycData.verification_documents.submitted_at
+        submitted_at: verificationDocs.submitted_at
       }
     })
 
   } catch (error) {
     console.error('❌ KYC submission error:', error)
-    return Response.json({ 
-      error: 'Internal server error' 
+    return Response.json({
+      error: 'Internal server error'
     }, { status: 500 })
   }
 }

@@ -117,6 +117,11 @@ export default function SizeChartsPage() {
   }
 
   const handleSave = async (formData, pendingImageFile = null) => {
+    if (!vendor?.id) {
+      alert('Your vendor profile is still loading. Please wait a moment and try again.')
+      return
+    }
+
     try {
       setSaving(true)
       const url = selectedChart?.id ? `/api/size-charts/${selectedChart.id}` : '/api/size-charts'

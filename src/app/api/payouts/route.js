@@ -1,125 +1,52 @@
-import { getSupabaseServer } from '@/lib/supabase-server'
+import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
+import { fetchAllVendorOrders } from '@/lib/besmart-orders-api'
 
 // GET /api/payouts - Fetch vendor payout data
-export async function GET(request) {
+export async function GET() {
   try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const sessionToken = cookieStore.get('vendor_session_token')?.value
-    const supabase = getSupabaseServer()
-
-    console.log('💰 Fetching vendor payout data...')
-    
-    if (!sessionToken) {
-      console.log('❌ No session token found')
-      return Response.json({ 
-        error: 'Authentication required - please login first' 
-      }, { status: 401 })
+    const { response, error, status } = await besmartRequest('/api/vendors/payouts/summary/')
+    if (error) {
+      return Response.json({ error }, { status })
     }
-
-    // Find active session in database
-    const { data: sessionData, error: sessionError } = await supabase
-      .from('vendor_sessions')
-      .select('*')
-      .eq('session_token', sessionToken)
-      .eq('is_active', true)
-      .gt('expires_at', new Date().toISOString())
-      .single()
-    
-    if (sessionError || !sessionData) {
-      console.log('❌ Invalid or expired session')
-      return Response.json({ 
-        error: 'Invalid or expired session' 
-      }, { status: 401 })
+    if (!response.ok) {
+      const message = await parseBesmartError(response)
+      return Response.json({ error: message }, { status: response.status })
     }
+    const summary = await response.json()
 
-    // Get user ID from session
-    const userId = sessionData.user_id
-    console.log('✅ Valid session found for user:', userId)
-
-    // Get vendor data
-    const { data: vendor, error: vendorError } = await supabase
-      .from('vendors')
-      .select('id, total_earnings, pending_payouts, total_paid_out, created_at')
-      .eq('user_id', userId)
-      .single()
-
-    if (vendorError || !vendor) {
-      console.log('❌ Vendor not found')
-      return Response.json({ 
-        error: 'Vendor not found' 
-      }, { status: 404 })
-    }
-
-    // Calculate available balance (total earnings - pending payouts - total paid out)
-    const totalEarnings = parseFloat(vendor.total_earnings || 0)
-    const pendingPayouts = parseFloat(vendor.pending_payouts || 0)
-    const totalPaidOut = parseFloat(vendor.total_paid_out || 0)
-    const availableBalance = totalEarnings - pendingPayouts - totalPaidOut
-
-    // Get current month and last month earnings
     const now = new Date()
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
 
-    // Get orders for this vendor to calculate monthly earnings
-    const { data: orders, error: ordersError } = await supabase
-      .from('orders')
-      .select(`
-        total,
-        created_at,
-        order_items!inner(
-          products!inner(
-            vendor_id,
-            currency
-          )
-        )
-      `)
-      .eq('order_items.products.vendor_id', vendor.id)
-      .eq('payment_status', 'completed')
-
     let thisMonthEarnings = 0
     let lastMonthEarnings = 0
-    let mostCommonCurrency = 'USD' // Default fallback
 
-    if (orders && !ordersError) {
-      // Track currencies to determine the most common one
-      const currencyCount = {}
-      
-      orders.forEach(order => {
-        const orderDate = new Date(order.created_at)
-        const orderTotal = parseFloat(order.total || 0)
-        
-        // Get currency from first product in order
-        const currency = order.order_items?.[0]?.products?.currency || 'USD'
-        currencyCount[currency] = (currencyCount[currency] || 0) + 1
-        
-        if (orderDate >= currentMonthStart) {
-          thisMonthEarnings += orderTotal
-        } else if (orderDate >= lastMonthStart && orderDate <= lastMonthEnd) {
-          lastMonthEarnings += orderTotal
-        }
-      })
-      
-      // Find most common currency
-      if (Object.keys(currencyCount).length > 0) {
-        mostCommonCurrency = Object.keys(currencyCount).reduce((a, b) => 
-          currencyCount[a] > currencyCount[b] ? a : b
-        )
-      }
+    try {
+      const orders = await fetchAllVendorOrders()
+      orders
+        .filter((o) => o.payment_status === 'completed')
+        .forEach((order) => {
+          const orderDate = new Date(order.created_at)
+          const orderTotal = parseFloat(order.total || 0)
+          if (orderDate >= currentMonthStart) {
+            thisMonthEarnings += orderTotal
+          } else if (orderDate >= lastMonthStart && orderDate <= lastMonthEnd) {
+            lastMonthEarnings += orderTotal
+          }
+        })
+    } catch {
+      // Non-critical — payout summary still returns without the monthly breakdown
     }
 
     const payoutData = {
-      availableBalance: availableBalance.toFixed(2),
-      pendingBalance: pendingPayouts.toFixed(2),
-      lifetimeEarnings: totalEarnings.toFixed(2),
+      availableBalance: Number(summary.availableBalance || 0).toFixed(2),
+      pendingBalance: Number(summary.pendingBalance || 0).toFixed(2),
+      lifetimeEarnings: Number(summary.lifetimeEarnings || 0).toFixed(2),
       thisMonthEarnings: thisMonthEarnings.toFixed(2),
       lastMonthEarnings: lastMonthEarnings.toFixed(2),
-      currency: mostCommonCurrency
+      currency: summary.currency || 'NGN'
     }
-
-    console.log('✅ Payout data calculated:', payoutData)
 
     return Response.json({
       success: true,
@@ -128,8 +55,8 @@ export async function GET(request) {
 
   } catch (error) {
     console.error('❌ Payout API error:', error)
-    return Response.json({ 
-      error: 'Internal server error' 
+    return Response.json({
+      error: 'Internal server error'
     }, { status: 500 })
   }
 }

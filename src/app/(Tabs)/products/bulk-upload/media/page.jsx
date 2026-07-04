@@ -55,6 +55,11 @@ export default function BulkMediaUploadPage() {
   const handleImageUpload = async (productId, files) => {
     if (!files || files.length === 0) return
 
+    if (!vendor?.id) {
+      alert('Your vendor profile is still loading. Please wait a moment and try again.')
+      return
+    }
+
     setUploadingProducts(prev => new Set([...prev, productId]))
 
     try {
@@ -85,6 +90,11 @@ export default function BulkMediaUploadPage() {
   }
 
   const handleVideoUpload = async (productId, file) => {
+    if (!vendor?.id) {
+      alert('Your vendor profile is still loading. Please wait a moment and try again.')
+      return
+    }
+
     setUploadingProducts(prev => new Set([...prev, productId]))
 
     try {

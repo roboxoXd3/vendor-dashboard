@@ -1,185 +1,106 @@
-import { getSupabaseServer } from '@/lib/supabase-server'
+import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
 import { KYC_STATUS } from '@/lib/kycUtils'
 
 // POST /api/storage/kyc-upload
 // Handles KYC document uploads (ID proof, business license, address proof)
+//
+// Note: Django's own /api/vendors/kyc/upload/ stores verification_documents
+// as a flat array of {name, url, uploaded_at} — incompatible with the
+// object-keyed-by-document-type shape this dashboard's KYC UI expects
+// (see kycUtils.js). We use it purely to get the file stored (R2), then
+// immediately overwrite verification_documents back into the correct shape
+// via the profile endpoint. See docs/BACKEND_ACTION_ITEMS.
 export async function POST(request) {
   try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-
-    // Validate vendor session from cookie
-    const sessionToken = cookieStore.get('vendor_session_token')?.value
-    const supabase = getSupabaseServer()
-
-    if (!sessionToken) {
-      return Response.json({ success: false, error: 'Authentication required' }, { status: 401 })
-    }
-
-    // Validate database-backed session
-    const { data: sessionData } = await supabase
-      .from('vendor_sessions')
-      .select('*')
-      .eq('session_token', sessionToken)
-      .eq('is_active', true)
-      .gt('expires_at', new Date().toISOString())
-      .single()
-
-    if (!sessionData) {
-      return Response.json({ success: false, error: 'Invalid session' }, { status: 401 })
-    }
-
-    const userId = sessionData.user_id
-
-    // Get vendor ID
-    const { data: vendor } = await supabase
-      .from('vendors')
-      .select('id')
-      .eq('user_id', userId)
-      .single()
-
-    if (!vendor) {
-      return Response.json({ success: false, error: 'Vendor not found' }, { status: 404 })
-    }
-
-    const vendorId = vendor.id
-
-    // Parse multipart form data
     const form = await request.formData()
     const file = form.get('file')
-    const documentType = form.get('documentType') // 'id_proof', 'business_license', 'address_proof'
+    const documentType = form.get('documentType')
 
     if (!file || typeof file === 'string') {
       return Response.json({ success: false, error: 'No file provided' }, { status: 400 })
     }
-
     if (!documentType) {
       return Response.json({ success: false, error: 'Document type is required' }, { status: 400 })
     }
 
-    // Validate document type
     const allowedDocTypes = ['id_proof', 'business_license', 'address_proof']
     if (!allowedDocTypes.includes(documentType)) {
       return Response.json({ success: false, error: 'Invalid document type' }, { status: 400 })
     }
 
-    // Validate file type (documents only)
-    const allowedFileTypes = [
-      'application/pdf',
-      'image/jpeg', 
-      'image/jpg', 
-      'image/png',
-      'image/webp'
-    ]
-    
+    const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp']
     if (!allowedFileTypes.includes(file.type)) {
-      return Response.json({ 
-        success: false, 
-        error: 'Invalid file type. Please upload PDF, JPEG, PNG, or WebP files only.' 
+      return Response.json({
+        success: false,
+        error: 'Invalid file type. Please upload PDF, JPEG, PNG, or WebP files only.'
       }, { status: 400 })
     }
 
-    // Check file size (max 10MB for documents)
-    const maxFileSize = 10 * 1024 * 1024 // 10MB
+    const maxFileSize = 10 * 1024 * 1024
     if (file.size > maxFileSize) {
-      return Response.json({ 
-        success: false, 
-        error: 'File size too large. Please upload files smaller than 10MB.' 
+      return Response.json({
+        success: false,
+        error: 'File size too large. Please upload files smaller than 10MB.'
       }, { status: 400 })
     }
 
-    // Generate unique filename
-    const timestamp = Date.now()
-    const randomString = Math.random().toString(36).substring(2, 15)
-    const fileExtension = file.name.split('.').pop().toLowerCase()
-    const fileName = `${documentType}_${timestamp}_${randomString}.${fileExtension}`
+    // Snapshot the current (correctly-shaped) verification_documents before
+    // Django's upload endpoint mutates it into its own array format.
+    const current = await besmartRequest('/api/vendors/profile/')
+    const currentVendor = !current.error && current.response.ok ? await current.response.json() : null
+    const verificationDocs =
+      currentVendor?.verification_documents && !Array.isArray(currentVendor.verification_documents)
+        ? currentVendor.verification_documents
+        : {}
 
-    // Create storage path for KYC documents
-    const storagePath = `vendors/${vendorId}/kyc/${fileName}`
+    const outbound = new FormData()
+    outbound.append('document', file)
 
-    console.log('📤 Uploading KYC document:', {
-      documentType,
-      fileName,
-      storagePath,
-      fileSize: file.size,
-      fileType: file.type
+    const { response, error, status } = await besmartRequest('/api/vendors/kyc/upload/', {
+      method: 'POST',
+      body: outbound,
     })
 
-    // Upload to 'documents' bucket (create if doesn't exist)
-    const { error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(storagePath, file, {
-        contentType: file.type,
-        cacheControl: '3600',
-        upsert: false
-      })
-
-    if (uploadError) {
-      console.error('❌ Upload error:', uploadError)
-      return Response.json({ success: false, error: uploadError.message }, { status: 400 })
+    if (error) {
+      return Response.json({ success: false, error }, { status })
+    }
+    if (!response.ok) {
+      const message = await parseBesmartError(response)
+      return Response.json({ success: false, error: message }, { status: response.status })
     }
 
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('documents')
-      .getPublicUrl(storagePath)
+    const uploadResult = await response.json()
+    const uploadedUrl = Array.isArray(uploadResult.documents)
+      ? uploadResult.documents[uploadResult.documents.length - 1]?.url
+      : null
 
-    console.log('✅ KYC document uploaded to storage:', publicUrl)
-
-    // Save to database immediately with draft status
-    try {
-      // Fetch current verification_documents
-      const { data: currentVendor } = await supabase
-        .from('vendors')
-        .select('verification_documents')
-        .eq('user_id', userId)
-        .single()
-
-      let verificationDocs = currentVendor?.verification_documents || {}
-
-      // Delete old file from storage if replacing existing document
-      if (verificationDocs[documentType]?.path) {
-        const oldPath = verificationDocs[documentType].path
-        await supabase.storage
-          .from('documents')
-          .remove([oldPath])
-        console.log(`🗑️ Replaced old ${documentType}:`, oldPath)
-      }
-
-      // Update verification_documents with new upload
-      verificationDocs[documentType] = {
-        url: publicUrl,
-        path: storagePath,
-        type: file.type,
-        status: KYC_STATUS.DRAFT,
-        uploaded_at: new Date().toISOString()
-      }
-
-      // Save to database
-      const { error: updateError } = await supabase
-        .from('vendors')
-        .update({ 
-          verification_documents: verificationDocs,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-
-      if (updateError) {
-        console.error('⚠️ Failed to save document to database:', updateError)
-        // Don't fail the request, file is already uploaded to storage
-      } else {
-        console.log('✅ Document saved to database with draft status')
-      }
-    } catch (dbError) {
-      console.error('⚠️ Database save error:', dbError)
-      // Continue - file is uploaded to storage successfully
+    if (!uploadedUrl) {
+      return Response.json({ success: false, error: 'Upload succeeded but no file URL was returned' }, { status: 502 })
     }
 
-    return Response.json({ 
-      success: true, 
-      url: publicUrl, 
-      path: storagePath,
-      documentType: documentType
+    verificationDocs[documentType] = {
+      url: uploadedUrl,
+      type: file.type,
+      status: KYC_STATUS.DRAFT,
+      uploaded_at: new Date().toISOString()
+    }
+
+    const { response: patchResponse } = await besmartRequest('/api/vendors/profile/', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verification_documents: verificationDocs }),
+    })
+
+    if (!patchResponse?.ok) {
+      // File is uploaded; only the tracking record failed to normalize. Not
+      // fatal for this request, but worth surfacing loudly if it happens.
+      console.error('⚠️ Failed to normalize verification_documents shape after KYC upload')
+    }
+
+    return Response.json({
+      success: true,
+      url: uploadedUrl,
+      documentType
     })
 
   } catch (error) {

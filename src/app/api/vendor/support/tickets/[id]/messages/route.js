@@ -1,98 +1,51 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { getSupabaseServer } from '@/lib/supabase-server'
+import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
 
-// Helper function to get vendor from session
-async function getVendorFromSession() {
-  try {
-    const cookieStore = cookies()
-    const sessionToken = cookieStore.get('vendor_session_token')?.value
-    
-    if (!sessionToken) {
-      return { error: 'No session token found', status: 401 }
-    }
+function formatMessageTime(dateString) {
+  const date = new Date(dateString)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
 
-    const supabase = getSupabaseServer()
+  const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
-    // Get vendor session
-    const { data: session, error: sessionError } = await supabase
-      .from('vendor_sessions')
-      .select('vendor_id, user_id')
-      .eq('session_token', sessionToken)
-      .eq('is_active', true)
-      .gt('expires_at', new Date().toISOString())
-      .single()
-
-    if (sessionError || !session) {
-      return { error: 'Invalid or expired session', status: 401 }
-    }
-
-    // Get vendor data separately
-    const { data: vendor, error: vendorError } = await supabase
-      .from('vendors')
-      .select('id, business_name, status')
-      .eq('id', session.vendor_id)
-      .single()
-
-    if (vendorError || !vendor) {
-      return { error: 'Vendor not found', status: 401 }
-    }
-
-    return { vendor, user_id: session.user_id }
-  } catch (error) {
-    console.error('Error getting vendor from session:', error)
-    return { error: 'Session validation failed', status: 500 }
-  }
+  if (messageDate.getTime() === today.getTime()) return `Today, ${timeString}`
+  if (messageDate.getTime() === today.getTime() - 24 * 60 * 60 * 1000) return `Yesterday, ${timeString}`
+  return date.toLocaleDateString() + ', ' + timeString
 }
 
-// GET - Get messages for a specific ticket
+// GET - Get a ticket + its messages
 export async function GET(request, { params }) {
   try {
-    const { vendor, user_id, error, status } = await getVendorFromSession()
-    
-    if (error) {
-      return NextResponse.json({ error }, { status })
+    const { id } = await params
+
+    const ticketRes = await besmartRequest(`/api/support/tickets/${id}/`)
+    if (ticketRes.error) {
+      return NextResponse.json({ error: ticketRes.error }, { status: ticketRes.status })
     }
-
-    const ticketId = params.id
-    const supabase = getSupabaseServer()
-
-    // First verify the ticket belongs to this vendor
-    const { data: ticket, error: ticketError } = await supabase
-      .from('support_tickets')
-      .select('id, subject, status, priority, category, created_at, last_updated')
-      .eq('id', ticketId)
-      .eq('vendor_id', vendor.id)
-      .single()
-
-    if (ticketError || !ticket) {
-      return NextResponse.json({ 
-        error: 'Ticket not found or access denied' 
-      }, { status: 404 })
+    if (!ticketRes.response.ok) {
+      const message = await parseBesmartError(ticketRes.response)
+      return NextResponse.json(
+        { error: ticketRes.response.status === 404 ? 'Ticket not found or access denied' : message },
+        { status: ticketRes.response.status }
+      )
     }
+    const ticket = await ticketRes.response.json()
 
-    // Get messages for this ticket
-    const { data: messages, error: messagesError } = await supabase
-      .from('support_messages')
-      .select(`
-        id,
-        sender_id,
-        sender_role,
-        message_content,
-        created_at
-      `)
-      .eq('ticket_id', ticketId)
-      .order('created_at', { ascending: true })
-
-    if (messagesError) {
-      console.error('Error fetching messages:', messagesError)
-      return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 })
+    const messagesRes = await besmartRequest(`/api/support/tickets/${id}/messages/`)
+    if (messagesRes.error) {
+      return NextResponse.json({ error: messagesRes.error }, { status: messagesRes.status })
     }
+    if (!messagesRes.response.ok) {
+      const message = await parseBesmartError(messagesRes.response)
+      return NextResponse.json({ error: message }, { status: messagesRes.response.status })
+    }
+    const messagesData = await messagesRes.response.json()
+    const messages = messagesData.results || messagesData || []
 
-    // Format messages
-    const formattedMessages = messages.map(msg => ({
+    const formattedMessages = messages.map((msg) => ({
       id: msg.id,
-      from: msg.sender_role, // 'vendor' or 'admin'
+      from: msg.sender_role,
       text: msg.message_content,
       time: formatMessageTime(msg.created_at),
       timestamp: msg.created_at
@@ -118,121 +71,67 @@ export async function GET(request, { params }) {
 }
 
 // POST - Send new message to ticket
+//
+// Note: the old Supabase-direct version also flipped the ticket's status
+// from 'open' to 'in_progress' when a vendor replied. Django marks `status`
+// read-only for vendors (matches its ownership/permission model), so that
+// side effect isn't carried over here. See docs/BACKEND_ACTION_ITEMS.
 export async function POST(request, { params }) {
   try {
-    const { vendor, user_id, error, status } = await getVendorFromSession()
-    
-    if (error) {
-      return NextResponse.json({ error }, { status })
-    }
-
-    const ticketId = params.id
+    const { id } = await params
     const body = await request.json()
     const { message } = body
 
-    // Validate message
     if (!message || !message.trim()) {
-      return NextResponse.json({ 
-        error: 'Message content is required' 
-      }, { status: 400 })
+      return NextResponse.json({ error: 'Message content is required' }, { status: 400 })
     }
 
-    const supabase = getSupabaseServer()
-
-    // Verify the ticket belongs to this vendor and is not closed
-    const { data: ticket, error: ticketError } = await supabase
-      .from('support_tickets')
-      .select('id, status')
-      .eq('id', ticketId)
-      .eq('vendor_id', vendor.id)
-      .single()
-
-    if (ticketError || !ticket) {
-      return NextResponse.json({ 
-        error: 'Ticket not found or access denied' 
-      }, { status: 404 })
+    const ticketRes = await besmartRequest(`/api/support/tickets/${id}/`)
+    if (ticketRes.error) {
+      return NextResponse.json({ error: ticketRes.error }, { status: ticketRes.status })
     }
+    if (!ticketRes.response.ok) {
+      const errMessage = await parseBesmartError(ticketRes.response)
+      return NextResponse.json(
+        { error: ticketRes.response.status === 404 ? 'Ticket not found or access denied' : errMessage },
+        { status: ticketRes.response.status }
+      )
+    }
+    const ticket = await ticketRes.response.json()
 
     if (ticket.status === 'closed') {
-      return NextResponse.json({ 
-        error: 'Cannot send messages to closed tickets' 
-      }, { status: 400 })
+      return NextResponse.json({ error: 'Cannot send messages to closed tickets' }, { status: 400 })
     }
 
-    // Create the message
-    const { data: newMessage, error: messageError } = await supabase
-      .from('support_messages')
-      .insert({
-        ticket_id: ticketId,
-        sender_id: user_id,
-        sender_role: 'vendor',
-        message_content: message.trim()
-      })
-      .select()
-      .single()
+    const { response, error, status } = await besmartRequest(`/api/support/tickets/${id}/messages/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message_content: message.trim(), sender_role: 'vendor' }),
+    })
 
-    if (messageError) {
-      console.error('Error creating message:', messageError)
-      return NextResponse.json({ error: 'Failed to send message' }, { status: 500 })
+    if (error) {
+      return NextResponse.json({ error }, { status })
+    }
+    if (!response.ok) {
+      const errMessage = await parseBesmartError(response)
+      return NextResponse.json({ error: errMessage || 'Failed to send message' }, { status: response.status })
     }
 
-    // Update ticket's last_updated timestamp and status to in_progress if it was open
-    const updateData = { 
-      last_updated: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-    
-    if (ticket.status === 'open') {
-      updateData.status = 'in_progress'
-    }
-
-    const { error: updateError } = await supabase
-      .from('support_tickets')
-      .update(updateData)
-      .eq('id', ticketId)
-
-    if (updateError) {
-      console.error('Error updating ticket timestamp:', updateError)
-      // Don't fail the request if timestamp update fails
-    }
-
-    // Format and return the new message
-    const formattedMessage = {
-      id: newMessage.id,
-      from: 'vendor',
-      text: newMessage.message_content,
-      time: formatMessageTime(newMessage.created_at),
-      timestamp: newMessage.created_at
-    }
+    const newMessage = await response.json()
 
     return NextResponse.json({
       success: true,
-      message: formattedMessage
+      message: {
+        id: newMessage.id,
+        from: 'vendor',
+        text: newMessage.message_content,
+        time: formatMessageTime(newMessage.created_at),
+        timestamp: newMessage.created_at
+      }
     }, { status: 201 })
 
   } catch (error) {
     console.error('Error in POST /api/vendor/support/tickets/[id]/messages:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-}
-
-// Helper function to format message time
-function formatMessageTime(dateString) {
-  const date = new Date(dateString)
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-  
-  const timeString = date.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-  
-  if (messageDate.getTime() === today.getTime()) {
-    return `Today, ${timeString}`
-  } else if (messageDate.getTime() === today.getTime() - 24 * 60 * 60 * 1000) {
-    return `Yesterday, ${timeString}`
-  } else {
-    return date.toLocaleDateString() + ', ' + timeString
   }
 }

@@ -168,6 +168,9 @@ export const CurrencyProvider = ({ children }) => {
 
   // Format price for product listing (always in global currency)
   const formatProductPrice = useCallback((product) => {
+    if (!product) {
+      return { price: formatPrice(0, 'USD'), mrp: null, salePrice: null }
+    }
     const productCurrency = product.currency || 'USD'
     return {
       price: formatPrice(product.price || 0, productCurrency),

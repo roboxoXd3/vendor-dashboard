@@ -1,274 +1,112 @@
-import { getSupabaseServer } from '@/lib/supabase-server'
-import { normalizeColorEntry } from '@/lib/product-colors'
 import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
-import { buildBesmartProductCreatePayload, transformBesmartProduct, parseProductImages } from '@/lib/besmart-product-api'
+import { buildBesmartProductCreatePayload, transformBesmartProduct } from '@/lib/besmart-product-api'
 
-// Helper function to get default hex colors for common color names
-function getDefaultColorHex(colorName) {
-  const colorMap = {
-    'black': '#000000',
-    'white': '#FFFFFF',
-    'red': '#FF0000',
-    'green': '#008000',
-    'blue': '#0000FF',
-    'yellow': '#FFFF00',
-    'orange': '#FFA500',
-    'purple': '#800080',
-    'pink': '#FFC0CB',
-    'brown': '#A52A2A',
-    'gray': '#808080',
-    'grey': '#808080',
-    'silver': '#C0C0C0',
-    'gold': '#FFD700',
-    'navy': '#000080',
-    'maroon': '#800000',
-    'teal': '#008080',
-    'lime': '#00FF00',
-    'cyan': '#00FFFF',
-    'magenta': '#FF00FF'
-  }
-  
-  const normalizedName = colorName.toLowerCase().trim()
-  return colorMap[normalizedName] || '#808080' // Default to gray if not found
-}
+// Safety cap on pages fetched from Django when assembling the full catalog
+// for client-side search/filter/sort. Django's own-products list has no
+// filterset_fields/search_fields and a fixed page size (20, not overridable),
+// so there's no way to ask it for filtered/sorted results directly — see
+// docs/BACKEND_ACTION_ITEMS for the follow-up needed to remove this.
+const MAX_PAGES = 50
 
-function parseBesmartProductColors(colors, getDefaultColorHexFn) {
-  if (!colors) return {}
-  if (typeof colors === 'string') {
-    try {
-      colors = JSON.parse(colors)
-    } catch {
-      return {}
+async function fetchAllOwnProducts() {
+  const all = []
+  let path = '/api/vendors/own-products/'
+
+  for (let i = 0; i < MAX_PAGES && path; i++) {
+    const { response, error, status } = await besmartRequest(path)
+    if (error) {
+      const err = new Error(error)
+      err.status = status
+      throw err
     }
-  }
-  if (typeof colors !== 'object' || Array.isArray(colors)) return {}
-
-  const processed = {}
-  Object.entries(colors).forEach(([colorName, colorData]) => {
-    if (typeof colorData === 'object' && colorData !== null) {
-      processed[colorName] = {
-        hex: colorData.hex || getDefaultColorHexFn(colorName),
-        sizes: colorData.sizes || {},
-        ...(colorData.image_url ? { image_url: colorData.image_url } : {}),
-      }
-    } else {
-      processed[colorName] = { hex: colorData, sizes: {} }
+    if (!response.ok) {
+      const message = await parseBesmartError(response)
+      const err = new Error(message)
+      err.status = response.status
+      throw err
     }
-  })
-  return processed
-}
 
-function parseBesmartProductImages(images) {
-  return parseProductImages(images)
-}
+    const data = await response.json()
+    all.push(...(data.results || []))
 
-function formatSupabaseProductRow(data) {
-  const images = parseProductImages(data.images)
-  const colors = {}
-  if (data.colors && typeof data.colors === 'object' && !Array.isArray(data.colors)) {
-    Object.entries(data.colors).forEach(([colorName, colorData]) => {
-      if (typeof colorData === 'object' && colorData !== null) {
-        colors[colorName] = normalizeColorEntry(colorName, colorData, getDefaultColorHex)
-      } else {
-        colors[colorName] = { hex: colorData, sizes: {} }
-      }
-    })
+    // Django returns a full absolute URL in `next` — reduce to path+query
+    // since besmartRequest expects a path relative to the BeSmart base URL.
+    path = data.next ? data.next.replace(/^https?:\/\/[^/]+/, '') : null
   }
-  return transformBesmartProduct({ ...data, images, colors })
+
+  return all
 }
 
-// GET /api/products - List vendor products with filters and pagination
+// GET /api/products - List vendor products with filters, search, sort, pagination
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
-    const vendorId = searchParams.get('vendorId')
     const page = parseInt(searchParams.get('page')) || 1
     const limit = parseInt(searchParams.get('limit')) || 20
-    const search = searchParams.get('search') || ''
+    const search = (searchParams.get('search') || '').trim().toLowerCase()
     const category = searchParams.get('category') || ''
     const status = searchParams.get('status') || ''
     const sortBy = searchParams.get('sortBy') || 'created_at'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
 
-    if (!vendorId) {
-      return Response.json({ 
-        error: 'Vendor ID is required' 
-      }, { status: 400 })
+    let products
+    try {
+      products = await fetchAllOwnProducts()
+    } catch (err) {
+      return Response.json({ success: false, error: err.message }, { status: err.status || 500 })
     }
 
-    console.log('📦 Fetching products for vendor:', vendorId, 'with filters:', { search, category, status, sortBy, sortOrder })
-    
-    const supabase = getSupabaseServer()
-    
-    // Debug: Check current role and auth context
-    console.log('🔍 Debug: Checking Supabase client configuration...')
-    
-    // First check if vendor exists
-    const { data: vendorCheck, error: vendorCheckError } = await supabase
-      .from('vendors')
-      .select('id, business_name, status, is_active')
-      .eq('id', vendorId)
-      .single()
-    
-    console.log('👤 Vendor check result:', vendorCheck)
-    console.log('👤 Vendor check error:', vendorCheckError)
-    
-    let query = supabase
-      .from('products')
-      .select(`
-        *,
-        categories(name)
-      `, { count: 'exact' })
-      .eq('vendor_id', vendorId)
-    
-    console.log('🔍 Base query created for vendor_id:', vendorId)
+    products = products.map(transformBesmartProduct)
 
-    // Add filters
     if (search) {
-      // First, find categories that match the search term
-      const { data: matchingCategories } = await supabase
-        .from('categories')
-        .select('id')
-        .ilike('name', `%${search}%`)
-      
-      const matchingCategoryIds = matchingCategories?.map(c => c.id) || []
-      
-      // Build search conditions: name, subtitle, SKU
-      const searchConditions = [
-        `name.ilike.%${search}%`,
-        `subtitle.ilike.%${search}%`,
-        `sku.ilike.%${search}%`
-      ]
-      
-      // If we have matching categories, add category_id to search conditions
-      if (matchingCategoryIds.length > 0) {
-        // Add category_id filter using in() syntax
-        searchConditions.push(`category_id.in.(${matchingCategoryIds.join(',')})`)
-      }
-      
-      // Combine all search conditions with OR
-      query = query.or(searchConditions.join(','))
+      products = products.filter((p) =>
+        (p.name || '').toLowerCase().includes(search) ||
+        (p.sku || '').toLowerCase().includes(search) ||
+        (p.category || '').toLowerCase().includes(search)
+      )
     }
 
     if (category) {
-      query = query.eq('category_id', category)
+      products = products.filter((p) => p.category_id === category)
     }
 
     if (status) {
-      query = query.eq('status', status)
+      products = products.filter((p) => p.status === status)
     }
 
-    // Add sorting
-    query = query.order(sortBy, { ascending: sortOrder === 'asc' })
+    // Django's list is already ordered newest-first (added_date desc), which
+    // is our best proxy for created_at since that field isn't exposed by
+    // ProductListSerializer. Only name/price are sortable with real values.
+    if (sortBy === 'name') {
+      products.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+      if (sortOrder === 'desc') products.reverse()
+    } else if (sortBy === 'price') {
+      products.sort((a, b) => (a.price || 0) - (b.price || 0))
+      if (sortOrder === 'desc') products.reverse()
+    } else if (sortBy === 'created_at' && sortOrder === 'asc') {
+      products.reverse()
+    }
 
-    // Add pagination
+    const total = products.length
     const from = (page - 1) * limit
-    const to = from + limit - 1
-    query = query.range(from, to)
+    const pageItems = products.slice(from, from + limit)
 
-    const { data, error, count } = await query
-
-    console.log('📊 Query results:', { 
-      count, 
-      dataLength: data?.length, 
-      error: error?.message,
-      sampleData: data?.slice(0, 2)?.map(p => ({ id: p.id, name: p.name, vendor_id: p.vendor_id }))
-    })
-
-    if (error) {
-      console.error('❌ Error fetching products:', error)
-      throw error
-    }
-
-    // Parse images field from JSON string to array (handle both old single URL format and new JSON array format)
-    const processedData = data?.map(product => {
-      let images = []
-      if (product.images) {
-        try {
-          // Try to parse as JSON array first
-          images = JSON.parse(product.images)
-          // If it's not an array, make it one
-          if (!Array.isArray(images)) {
-            images = [images]
-          }
-        } catch (e) {
-          // If parsing fails, treat as single URL string
-          images = [product.images]
-        }
-      }
-
-      // Ensure colors field is properly formatted as an object with sizes
-      let colors = {}
-      if (product.colors) {
-        if (typeof product.colors === 'object' && !Array.isArray(product.colors)) {
-          // Migrate old format to new format if needed
-          const processedColors = {}
-          Object.entries(product.colors).forEach(([colorName, colorData]) => {
-            if (typeof colorData === 'object') {
-              // If it has the old 'quantity' field but no 'sizes', keep it for backward compatibility
-              if (colorData.quantity !== undefined && !colorData.sizes) {
-                processedColors[colorName] = {
-                  hex: colorData.hex || getDefaultColorHex(colorName),
-                  quantity: colorData.quantity // Keep old format for existing products
-                }
-              } else {
-                // New format with sizes
-                processedColors[colorName] = {
-                  hex: colorData.hex || getDefaultColorHex(colorName),
-                  sizes: colorData.sizes || {}
-                }
-              }
-            } else {
-              // String hex value
-              processedColors[colorName] = {
-                hex: colorData,
-                sizes: {}
-              }
-            }
-          })
-          colors = processedColors
-        } else if (Array.isArray(product.colors)) {
-          // Convert array format to object format with sizes
-          const colorObject = {}
-          product.colors.forEach(color => {
-            if (typeof color === 'string' && color.trim()) {
-              colorObject[color.trim()] = {
-                hex: getDefaultColorHex(color.trim()),
-                sizes: {}
-              }
-            }
-          })
-          colors = colorObject
-        }
-      }
-
-      return {
-        ...product,
-        images,
-        colors
-      }
-    }) || []
-
-
-    // Products retrieved successfully
-    
     return Response.json({
       success: true,
-      data: processedData,
+      data: pageItems,
       pagination: {
         page,
         limit,
-        total: count,
-        totalPages: Math.ceil((count || 0) / limit)
+        total,
+        totalPages: Math.ceil(total / limit) || 1
       }
     })
-
   } catch (error) {
     console.error('❌ Error in products API:', error)
-    return Response.json({ 
+    return Response.json({
       success: false,
       error: 'Internal server error',
-      message: error.message 
+      message: error.message
     }, { status: 500 })
   }
 }
@@ -277,364 +115,61 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { vendorId, productData } = body
+    const { productData } = body
 
-    if (!vendorId) {
-      return Response.json({ 
-        error: 'Vendor ID is required' 
+    if (!productData?.name || !productData?.price) {
+      return Response.json({
+        error: 'Product name and price are required'
       }, { status: 400 })
-    }
-
-    if (!productData.name || !productData.price) {
-      return Response.json({ 
-        error: 'Product name and price are required' 
-      }, { status: 400 })
-    }
-
-    // Creating new product for vendor
-    const supabase = getSupabaseServer()
-
-    // Check vendor approval status to determine product approval status
-    const { data: vendor, error: vendorError } = await supabase
-      .from('vendors')
-      .select('status, is_active')
-      .eq('id', vendorId)
-      .single()
-
-    if (vendorError) {
-      console.error('❌ Error fetching vendor status:', vendorError)
-      return Response.json({ 
-        error: 'Failed to verify vendor status' 
-      }, { status: 500 })
-    }
-
-    if (!vendor) {
-      return Response.json({ 
-        error: 'Vendor not found' 
-      }, { status: 404 })
     }
 
     // All new products require admin approval
     const approvalStatus = 'pending'
 
-    console.log(`📦 Creating product for vendor with status: ${vendor.status}, product approval_status: ${approvalStatus}`)
+    const payload = buildBesmartProductCreatePayload(productData, null, approvalStatus)
 
-    // Handle array fields - ensure they are properly formatted arrays
-    let sizesField = productData.sizes
-    if (sizesField && !Array.isArray(sizesField)) {
-      if (typeof sizesField === 'string') {
-        sizesField = sizesField.split(',').map(s => s.trim()).filter(Boolean)
-      } else {
-        sizesField = []
-      }
+    const { response, error, status } = await besmartRequest('/api/vendors/own-products/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    if (error) {
+      return Response.json({ success: false, error }, { status })
     }
 
-    let tagsField = productData.tags
-    if (tagsField && !Array.isArray(tagsField)) {
-      if (typeof tagsField === 'string') {
-        tagsField = tagsField.split(',').map(s => s.trim()).filter(Boolean)
-      } else {
-        tagsField = []
-      }
-    }
-
-    let boxContentsField = productData.box_contents
-    if (boxContentsField && !Array.isArray(boxContentsField)) {
-      if (typeof boxContentsField === 'string') {
-        boxContentsField = boxContentsField.split(',').map(s => s.trim()).filter(Boolean)
-      } else {
-        boxContentsField = []
-      }
-    }
-
-    let usageInstructionsField = productData.usage_instructions
-    if (usageInstructionsField && !Array.isArray(usageInstructionsField)) {
-      if (typeof usageInstructionsField === 'string') {
-        usageInstructionsField = usageInstructionsField.split(',').map(s => s.trim()).filter(Boolean)
-      } else {
-        usageInstructionsField = []
-      }
-    }
-
-    let careInstructionsField = productData.care_instructions
-    if (careInstructionsField && !Array.isArray(careInstructionsField)) {
-      if (typeof careInstructionsField === 'string') {
-        careInstructionsField = careInstructionsField.split(',').map(s => s.trim()).filter(Boolean)
-      } else {
-        careInstructionsField = []
-      }
-    }
-
-    let safetyNotesField = productData.safety_notes
-    if (safetyNotesField && !Array.isArray(safetyNotesField)) {
-      if (typeof safetyNotesField === 'string') {
-        safetyNotesField = safetyNotesField.split(',').map(s => s.trim()).filter(Boolean)
-      } else {
-        safetyNotesField = []
-      }
-    }
-
-    // Handle colors field - database expects JSONB object with sizes for direct insert
-    let colorsField = productData.colors
-    if (colorsField) {
-      if (typeof colorsField === 'string') {
-        try {
-          colorsField = JSON.parse(colorsField)
-        } catch (e) {
-          colorsField = {}
-        }
-      } else if (Array.isArray(colorsField)) {
-        // Convert array format to object format with sizes for database storage
-        // Array: ["Blue", "Silver", "Green"] -> Object: {"Blue": {"hex": "#0000FF", "sizes": {}}, ...}
-        const colorObject = {}
-        colorsField.forEach(color => {
-          if (typeof color === 'string' && color.trim()) {
-            colorObject[color.trim()] = {
-              hex: getDefaultColorHex(color.trim()),
-              sizes: {}
-            }
-          }
-        })
-        colorsField = colorObject
-      } else if (typeof colorsField === 'object') {
-        // Migrate old format to new format if needed
-        const migratedColors = {}
-        Object.entries(colorsField).forEach(([colorName, colorData]) => {
-          migratedColors[colorName] = normalizeColorEntry(
-            colorName,
-            colorData,
-            getDefaultColorHex
-          )
-        })
-        colorsField = migratedColors
-      } else {
-        colorsField = {}
-      }
-    } else {
-      // Ensure colors field is never null/undefined (database requires NOT NULL)
-      colorsField = {}
-    }
-
-
-    let colorImagesField = productData.color_images
-    if (colorImagesField && typeof colorImagesField !== 'object') {
-      if (typeof colorImagesField === 'string') {
-        try {
-          colorImagesField = JSON.parse(colorImagesField)
-        } catch (e) {
-          colorImagesField = {}
-        }
-      } else {
-        colorImagesField = {}
-      }
-    }
-
-    let dimensionsField = productData.dimensions
-    if (dimensionsField && typeof dimensionsField !== 'object') {
-      if (typeof dimensionsField === 'string') {
-        try {
-          dimensionsField = JSON.parse(dimensionsField)
-        } catch (e) {
-          dimensionsField = {}
-        }
-      } else {
-        dimensionsField = {}
-      }
-    }
-
-    const newProduct = {
-      vendor_id: vendorId,
-      name: productData.name,
-      subtitle: productData.subtitle || '',
-      description: productData.description || '',
-      price: Number(productData.price),
-      mrp: productData.mrp ? Number(productData.mrp) : null,
-      sale_price: productData.sale_price ? Number(productData.sale_price) : null,
-      images: JSON.stringify(productData.images || []),
-      video_url: productData.video_url || null,
-      sizes: sizesField,
-      colors: colorsField,
-      category_id: productData.category_id === '' ? null : productData.category_id,
-      subcategory_id: productData.subcategory_id === '' ? null : productData.subcategory_id,
-      brand: productData.brand || '',
-      stock_quantity: Object.values(colorsField).reduce((total, colorData) => {
-        if (typeof colorData === 'object') {
-          if (colorData.sizes && typeof colorData.sizes === 'object') {
-            return total + Object.values(colorData.sizes).reduce((sizeTotal, qty) => sizeTotal + (qty || 0), 0)
-          }
-          if (typeof colorData.quantity === 'number') {
-            return total + colorData.quantity
-          }
-        }
-        return total
-      }, 0),
-      sku: productData.sku || `SKU-${Date.now()}`,
-      status: productData.status || 'active',
-      approval_status: approvalStatus,
-      in_stock: Object.values(colorsField).reduce((total, colorData) => {
-        if (typeof colorData === 'object') {
-          if (colorData.sizes && typeof colorData.sizes === 'object') {
-            return total + Object.values(colorData.sizes).reduce((sizeTotal, qty) => sizeTotal + (qty || 0), 0)
-          }
-          if (typeof colorData.quantity === 'number') {
-            return total + colorData.quantity
-          }
-        }
-        return total
-      }, 0) > 0,
-      is_featured: productData.is_featured || false,
-      is_new_arrival: true,
-      shipping_required: productData.shipping_required !== false,
-      cod_allowed: productData.cod_allowed === true,
-      weight: productData.weight ? Number(productData.weight) : null,
-      dimensions: dimensionsField,
-      tags: tagsField,
-      color_images: colorImagesField,
-      box_contents: boxContentsField,
-      usage_instructions: usageInstructionsField,
-      care_instructions: careInstructionsField,
-      safety_notes: safetyNotesField,
-      size_chart_override: productData.size_chart_override || 'auto',
-      size_chart_template_id: productData.size_chart_template_id === '' ? null : productData.size_chart_template_id,
-      size_guide_type: productData.size_guide_type || 'template',
-      custom_size_chart_data: productData.custom_size_chart_data || null,
-      currency: productData.currency || 'NGN',
-      meta_title: productData.meta_title || null,
-      meta_description: productData.meta_description || null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-
-    // Option B: BeSmart (Django) first → same ID in Supabase → then R2 media upload
-    const besmartPayload = buildBesmartProductCreatePayload(
-      {
-        ...productData,
-        images: [],
-        video_url: null,
-        sizes: sizesField,
-        colors: colorsField,
-        color_images: colorImagesField,
-        tags: tagsField,
-        dimensions: dimensionsField,
-        box_contents: boxContentsField,
-        usage_instructions: usageInstructionsField,
-        care_instructions: careInstructionsField,
-        safety_notes: safetyNotesField,
-      },
-      vendorId,
-      approvalStatus
-    )
-
-    const { response: besmartResponse, error: besmartAuthError, status: besmartAuthStatus } =
-      await besmartRequest('/api/vendors/own-products/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(besmartPayload),
-      })
-
-    if (besmartAuthError) {
-      return Response.json({ success: false, error: besmartAuthError }, { status: besmartAuthStatus })
-    }
-
-    const besmartRawText = await besmartResponse.text()
-    let besmartData = {}
-    try {
-      besmartData = besmartRawText ? JSON.parse(besmartRawText) : {}
-    } catch {
-      besmartData = {}
-    }
-
-    if (!besmartResponse.ok) {
-      const errorMessage = await parseBesmartError(
-        besmartResponse,
-        besmartData,
-        besmartRawText
-      )
-      console.error('❌ BeSmart product create failed:', {
-        status: besmartResponse.status,
-        error: errorMessage,
-        response: besmartData,
-        payload: besmartPayload,
-      })
-
+    if (!response.ok) {
+      const message = await parseBesmartError(response)
       const isAuthError =
-        besmartResponse.status === 401 ||
-        besmartResponse.status === 403 ||
-        errorMessage.toLowerCase().includes('authentication') ||
-        errorMessage.toLowerCase().includes('credentials')
+        response.status === 401 ||
+        response.status === 403 ||
+        message.toLowerCase().includes('authentication') ||
+        message.toLowerCase().includes('credentials')
 
       const friendlyError = isAuthError
         ? 'BeSmart authentication failed. Please log out and log in again, then retry.'
-        : errorMessage
+        : message
 
       return Response.json(
-        {
-          success: false,
-          error: friendlyError,
-          message: friendlyError,
-        },
-        { status: isAuthError ? 401 : besmartResponse.status >= 500 ? 502 : besmartResponse.status }
+        { success: false, error: friendlyError, message: friendlyError },
+        { status: isAuthError ? 401 : response.status >= 500 ? 502 : response.status }
       )
     }
 
-    if (!besmartData.id) {
-      return Response.json(
-        {
-          success: false,
-          error: 'BeSmart created the product but did not return an ID',
-          message: 'BeSmart created the product but did not return an ID',
-        },
-        { status: 502 }
-      )
-    }
-
-    // Option B: same ID on BeSmart (Django) and Supabase (dashboard)
-    newProduct.id = besmartData.id
-    newProduct.sku = besmartPayload.sku
-
-    console.log('✅ BeSmart product created:', besmartData.id)
-
-    const { data, error } = await supabase
-      .from('products')
-      .upsert([newProduct], { onConflict: 'id' })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('❌ Supabase sync after BeSmart create failed:', error)
-      const besmartImages = parseBesmartProductImages(besmartData.images)
-      const besmartColors = parseBesmartProductColors(besmartData.colors, getDefaultColorHex)
-      return Response.json({
-        success: true,
-        data: transformBesmartProduct({
-          ...besmartData,
-          images: besmartImages,
-          colors: besmartColors,
-        }),
-        message: 'Product created on BeSmart',
-        media_ready: true,
-        warning:
-          'Product exists on BeSmart (media upload works) but dashboard sync failed. Refresh the product list or edit again.',
-      })
-    }
-
-    const processedData = formatSupabaseProductRow(data)
-
-    console.log('✅ Product synced to Supabase:', data.id)
+    const data = await response.json()
 
     return Response.json({
       success: true,
-      data: processedData,
+      data: transformBesmartProduct(data),
       message: 'Product created successfully',
       media_ready: true,
     })
-
   } catch (error) {
     console.error('❌ Error creating product:', error)
-    return Response.json({ 
+    return Response.json({
       success: false,
       error: 'Failed to create product',
-      message: error.message 
+      message: error.message
     }, { status: 500 })
   }
 }

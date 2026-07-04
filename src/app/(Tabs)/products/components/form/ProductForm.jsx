@@ -26,7 +26,7 @@ export default function ProductForm({
   isEdit = false,
   onBack = null 
 }) {
-  const { vendor } = useAuth()
+  const { vendor, loading: authLoading } = useAuth()
   const [currentStep, setCurrentStep] = useState(1)
   const [showMobilePreview, setShowMobilePreview] = useState(false)
 
@@ -154,6 +154,19 @@ export default function ProductForm({
       default:
         return null
     }
+  }
+
+  // Don't let the form render (and risk a vendor.id crash on submit) until
+  // the vendor profile has actually finished loading.
+  if (authLoading || !vendor) {
+    return (
+      <div className="fixed inset-0 bg-white flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-gray-600 text-sm">Loading your vendor profile…</p>
+        </div>
+      </div>
+    )
   }
 
   return (

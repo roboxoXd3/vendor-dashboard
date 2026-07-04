@@ -123,19 +123,24 @@ export default function FeaturedProductsSection({ filters = {}, refreshKey = 0, 
             &lt;
           </button>
 
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
-            <button
-              key={num}
-              onClick={() => handlePageClick(num)}
-              className={`px-4 py-2 cursor-pointer ${
-                currentPage === num
-                  ? "bg-emerald-600 text-white"
-                  : "hover:bg-gray-200 text-gray-700"
-              }`}
-            >
-              {num}
-            </button>
-          ))}
+          {[...Array(Math.min(5, totalPages))].map((_, index) => {
+            const pageNum = Math.max(1, Math.min(currentPage - 2, totalPages - 4)) + index;
+            if (pageNum > totalPages) return null;
+
+            return (
+              <button
+                key={pageNum}
+                onClick={() => handlePageClick(pageNum)}
+                className={`px-4 py-2 cursor-pointer ${
+                  currentPage === pageNum
+                    ? "bg-emerald-600 text-white"
+                    : "hover:bg-gray-200 text-gray-700"
+                }`}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
 
           <button
             onClick={handleNext}
