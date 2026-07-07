@@ -1,8 +1,8 @@
 import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
 
 // Safety cap on pages fetched from Django when assembling the full order
-// list for client-side filter/sort (Django's vendor orders list has no
-// filterset_fields and a fixed page size) — see docs/BACKEND_ACTION_ITEMS.
+// history for aggregation views (escrow, exports, stats) that need every
+// order rather than one filtered page.
 const MAX_PAGES = 50
 
 export async function fetchAllVendorOrders() {
@@ -74,5 +74,6 @@ export function transformVendorOrder(order) {
     order_items: orderItems,
     vendor_subtotal: Number(order.total) || 0,
     order_number: order.order_number || `ORD-${order.id.slice(-8).toUpperCase()}`,
+    profiles: { full_name: order.customer_name || null, email: order.customer_email || null },
   }
 }

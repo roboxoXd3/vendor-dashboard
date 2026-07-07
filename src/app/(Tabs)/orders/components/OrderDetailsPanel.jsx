@@ -41,12 +41,11 @@ export default function OrderDetailsPanel({ selectedOrderId, orders = [], onClos
   };
 
   const getCustomerName = (order) => {
-    return order.shipping_addresses?.name || 'Unknown Customer';
+    return order.customer_name || order.shipping_addresses?.name || 'Unknown Customer';
   };
 
   const getCustomerEmail = (order) => {
-    // In a real app, you'd get this from a users table join
-    return 'customer@example.com'; // Placeholder
+    return order.customer_email || 'No email provided';
   };
 
   const getCustomerPhone = (order) => {

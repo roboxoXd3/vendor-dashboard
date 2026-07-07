@@ -1,5 +1,8 @@
 import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
-import { fetchAllVendorOrders, filterVendorOrders, transformVendorOrder } from '@/lib/besmart-orders-api'
+import { transformVendorOrder } from '@/lib/besmart-orders-api'
+
+// Django's VendorOrderViewSet ordering_fields are created_at/total only.
+const ORDERING_FIELD = { created_at: 'created_at', total: 'total' }
 
 // GET /api/orders - List vendor orders with filters and pagination
 export async function GET(request) {
@@ -13,26 +16,27 @@ export async function GET(request) {
     const sortBy = searchParams.get('sortBy') || 'created_at'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
 
-    let orders
-    try {
-      orders = await fetchAllVendorOrders()
-    } catch (err) {
-      return Response.json({ success: false, error: err.message }, { status: err.status || 500 })
+    const params = new URLSearchParams()
+    params.set('page', String(page))
+    params.set('page_size', String(limit))
+    if (status && status !== 'All Orders') params.set('status', status.toLowerCase())
+    if (dateFrom) params.set('created_at__gte', dateFrom)
+    if (dateTo) params.set('created_at__lte', dateTo)
+    const orderingField = ORDERING_FIELD[sortBy] || 'created_at'
+    params.set('ordering', sortOrder === 'asc' ? orderingField : `-${orderingField}`)
+
+    const { response, error, status: httpStatus } = await besmartRequest(`/api/vendors/orders/?${params.toString()}`)
+    if (error) {
+      return Response.json({ success: false, error }, { status: httpStatus })
+    }
+    if (!response.ok) {
+      const message = await parseBesmartError(response)
+      return Response.json({ success: false, error: message }, { status: response.status })
     }
 
-    orders = filterVendorOrders(orders, { status, dateFrom, dateTo })
-
-    orders.sort((a, b) => {
-      const aVal = a[sortBy]
-      const bVal = b[sortBy]
-      if (aVal === bVal) return 0
-      return aVal > bVal ? 1 : -1
-    })
-    if (sortOrder === 'desc') orders.reverse()
-
-    const total = orders.length
-    const from = (page - 1) * limit
-    const pageItems = orders.slice(from, from + limit).map(transformVendorOrder)
+    const data = await response.json()
+    const pageItems = (data.results || []).map(transformVendorOrder)
+    const total = data.count ?? pageItems.length
 
     return Response.json({
       success: true,

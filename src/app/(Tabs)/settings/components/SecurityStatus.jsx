@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { FaCircleXmark } from "react-icons/fa6";
 
+// `password` is the live value of the "New Password" field being typed in
+// ChangePasswordForm — this shows a live strength meter for it, not a
+// persisted/saved credential.
 export default function SecurityStatus({ password = "" }) {
   const [passwordScore, setPasswordScore] = useState(0);
   const [passwordStrength, setPasswordStrength] = useState("Very Weak");
@@ -42,23 +45,24 @@ export default function SecurityStatus({ password = "" }) {
     >
       <h3 className="font-semibold text-sm mb-4">🛡️ Security Status</h3>
       <div className="text-sm">
-        <p className="mb-1 text-gray-500">Password Strength</p>
-        <div className="flex items-center gap-2">
-          <div className="w-full h-2 bg-gray-200 rounded">
-            <div
-              className={`h-2 rounded transition-all duration-300 ${getColor()}`}
-              style={{ width: `${(passwordScore / 10) * 100}%` }}
-            ></div>
+        <p className="mb-1 text-gray-500">New Password Strength</p>
+        {password ? (
+          <div className="flex items-center gap-2">
+            <div className="w-full h-2 bg-gray-200 rounded">
+              <div
+                className={`h-2 rounded transition-all duration-300 ${getColor()}`}
+                style={{ width: `${(passwordScore / 10) * 100}%` }}
+              ></div>
+            </div>
+            <span className={`font-medium ${getColor().split(" ")[1]}`}>
+              {passwordStrength}
+            </span>
           </div>
-          <span className={`font-medium ${getColor().split(" ")[1]}`}>
-            {passwordStrength}
-          </span>
-        </div>
-      </div>
-
-      <div className="flex flex-col mb-4">
-        <p className="text-sm text-gray-500">Last Password Change</p>
-        <p className="text-black">November 15, 2024</p>
+        ) : (
+          <p className="text-gray-400 text-xs">
+            Start typing a new password to see its strength
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-1 mb-4">
@@ -66,20 +70,6 @@ export default function SecurityStatus({ password = "" }) {
         <p className="flex items-center gap-2 text-yellow-600 font-semibold">
           <FaCircleXmark /> Not Enabled
         </p>
-      </div>
-
-      <div
-        className={`bg-white mt-2 p-4 rounded shadow text-sm border-1 border-[var(--color-theme)]`}
-      >
-        <p className="text-sm text-gray-500 font-medium">Security Score</p>
-        <div className="flex justify-between">
-          <h1 className={`font-bold text-3xl ${getColor().split(" ")[1]}`}>
-            {passwordScore}/10
-          </h1>
-          <a href="#" className="text-[var(--color-theme)] text-sm font-medium">
-            Improve Score
-          </a>
-        </div>
       </div>
     </div>
   );

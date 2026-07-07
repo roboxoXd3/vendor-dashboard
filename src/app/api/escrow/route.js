@@ -4,9 +4,8 @@ import { fetchAllVendorOrders } from '@/lib/besmart-orders-api'
 // GET /api/escrow - Fetch vendor escrow transactions
 //
 // Note: Django tracks escrow via a dedicated EscrowTransaction model (not
-// fields on Order like the old Supabase schema), and has no customer-name
-// lookup endpoint — customer name/email fall back to "Unknown Customer"
-// until that's added. See docs/BACKEND_ACTION_ITEMS.
+// fields on Order like the old Supabase schema); customer name/email are
+// resolved via the order's customer_name/customer_email fields.
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -62,8 +61,8 @@ export async function GET(request) {
 
       return {
         id: txn.id,
-        customer: 'Unknown Customer',
-        customerEmail: '',
+        customer: order?.customer_name || 'Unknown Customer',
+        customerEmail: order?.customer_email || '',
         amount: Number(txn.amount || 0).toFixed(2),
         currency: order?.order_items?.[0]?.products?.currency || 'NGN',
         status: statusDisplay,

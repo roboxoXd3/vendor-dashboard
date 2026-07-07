@@ -2,11 +2,6 @@ import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
 import { transformVendorOrder } from '@/lib/besmart-orders-api'
 
 // GET /api/recent-orders - Recent vendor orders (dashboard widget)
-//
-// Note: Django's OrderSerializer has no customer-name lookup (no endpoint
-// exists for a vendor to resolve a customer's display name from their user
-// id) — the customer name shown in the UI will fall back to "Unknown
-// Customer" until that's added. See docs/BACKEND_ACTION_ITEMS.
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -24,10 +19,7 @@ export async function GET(request) {
     }
 
     const { data } = await response.json()
-    const transformed = (data || []).map((order) => ({
-      ...transformVendorOrder(order),
-      profiles: { full_name: null, email: null },
-    }))
+    const transformed = (data || []).map((order) => transformVendorOrder(order))
 
     return Response.json({ data: transformed })
 

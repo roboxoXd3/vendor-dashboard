@@ -1,41 +1,10 @@
 import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
 import { buildBesmartProductCreatePayload, transformBesmartProduct } from '@/lib/besmart-product-api'
 
-// Safety cap on pages fetched from Django when assembling the full catalog
-// for client-side search/filter/sort. Django's own-products list has no
-// filterset_fields/search_fields and a fixed page size (20, not overridable),
-// so there's no way to ask it for filtered/sorted results directly — see
-// docs/BACKEND_ACTION_ITEMS for the follow-up needed to remove this.
-const MAX_PAGES = 50
-
-async function fetchAllOwnProducts() {
-  const all = []
-  let path = '/api/vendors/own-products/'
-
-  for (let i = 0; i < MAX_PAGES && path; i++) {
-    const { response, error, status } = await besmartRequest(path)
-    if (error) {
-      const err = new Error(error)
-      err.status = status
-      throw err
-    }
-    if (!response.ok) {
-      const message = await parseBesmartError(response)
-      const err = new Error(message)
-      err.status = response.status
-      throw err
-    }
-
-    const data = await response.json()
-    all.push(...(data.results || []))
-
-    // Django returns a full absolute URL in `next` — reduce to path+query
-    // since besmartRequest expects a path relative to the BeSmart base URL.
-    path = data.next ? data.next.replace(/^https?:\/\/[^/]+/, '') : null
-  }
-
-  return all
-}
+// Django's ordering_fields for VendorOwnProductViewSet are name/price/added_date.
+// created_at isn't exposed by the serializer, so we proxy sortBy=created_at to
+// added_date, Django's real newest-first field.
+const ORDERING_FIELD = { name: 'name', price: 'price', created_at: 'added_date' }
 
 // GET /api/products - List vendor products with filters, search, sort, pagination
 export async function GET(request) {
@@ -43,57 +12,37 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page')) || 1
     const limit = parseInt(searchParams.get('limit')) || 20
-    const search = (searchParams.get('search') || '').trim().toLowerCase()
+    const search = (searchParams.get('search') || '').trim()
     const category = searchParams.get('category') || ''
     const status = searchParams.get('status') || ''
     const sortBy = searchParams.get('sortBy') || 'created_at'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
 
-    let products
-    try {
-      products = await fetchAllOwnProducts()
-    } catch (err) {
-      return Response.json({ success: false, error: err.message }, { status: err.status || 500 })
+    const params = new URLSearchParams()
+    params.set('page', String(page))
+    params.set('page_size', String(limit))
+    if (search) params.set('search', search)
+    if (category) params.set('category_id', category)
+    if (status) params.set('status', status)
+    const orderingField = ORDERING_FIELD[sortBy] || 'added_date'
+    params.set('ordering', sortOrder === 'asc' ? orderingField : `-${orderingField}`)
+
+    const { response, error, status: httpStatus } = await besmartRequest(`/api/vendors/own-products/?${params.toString()}`)
+    if (error) {
+      return Response.json({ success: false, error }, { status: httpStatus })
+    }
+    if (!response.ok) {
+      const message = await parseBesmartError(response)
+      return Response.json({ success: false, error: message }, { status: response.status })
     }
 
-    products = products.map(transformBesmartProduct)
-
-    if (search) {
-      products = products.filter((p) =>
-        (p.name || '').toLowerCase().includes(search) ||
-        (p.sku || '').toLowerCase().includes(search) ||
-        (p.category || '').toLowerCase().includes(search)
-      )
-    }
-
-    if (category) {
-      products = products.filter((p) => p.category_id === category)
-    }
-
-    if (status) {
-      products = products.filter((p) => p.status === status)
-    }
-
-    // Django's list is already ordered newest-first (added_date desc), which
-    // is our best proxy for created_at since that field isn't exposed by
-    // ProductListSerializer. Only name/price are sortable with real values.
-    if (sortBy === 'name') {
-      products.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-      if (sortOrder === 'desc') products.reverse()
-    } else if (sortBy === 'price') {
-      products.sort((a, b) => (a.price || 0) - (b.price || 0))
-      if (sortOrder === 'desc') products.reverse()
-    } else if (sortBy === 'created_at' && sortOrder === 'asc') {
-      products.reverse()
-    }
-
-    const total = products.length
-    const from = (page - 1) * limit
-    const pageItems = products.slice(from, from + limit)
+    const data = await response.json()
+    const products = (data.results || []).map(transformBesmartProduct)
+    const total = data.count ?? products.length
 
     return Response.json({
       success: true,
-      data: pageItems,
+      data: products,
       pagination: {
         page,
         limit,

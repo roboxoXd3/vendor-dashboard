@@ -1,16 +1,22 @@
 import { useState } from "react";
+import toast from "react-hot-toast";
+import { getSupabase } from "@/lib/supabase";
 
 import { FaEye, FaEyeSlash, FaKey, FaLock } from "react-icons/fa6";
 
-export default function ChangePasswordForm({
-  savedPassword,
-  onPasswordChange,
-}) {
+// Was previously entirely fake: it checked the "current password" against a
+// hardcoded mock string and, on "success", only updated local React state —
+// no API call was ever made, so a vendor's real account password was never
+// changed despite the "✅ Password updated successfully" message. Now
+// verifies the current password via a real Supabase sign-in and updates it
+// via supabase.auth.updateUser().
+export default function ChangePasswordForm({ userEmail, onNewPasswordChange }) {
   const [form, setForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
+  const [submitting, setSubmitting] = useState(false);
 
   const [show, setShow] = useState({
     current: false,
@@ -20,6 +26,13 @@ export default function ChangePasswordForm({
 
   const toggleShow = (field) => {
     setShow((prev) => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  const updateField = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (field === "newPassword") {
+      onNewPasswordChange?.(value);
+    }
   };
 
   const isLengthValid = form.newPassword.length >= 8;
@@ -34,25 +47,47 @@ export default function ChangePasswordForm({
     hasSpecialChar &&
     passwordsMatch;
 
-  const handleSubmit = () => {
-    if (form.currentPassword !== savedPassword) {
-      alert("❌ Incorrect current password");
+  const handleSubmit = async () => {
+    if (!userEmail) {
+      toast.error("Unable to verify account — please refresh and try again.");
       return;
     }
     if (!passwordsMatch) {
-      alert("❌ Passwords do not match");
+      toast.error("Passwords do not match");
       return;
     }
 
-    onPasswordChange(form.newPassword);
+    setSubmitting(true);
+    try {
+      const supabase = getSupabase();
 
-    alert("✅ Password updated successfully");
+      // Supabase has no standalone "verify current password" call — the
+      // established pattern is to re-authenticate with it.
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: form.currentPassword,
+      });
+      if (verifyError) {
+        toast.error("Incorrect current password");
+        return;
+      }
 
-    setForm({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: form.newPassword,
+      });
+      if (updateError) {
+        toast.error(updateError.message || "Failed to update password");
+        return;
+      }
+
+      toast.success("Password updated successfully");
+      setForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      onNewPasswordChange?.("");
+    } catch (error) {
+      toast.error(error?.message || "Failed to update password");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -70,9 +105,7 @@ export default function ChangePasswordForm({
               <input
                 type={show.current ? "text" : "password"}
                 value={form.currentPassword}
-                onChange={(e) =>
-                  setForm({ ...form, currentPassword: e.target.value })
-                }
+                onChange={(e) => updateField("currentPassword", e.target.value)}
                 className="w-full bg-white rounded px-3 py-2 mt-1 pr-10 border-1 border-gray-300 outline-0 focus:ring-0"
                 placeholder="Enter current password"
               />
@@ -96,9 +129,7 @@ export default function ChangePasswordForm({
               <input
                 type={show.new ? "text" : "password"}
                 value={form.newPassword}
-                onChange={(e) =>
-                  setForm({ ...form, newPassword: e.target.value })
-                }
+                onChange={(e) => updateField("newPassword", e.target.value)}
                 className="w-full bg-white rounded px-3 py-2 mt-1 pr-10 border-1 border-gray-300 outline-0 focus:ring-0"
                 placeholder="Enter new password"
               />
@@ -134,9 +165,7 @@ export default function ChangePasswordForm({
               <input
                 type={show.confirm ? "text" : "password"}
                 value={form.confirmPassword}
-                onChange={(e) =>
-                  setForm({ ...form, confirmPassword: e.target.value })
-                }
+                onChange={(e) => updateField("confirmPassword", e.target.value)}
                 className="w-full bg-white rounded px-3 py-2 mt-1 pr-10 border-1 border-gray-300 outline-0 focus:ring-0"
                 placeholder="Re-enter new password"
               />
@@ -159,15 +188,15 @@ export default function ChangePasswordForm({
 
           <button
             onClick={handleSubmit}
-            disabled={!isFormValid}
-            className={`flex items-center gap-2 justify-center mt-4 w-full text-white font-medium py-2 rounded transition-all duration-200 
+            disabled={!isFormValid || submitting}
+            className={`flex items-center gap-2 justify-center mt-4 w-full text-white font-medium py-2 rounded transition-all duration-200
               ${
-                isFormValid
+                isFormValid && !submitting
                   ? "bg-[var(--color-theme)] hover:opacity-90 cursor-pointer"
                   : "bg-gray-400 cursor-not-allowed"
               }`}
           >
-            <FaLock /> Update Password
+            <FaLock /> {submitting ? "Updating..." : "Update Password"}
           </button>
         </div>
       </div>

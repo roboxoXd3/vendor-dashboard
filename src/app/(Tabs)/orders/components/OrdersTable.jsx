@@ -30,7 +30,7 @@ const formatDate = (dateString) => {
 
 // Helper function to get customer name from shipping address
 const getCustomerName = (order) => {
-  return order.shipping_addresses?.name || 'Unknown Customer';
+  return order.customer_name || order.shipping_addresses?.name || 'Unknown Customer';
 };
 
 // Helper function to get first product name and image

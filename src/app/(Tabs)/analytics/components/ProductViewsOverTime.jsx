@@ -1,41 +1,14 @@
 "use client";
 import { useState } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+// Previously generated entirely fake Math.random() view counts for every day
+// in the selected period, presented as if real. Django has no time-bucketed
+// analytics endpoint (VendorAnalyticsFunnelView only returns all-time totals,
+// no daily/weekly breakdown), so there's no real data source to chart yet —
+// showing an honest "not available" state instead of fabricated numbers
+// until that backend endpoint exists.
 export default function ProductViewsOverTime({ filters = {} }) {
   const [activeView, setActiveView] = useState("daily");
-
-  // Generate sample time series data based on the period
-  const generateTimeSeriesData = () => {
-    const data = [];
-    const now = new Date();
-    let days = 30;
-    
-    if (filters.period === '7d') days = 7;
-    else if (filters.period === '90d') days = 90;
-    else if (filters.period === '1y') days = 365;
-
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      
-      let views = Math.floor(Math.random() * 50) + 20; // Random views between 20-70
-      if (i < 7) views += Math.floor(Math.random() * 30); // Recent days have more views
-      
-      data.push({
-        date: date.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric' 
-        }),
-        views: views,
-        fullDate: date.toISOString().split('T')[0]
-      });
-    }
-    
-    return data;
-  };
-
-  const chartData = generateTimeSeriesData();
 
   return (
     <div className="bg-white rounded-xl shadow p-6 h-full">
@@ -58,42 +31,9 @@ export default function ProductViewsOverTime({ filters = {} }) {
         </div>
       </div>
 
-      <div className="h-64 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis 
-              dataKey="date" 
-              stroke="#666"
-              fontSize={12}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis 
-              stroke="#666"
-              fontSize={12}
-              tickLine={false}
-              axisLine={false}
-            />
-            <Tooltip 
-              contentStyle={{
-                backgroundColor: 'white',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-              }}
-              labelStyle={{ color: '#374151', fontWeight: '500' }}
-            />
-            <Line 
-              type="monotone" 
-              dataKey="views" 
-              stroke="#3b82f6" 
-              strokeWidth={2}
-              dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+      <div className="h-64 w-full flex items-center justify-center text-center text-gray-500 text-sm px-6">
+        Views-over-time isn't available yet — the backend doesn't expose a
+        day-by-day breakdown of product view events, only all-time totals.
       </div>
     </div>
   );

@@ -150,27 +150,42 @@ export const vendorService = {
 
       const productIds = vendorProducts.map(p => p.id)
 
-      // Get best selling products from performance summary view
-      const { data: bestSelling, error: summaryError } = await supabase
-        .from('product_performance_summary')
-        .select(`
-          id,
-          name,
-          orders_count,
-          total_revenue,
-          total_sold
-        `)
-        .in('id', productIds)
-        .order('orders_count', { ascending: false })
-        .limit(limit)
+      // A vendor can have hundreds of products; a single `.in('id', productIds)`
+      // with all of them at once produces a URL long enough (10-20KB+) to hang
+      // or fail unreliably in real browsers even though curl handles it fine.
+      // Chunk the lookup instead so no single request's ID list gets too large.
+      const CHUNK_SIZE = 100
+      const idChunks = []
+      for (let i = 0; i < productIds.length; i += CHUNK_SIZE) {
+        idChunks.push(productIds.slice(i, i + CHUNK_SIZE))
+      }
 
+      const chunkResults = await Promise.all(
+        idChunks.map(chunk =>
+          supabase
+            .from('product_performance_summary')
+            .select('id, name, orders_count, total_revenue, total_sold')
+            .in('id', chunk)
+        )
+      )
+
+      const summaryError = chunkResults.find(r => r.error)?.error
       if (summaryError) throw summaryError
 
-      // Get additional product details
-      const { data: productDetails, error: detailsError } = await supabase
-        .from('products')
-        .select('id, sku, price, images')
-        .in('id', productIds)
+      const bestSelling = chunkResults
+        .flatMap(r => r.data || [])
+        .sort((a, b) => (b.orders_count || 0) - (a.orders_count || 0))
+        .slice(0, limit)
+
+      // Only fetch full details for the final top-N picks — this ID list is
+      // always small regardless of catalog size.
+      const topIds = bestSelling.map(p => p.id)
+      const { data: productDetails, error: detailsError } = topIds.length
+        ? await supabase
+            .from('products')
+            .select('id, sku, price, images')
+            .in('id', topIds)
+        : { data: [], error: null }
 
       if (detailsError) throw detailsError
 

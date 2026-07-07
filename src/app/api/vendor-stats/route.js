@@ -1,15 +1,36 @@
 import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
 
+// TODO(backend): this widget only needs simple counts (total/active/out-of-stock/
+// featured), but Django has no aggregate stats endpoint for a vendor's own
+// products (the master handoff doc mentions a planned `products/statistics/`
+// endpoint that was never built) — see docs/BACKEND_ISSUES.md. Until that
+// exists, we page through every product with the full serializer just to
+// count them. Mitigated here by using Django's max page_size (100, cutting
+// round-trips ~5x for large catalogs) and fetching pages in parallel once the
+// total count is known, instead of one page at a time sequentially.
+const MAX_PAGES = 50
+const PAGE_SIZE = 100
+
 async function fetchAllOwnProducts() {
-  const all = []
-  let path = '/api/vendors/own-products/'
-  for (let i = 0; i < 50 && path; i++) {
-    const { response, error } = await besmartRequest(path)
-    if (error || !response.ok) break
-    const data = await response.json()
-    all.push(...(data.results || []))
-    path = data.next ? data.next.replace(/^https?:\/\/[^/]+/, '') : null
+  const firstRes = await besmartRequest(`/api/vendors/own-products/?page=1&page_size=${PAGE_SIZE}`)
+  if (firstRes.error || !firstRes.response.ok) return []
+  const firstData = await firstRes.response.json()
+  const all = [...(firstData.results || [])]
+
+  const totalPages = Math.min(Math.ceil((firstData.count || all.length) / PAGE_SIZE), MAX_PAGES)
+  if (totalPages > 1) {
+    const remaining = await Promise.all(
+      Array.from({ length: totalPages - 1 }, (_, i) => i + 2).map((page) =>
+        besmartRequest(`/api/vendors/own-products/?page=${page}&page_size=${PAGE_SIZE}`)
+      )
+    )
+    for (const { response, error } of remaining) {
+      if (error || !response.ok) continue
+      const data = await response.json()
+      all.push(...(data.results || []))
+    }
   }
+
   return all
 }
 

@@ -1,46 +1,13 @@
-import { getSupabaseServer } from '@/lib/supabase-server'
+import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
 
+// POST /api/vendor-application/resubmit
+// Updates the vendor's business details then resets a rejected application
+// back to pending via Django's /api/vendors/resubmit/ (status/verification_status
+// reset + rejection_reason/admin_notes cleared happen server-side in Django).
 export async function POST(request) {
   try {
     const body = await request.json()
     const { fullName, businessName, businessType, phoneNumber } = body || {}
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const sessionToken = cookieStore.get('vendor_session_token')?.value
-    const supabase = getSupabaseServer()
-
-    if (!sessionToken) {
-      return Response.json({
-        error: 'Authentication required - please login first'
-      }, { status: 401 })
-    }
-
-    const { data: sessionData, error: sessionError } = await supabase
-      .from('vendor_sessions')
-      .select('*')
-      .eq('session_token', sessionToken)
-      .eq('is_active', true)
-      .single()
-
-    if (sessionError || !sessionData) {
-      return Response.json({
-        error: 'Invalid or expired session'
-      }, { status: 401 })
-    }
-
-    const userId = sessionData.user_id
-
-    const { data: vendor, error: vendorError } = await supabase
-      .from('vendors')
-      .select('*')
-      .eq('user_id', userId)
-      .single()
-
-    if (vendorError || !vendor) {
-      return Response.json({
-        error: 'Vendor profile not found'
-      }, { status: 404 })
-    }
 
     if (!fullName || !businessName || !businessType || !phoneNumber) {
       return Response.json({
@@ -48,55 +15,42 @@ export async function POST(request) {
       }, { status: 400 })
     }
 
-    const updateData = {
-      business_name: businessName,
-      business_type: businessType,
-      business_phone: phoneNumber,
-      status: 'pending',
-      verification_status: 'unverified',
-      is_active: false,
-      admin_notes: null,
-      rejection_reason: null,
-      updated_at: new Date().toISOString()
+    const profileUpdate = await besmartRequest('/api/vendors/profile/', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        business_name: businessName,
+        business_type: businessType,
+        business_phone: phoneNumber,
+      }),
+    })
+
+    if (profileUpdate.error) {
+      return Response.json({ error: profileUpdate.error }, { status: profileUpdate.status })
+    }
+    if (!profileUpdate.response.ok) {
+      const message = await parseBesmartError(profileUpdate.response)
+      return Response.json({ error: message }, { status: profileUpdate.response.status })
     }
 
-    const { data: updatedVendor, error: updateError } = await supabase
-      .from('vendors')
-      .update(updateData)
-      .eq('user_id', userId)
-      .select('*')
-      .single()
+    const { response, error, status } = await besmartRequest('/api/vendors/resubmit/', {
+      method: 'POST',
+    })
 
-    if (updateError) {
-      console.error('❌ Error during vendor resubmission:', updateError)
-      return Response.json({
-        error: updateError.message || 'Failed to resubmit application. Please try again.'
-      }, { status: 500 })
+    if (error) {
+      return Response.json({ error }, { status })
+    }
+    if (!response.ok) {
+      const message = await parseBesmartError(response)
+      return Response.json({ error: message }, { status: response.status })
     }
 
-    try {
-      const { data: existingUser, error: userFetchError } = await supabase.auth.admin.getUserById(userId)
-
-      if (userFetchError) {
-        console.error('⚠️ Unable to fetch user metadata for resubmission:', userFetchError)
-      } else {
-        const existingMetadata = existingUser?.user?.user_metadata || {}
-        await supabase.auth.admin.updateUserById(userId, {
-          user_metadata: {
-            ...existingMetadata,
-            full_name: fullName,
-            phone: phoneNumber
-          }
-        })
-      }
-    } catch (metadataError) {
-      console.error('⚠️ Failed to update user metadata during resubmission:', metadataError)
-    }
+    const updatedVendor = await profileUpdate.response.json().catch(() => null)
 
     return Response.json({
       success: true,
       message: 'Application resubmitted successfully. Our team will review the updates shortly.',
-      vendor: updatedVendor
+      vendor: updatedVendor,
     })
 
   } catch (error) {
@@ -106,4 +60,3 @@ export async function POST(request) {
     }, { status: 500 })
   }
 }
-

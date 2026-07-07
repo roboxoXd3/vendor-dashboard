@@ -15,10 +15,7 @@ function getTimeAgo(dateString) {
   return `${Math.floor(diffInDays / 7)}w ago`
 }
 
-// GET - List vendor's tickets with filtering
-//
-// Django's tickets endpoint has no filterset/search support, so this fetches
-// every page once and filters/paginates here. See docs/BACKEND_ACTION_ITEMS.
+// GET - List vendor's tickets with filtering (proxies filter/search/pagination to Django)
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -27,37 +24,26 @@ export async function GET(request) {
     const search = searchParams.get('search')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = parseInt(searchParams.get('offset') || '0')
+    const page = Math.floor(offset / limit) + 1
 
-    const all = []
-    let path = '/api/support/tickets/'
-    for (let i = 0; i < 50 && path; i++) {
-      const { response, error, status } = await besmartRequest(path)
-      if (error) return NextResponse.json({ error }, { status })
-      if (!response.ok) {
-        const message = await parseBesmartError(response)
-        return NextResponse.json({ error: message }, { status: response.status })
-      }
-      const data = await response.json()
-      all.push(...(data.results || data || []))
-      path = data.next ? data.next.replace(/^https?:\/\/[^/]+/, '') : null
-    }
+    const params = new URLSearchParams()
+    params.set('page', String(page))
+    params.set('page_size', String(limit))
+    if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter)
+    if (priorityFilter && priorityFilter !== 'all') params.set('priority', priorityFilter)
+    if (search) params.set('search', search)
 
-    let tickets = all
-    if (statusFilter && statusFilter !== 'all') {
-      tickets = tickets.filter((t) => t.status === statusFilter)
+    const { response, error, status } = await besmartRequest(`/api/support/tickets/?${params.toString()}`)
+    if (error) return NextResponse.json({ error }, { status })
+    if (!response.ok) {
+      const message = await parseBesmartError(response)
+      return NextResponse.json({ error: message }, { status: response.status })
     }
-    if (priorityFilter && priorityFilter !== 'all') {
-      tickets = tickets.filter((t) => t.priority === priorityFilter)
-    }
-    if (search) {
-      const term = search.toLowerCase()
-      tickets = tickets.filter((t) => t.subject?.toLowerCase().includes(term) || t.id?.toLowerCase().includes(term))
-    }
+    const data = await response.json()
+    const tickets = data.results || data || []
+    const total = data.count ?? tickets.length
 
-    tickets.sort((a, b) => new Date(b.last_updated) - new Date(a.last_updated))
-    const paged = tickets.slice(offset, offset + limit)
-
-    const formattedTickets = paged.map((ticket) => ({
+    const formattedTickets = tickets.map((ticket) => ({
       id: ticket.id,
       subject: ticket.subject,
       status: ticket.status,
@@ -72,8 +58,8 @@ export async function GET(request) {
 
     return NextResponse.json({
       tickets: formattedTickets,
-      total: tickets.length,
-      has_more: offset + limit < tickets.length
+      total,
+      has_more: offset + limit < total
     })
 
   } catch (error) {
