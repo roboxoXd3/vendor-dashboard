@@ -89,10 +89,22 @@ export function useConversionFunnel(filters = {}) {
 // Product Performance Hook
 export function useProductPerformance(filters = {}) {
   const { vendor } = useAuth()
-  
+
   return useQuery({
     queryKey: vendorKeys.analytics(vendor?.id, 'performance', filters),
     queryFn: () => vendorService.getProductPerformance(vendor?.id, filters),
+    enabled: !!vendor?.id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+}
+
+// Views Over Time Hook
+export function useViewsOverTime(filters = {}) {
+  const { vendor } = useAuth()
+
+  return useQuery({
+    queryKey: vendorKeys.analytics(vendor?.id, 'views-over-time', filters),
+    queryFn: () => vendorService.getViewsOverTime(vendor?.id, filters),
     enabled: !!vendor?.id,
     staleTime: 1000 * 60 * 5, // 5 minutes
   })

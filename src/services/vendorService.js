@@ -419,5 +419,41 @@ export const vendorService = {
       console.error('Error fetching product performance:', error)
       return { data: [], error: error.message }
     }
+  },
+
+  // Get daily product view counts for the period
+  async getViewsOverTime(vendorId, filters = {}) {
+    try {
+      if (!vendorId) {
+        console.warn('No vendor ID provided for getViewsOverTime')
+        return { data: [], error: null }
+      }
+
+      const params = new URLSearchParams({
+        vendorId,
+        ...filters
+      });
+
+      const response = await fetch(`/api/analytics/views-over-time?${params}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Views over time API error:', errorData)
+        throw new Error(errorData.error || 'Failed to fetch views over time')
+      }
+
+      const result = await response.json()
+      return { data: result.data || [], error: null }
+
+    } catch (error) {
+      console.error('Error fetching views over time:', error)
+      return { data: [], error: error.message }
+    }
   }
 }

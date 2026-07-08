@@ -1,39 +1,9 @@
 import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
 
-// TODO(backend): this widget only needs simple counts (total/active/out-of-stock/
-// featured), but Django has no aggregate stats endpoint for a vendor's own
-// products (the master handoff doc mentions a planned `products/statistics/`
-// endpoint that was never built) — see docs/BACKEND_ISSUES.md. Until that
-// exists, we page through every product with the full serializer just to
-// count them. Mitigated here by using Django's max page_size (100, cutting
-// round-trips ~5x for large catalogs) and fetching pages in parallel once the
-// total count is known, instead of one page at a time sequentially.
-const MAX_PAGES = 50
-const PAGE_SIZE = 100
-
-async function fetchAllOwnProducts() {
-  const firstRes = await besmartRequest(`/api/vendors/own-products/?page=1&page_size=${PAGE_SIZE}`)
-  if (firstRes.error || !firstRes.response.ok) return []
-  const firstData = await firstRes.response.json()
-  const all = [...(firstData.results || [])]
-
-  const totalPages = Math.min(Math.ceil((firstData.count || all.length) / PAGE_SIZE), MAX_PAGES)
-  if (totalPages > 1) {
-    const remaining = await Promise.all(
-      Array.from({ length: totalPages - 1 }, (_, i) => i + 2).map((page) =>
-        besmartRequest(`/api/vendors/own-products/?page=${page}&page_size=${PAGE_SIZE}`)
-      )
-    )
-    for (const { response, error } of remaining) {
-      if (error || !response.ok) continue
-      const data = await response.json()
-      all.push(...(data.results || []))
-    }
-  }
-
-  return all
-}
-
+// Backed by Django's real aggregate endpoint (GET /api/vendors/own-products/statistics/,
+// added in commit c6e7107), which returns {totalProducts, activeProducts, outOfStock,
+// featuredProducts} via a single DB-side .aggregate() — no more paginating through
+// every product just to count them.
 export async function GET() {
   try {
     const profileRes = await besmartRequest('/api/vendors/profile/')
@@ -46,7 +16,15 @@ export async function GET() {
     }
     const vendor = await profileRes.response.json()
 
-    const products = await fetchAllOwnProducts()
+    const statsRes = await besmartRequest('/api/vendors/own-products/statistics/')
+    if (statsRes.error) {
+      return Response.json({ error: statsRes.error }, { status: statsRes.status })
+    }
+    if (!statsRes.response.ok) {
+      const message = await parseBesmartError(statsRes.response)
+      return Response.json({ error: message }, { status: statsRes.response.status })
+    }
+    const productStats = await statsRes.response.json()
 
     let followerCount = 0
     const followersRes = await besmartRequest(`/api/vendors/${vendor.id}/followers/`)
@@ -56,10 +34,10 @@ export async function GET() {
     }
 
     const stats = {
-      totalProducts: products.length,
-      activeProducts: products.filter((p) => p.status === 'active').length,
-      outOfStock: products.filter((p) => p.status === 'active' && (p.stock_quantity ?? 0) <= 0).length,
-      featuredProducts: products.filter((p) => p.is_featured).length,
+      totalProducts: productStats.totalProducts || 0,
+      activeProducts: productStats.activeProducts || 0,
+      outOfStock: productStats.outOfStock || 0,
+      featuredProducts: productStats.featuredProducts || 0,
       followerCount
     }
 
