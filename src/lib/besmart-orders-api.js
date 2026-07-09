@@ -5,9 +5,11 @@ import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
 // order rather than one filtered page.
 const MAX_PAGES = 50
 
-export async function fetchAllVendorOrders() {
+export async function fetchAllVendorOrders({ createdAtGte } = {}) {
   const all = []
-  let path = '/api/vendors/orders/'
+  let path = createdAtGte
+    ? `/api/vendors/orders/?created_at__gte=${encodeURIComponent(createdAtGte)}`
+    : '/api/vendors/orders/'
 
   for (let i = 0; i < MAX_PAGES && path; i++) {
     const { response, error, status } = await besmartRequest(path)

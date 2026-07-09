@@ -23,7 +23,10 @@ export async function GET() {
     let lastMonthEarnings = 0
 
     try {
-      const orders = await fetchAllVendorOrders()
+      // Only the current + previous calendar month are used below, so ask
+      // Django to filter server-side instead of paginating the vendor's
+      // entire order history (which can be many pages for older vendors).
+      const orders = await fetchAllVendorOrders({ createdAtGte: lastMonthStart.toISOString() })
       orders
         .filter((o) => o.payment_status === 'completed')
         .forEach((order) => {

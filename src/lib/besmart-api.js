@@ -95,6 +95,24 @@ async function refreshSupabaseAccessToken(sessionData) {
   }
 }
 
+// Decodes (without verifying — verification happens server-side on the
+// BeSmart API) the exp claim of a JWT so we can skip the Supabase refresh
+// round-trip when the cached access token is still comfortably valid.
+// Every besmartRequest() call used to unconditionally hit Supabase's auth
+// endpoint before reaching Django, adding a network round-trip to every
+// single API call on every page — this cuts that out for the common case.
+function getJwtExpiryMs(token) {
+  try {
+    const payload = token.split('.')[1]
+    const json = JSON.parse(Buffer.from(payload, 'base64').toString('utf8'))
+    return typeof json.exp === 'number' ? json.exp * 1000 : null
+  } catch {
+    return null
+  }
+}
+
+const TOKEN_REFRESH_SKEW_MS = 2 * 60 * 1000 // refresh if expiring within 2 minutes
+
 export async function getBesmartAuthToken({ forceRefresh = false } = {}) {
   const result = await getSessionFromCookie()
   if (result.error) {
@@ -102,14 +120,19 @@ export async function getBesmartAuthToken({ forceRefresh = false } = {}) {
   }
 
   const deviceInfo = parseDeviceInfo(result.sessionData.device_info)
+  const cachedToken = deviceInfo.supabase_access_token?.trim() || null
+  const cachedExpiry = cachedToken ? getJwtExpiryMs(cachedToken) : null
+  const cachedTokenIsFresh =
+    !forceRefresh && cachedExpiry != null && cachedExpiry - Date.now() > TOKEN_REFRESH_SKEW_MS
 
-  // Always refresh when possible — BeSmart needs a valid Supabase JWT (expires ~1h)
   let accessToken = null
-  if (deviceInfo.supabase_refresh_token || forceRefresh) {
+  if (cachedTokenIsFresh) {
+    accessToken = cachedToken
+  } else if (deviceInfo.supabase_refresh_token || forceRefresh) {
     accessToken = await refreshSupabaseAccessToken(result.sessionData)
   }
   if (!accessToken) {
-    accessToken = deviceInfo.supabase_access_token?.trim() || null
+    accessToken = cachedToken
   }
 
   if (!accessToken) {
