@@ -151,6 +151,7 @@ export const productsService = {
   // Update product stock
   async updateStock(productId, stockQuantity) {
     try {
+      const supabase = getSupabase()
       const { data, error } = await supabase
         .from('products')
         .update({
@@ -174,6 +175,7 @@ export const productsService = {
   // Get product categories
   async getCategories() {
     try {
+      const supabase = getSupabase()
       const { data, error } = await supabase
         .from('categories')
         .select(`
@@ -210,6 +212,7 @@ export const productsService = {
   // Get low stock products
   async getLowStockProducts(vendorId, threshold = 10) {
     try {
+      const supabase = getSupabase()
       const { data, error } = await supabase
         .from('products')
         .select('id, name, stock_quantity, sku')
@@ -237,6 +240,7 @@ export const productsService = {
         updated_at: new Date().toISOString()
       }))
 
+      const supabase = getSupabase()
       const { data, error } = await supabase
         .from('products')
         .upsert(updates)
