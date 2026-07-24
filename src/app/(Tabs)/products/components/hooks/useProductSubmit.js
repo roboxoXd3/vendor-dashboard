@@ -5,6 +5,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { productKeys } from '@/hooks/useProducts'
 import { productMediaService } from '@/services/productMediaService'
 import { mergeColorEntries } from '@/lib/product-colors'
+import { useAuth } from '@/contexts/AuthContext'
+import { isSessionAuthError, getSessionErrorMessage } from '@/lib/session-auth'
 
 function stripMediaFields(data) {
   const {
@@ -50,6 +52,7 @@ export const useProductSubmit = (vendor) => {
   const [error, setError] = useState(null)
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { handleSessionExpired } = useAuth()
 
   const buildProductPayload = (formData) => ({
     ...formData,
@@ -66,6 +69,12 @@ export const useProductSubmit = (vendor) => {
       height: parseFloat(formData.dimensions.height) || 0,
     },
   })
+
+  const redirectIfSessionError = async (status, message) => {
+    if (!isSessionAuthError(status, message)) return false
+    await handleSessionExpired(getSessionErrorMessage())
+    return true
+  }
 
   const createProduct = async (formData, pendingMedia = null, sanitizeMediaFields = null) => {
     try {
@@ -86,16 +95,20 @@ export const useProductSubmit = (vendor) => {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           vendorId: vendor.id,
           productData,
         }),
       })
 
-      const result = await response.json()
+      const result = await response.json().catch(() => ({}))
 
       if (!response.ok || !result.success) {
         const message = result.message || result.error || 'Failed to create product'
+        if (await redirectIfSessionError(response.status, message)) {
+          throw new Error(getSessionErrorMessage())
+        }
         throw new Error(message)
       }
 
@@ -119,6 +132,7 @@ export const useProductSubmit = (vendor) => {
             headers: {
               'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({
               updates: {
                 ...productData,
@@ -127,12 +141,21 @@ export const useProductSubmit = (vendor) => {
             }),
           })
 
-          const updateResult = await updateResponse.json()
+          const updateResult = await updateResponse.json().catch(() => ({}))
           if (!updateResponse.ok || !updateResult.success) {
-            throw new Error(updateResult.error || 'Product created but media upload update failed')
+            const message = updateResult.error || 'Product created but media upload update failed'
+            if (await redirectIfSessionError(updateResponse.status, message)) {
+              throw new Error(getSessionErrorMessage())
+            }
+            throw new Error(message)
           }
 
           finalData = updateResult.data
+        } catch (mediaErr) {
+          if (await redirectIfSessionError(undefined, mediaErr?.message)) {
+            throw new Error(getSessionErrorMessage())
+          }
+          throw mediaErr
         } finally {
           setUploadingMedia(false)
         }
@@ -174,6 +197,11 @@ export const useProductSubmit = (vendor) => {
           sanitizedFormData.video_url = mergedMedia.video_url
           sanitizedFormData.color_images = mergedMedia.color_images
           sanitizedFormData.colors = mergedMedia.colors
+        } catch (mediaErr) {
+          if (await redirectIfSessionError(undefined, mediaErr?.message)) {
+            throw new Error(getSessionErrorMessage())
+          }
+          throw mediaErr
         } finally {
           setUploadingMedia(false)
         }
@@ -186,15 +214,20 @@ export const useProductSubmit = (vendor) => {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           updates: productData,
         }),
       })
 
-      const result = await response.json()
+      const result = await response.json().catch(() => ({}))
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to update product')
+        const message = result.error || 'Failed to update product'
+        if (await redirectIfSessionError(response.status, message)) {
+          throw new Error(getSessionErrorMessage())
+        }
+        throw new Error(message)
       }
 
       queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) })
@@ -243,7 +276,10 @@ export const useProductSubmit = (vendor) => {
 
       return result
     } catch (err) {
-      alert(`Error: ${err.message}`)
+      // Session errors already toast + redirect via handleSessionExpired
+      if (!isSessionAuthError(undefined, err?.message)) {
+        alert(`Error: ${err.message}`)
+      }
       throw err
     }
   }

@@ -81,6 +81,7 @@ export const productMediaService = {
 
     const response = await fetch(`/api/products/${productId}/upload-color-image`, {
       method: 'POST',
+      credentials: 'include',
       body: formData,
     })
 
@@ -109,6 +110,7 @@ export const productMediaService = {
 
     const response = await fetch(`/api/products/${productId}/upload-video`, {
       method: 'POST',
+      credentials: 'include',
       body: formData,
     })
 
@@ -129,7 +131,9 @@ export const productMediaService = {
    * Response: { id, status, result_url, error_message }
    */
   async getUploadJobStatus(jobId) {
-    const response = await fetch(`/api/products/upload-jobs/${jobId}`)
+    const response = await fetch(`/api/products/upload-jobs/${jobId}`, {
+      credentials: 'include',
+    })
     const data = await parseResponse(response, 'Failed to fetch upload job status')
     return {
       id: data.id || jobId,

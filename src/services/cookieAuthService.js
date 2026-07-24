@@ -113,7 +113,7 @@ class CookieAuthService {
 
       if (!response.ok) {
         console.log('❌ Session refresh failed')
-        return { success: false }
+        return { success: false, status: response.status }
       }
 
       const data = await response.json()
@@ -123,11 +123,11 @@ class CookieAuthService {
         return { success: true, sessionToken: data.sessionToken }
       } else {
         console.log('❌ Session refresh failed')
-        return { success: false }
+        return { success: false, status: response.status }
       }
     } catch (error) {
       console.error('❌ Error refreshing session:', error)
-      return { success: false }
+      return { success: false, error: error.message }
     }
   }
 

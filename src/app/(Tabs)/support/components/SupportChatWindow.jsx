@@ -70,13 +70,13 @@ export default function SupportChatWindow({
                 <div className={`w-2 h-2 rounded-full ${
                   realtimeConnected ? 'bg-green-500' : 'bg-red-500'
                 }`}></div>
-                {realtimeConnected ? 'Live' : 'Offline'}
+                {realtimeConnected ? 'Auto-refresh' : 'Offline'}
               </div>
               {!realtimeConnected && onReconnect && (
                 <button
                   onClick={onReconnect}
                   className="text-xs text-blue-600 hover:text-blue-800 underline"
-                  title="Reconnect to live updates"
+                  title="Refresh messages now"
                 >
                   Reconnect
                 </button>

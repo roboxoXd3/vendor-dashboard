@@ -58,8 +58,9 @@ export async function POST(request) {
     const data = await response.json().catch(() => ({}))
 
     if (!response.ok) {
+      const message = await parseBesmartError(response, data)
       return NextResponse.json(
-        { success: false, error: await parseBesmartError(response) },
+        { success: false, error: message || 'Failed to create size chart' },
         { status: response.status }
       )
     }

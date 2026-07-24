@@ -6,7 +6,7 @@ import OrdersTable from "./components/OrdersTable";
 import OrderDetailsPanel from "./components/OrderDetailsPanel";
 import OrdersPageFilterBar from "./components/OrderPageFilterBar";
 import OrdersFilterBar from "./components/OrdersFilterBar";
-import { useVendorOrders, useOrderStatusCounts } from "@/hooks/useOrders";
+import { useVendorOrders, useOrderStats } from "@/hooks/useOrders";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function OrdersPage() {
@@ -32,14 +32,22 @@ export default function OrdersPage() {
     limit: 20
   });
 
+  const { data: orderStatsResponse } = useOrderStats();
+
   const orders = ordersResponse?.data || [];
-  const statusCounts = useOrderStatusCounts(orders);
+  const statusCounts = orderStatsResponse?.data || {
+    all: 0,
+    pending: 0,
+    processing: 0,
+    shipped: 0,
+    delivered: 0,
+    cancelled: 0,
+  };
 
   // Handle URL parameter to auto-open order details
   useEffect(() => {
     const orderIdFromUrl = searchParams.get('orderId');
     if (orderIdFromUrl && orders.length > 0) {
-      // Check if the order exists in the current orders list
       const orderExists = orders.some(order => order.id === orderIdFromUrl);
       if (orderExists) {
         setSelectedOrderId(orderIdFromUrl);
@@ -47,12 +55,8 @@ export default function OrdersPage() {
     }
   }, [searchParams, orders]);
 
-  // Filter orders by status for display
-  const filteredOrders = activeStatus === "All Orders" 
-    ? orders 
-    : orders.filter(order => 
-        order.status.toLowerCase() === activeStatus.toLowerCase()
-      );
+  // Orders are already filtered server-side when a status tab is selected
+  const filteredOrders = orders;
 
   // Handle loading and error states
   if (!isApprovedVendor) {

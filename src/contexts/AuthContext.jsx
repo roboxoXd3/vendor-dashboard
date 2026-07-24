@@ -1,11 +1,23 @@
 'use client'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { getSupabase } from '@/lib/supabase'
 import { useRouter, usePathname } from 'next/navigation'
 import { cookieAuthService } from '@/services/cookieAuthService'
 import toast from 'react-hot-toast'
 
 const AuthContext = createContext()
+
+const PUBLIC_PREFIXES = [
+  '/reset-password',
+  '/auth/reset-password',
+  '/auth/forgot-password',
+  '/privacy',
+  '/terms',
+]
+
+function isPublicPath(pathname) {
+  return Boolean(pathname && PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix)))
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -16,144 +28,222 @@ export function AuthProvider({ children }) {
   const [sessionToken, setSessionToken] = useState(null)
   const router = useRouter()
   const pathname = usePathname()
+  const refreshIntervalRef = useRef(null)
+  const authInitializedRef = useRef(false)
+  const refreshInFlightRef = useRef(null)
 
-  // Set client flag to prevent hydration mismatches
+  const stopSessionRefreshTimer = useCallback(() => {
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current)
+      refreshIntervalRef.current = null
+    }
+  }, [])
+
+  const clearAuthState = useCallback(() => {
+    stopSessionRefreshTimer()
+    authInitializedRef.current = false
+    setUser(null)
+    setVendor(null)
+    setSessionToken(null)
+    setError(null)
+  }, [stopSessionRefreshTimer])
+
+  const signOut = useCallback(async () => {
+    try {
+      console.log('🚪 Signing out...')
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      clearAuthState()
+      console.log('✅ Sign out successful')
+      router.push('/')
+    } catch (err) {
+      console.error('❌ Sign out error:', err)
+      clearAuthState()
+      router.push('/')
+    }
+  }, [clearAuthState, router])
+
+  // Force logout + login redirect when an API returns invalid/expired session
+  const handleSessionExpired = useCallback(async (message) => {
+    console.warn('⚠️ Session expired:', message)
+    toast.error(message || 'Your session has expired. Please log in again.')
+    await signOut()
+  }, [signOut])
+
+  const refreshSession = useCallback(async () => {
+    // Deduplicate concurrent refresh calls (auto-timer + manual + API handlers)
+    if (refreshInFlightRef.current) {
+      return refreshInFlightRef.current
+    }
+
+    refreshInFlightRef.current = (async () => {
+      try {
+        const result = await cookieAuthService.refreshSession()
+
+        if (result.success) {
+          console.log('✅ Session refreshed successfully')
+          return true
+        }
+
+        // Only force logout on definitive auth failure (401), not network blips
+        console.log('❌ Session refresh failed:', result.status || result.error)
+        if (result.status === 401) {
+          await signOut()
+        }
+        return false
+      } catch (err) {
+        console.error('❌ Session refresh error:', err)
+        // Network/transient errors should not kick the vendor out mid-flow
+        return false
+      } finally {
+        refreshInFlightRef.current = null
+      }
+    })()
+
+    return refreshInFlightRef.current
+  }, [signOut])
+
+  const startSessionRefreshTimer = useCallback(() => {
+    // Only one interval at a time — stacking these caused intermittent invalid sessions
+    if (refreshIntervalRef.current) return
+
+    // Refresh every 45 minutes (vendor session cookie is 24h; Supabase JWT ~1h)
+    refreshIntervalRef.current = setInterval(async () => {
+      console.log('🔄 Auto-refreshing session...')
+      const success = await refreshSession()
+      if (!success) {
+        stopSessionRefreshTimer()
+      }
+    }, 45 * 60 * 1000)
+  }, [refreshSession, stopSessionRefreshTimer])
+
   useEffect(() => {
     setIsClient(true)
   }, [])
 
   useEffect(() => {
-    // Only run auth logic on client side
     if (!isClient) return
-    
-    // Public, unprotected routes that must be accessible without auth
-    const publicPrefixes = [
-      '/reset-password',        // main site reset
-      '/auth/reset-password',   // vendor reset
-      '/auth/forgot-password',  // vendor forgot password
-      '/privacy',               // privacy policy (adjust if different)
-      '/terms',                 // terms & conditions (adjust if different)
-    ]
 
-    if (pathname && publicPrefixes.some((prefix) => pathname.startsWith(prefix))) {
+    if (isPublicPath(pathname)) {
       setLoading(false)
       return
     }
-    
+
+    // Do not re-validate / restack refresh timers on every client navigation
+    if (authInitializedRef.current) {
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
+
     const initializeAuth = async () => {
       try {
-        // Validate session from cookies
         const validation = await cookieAuthService.validateSessionFromCookies()
-        
+        if (cancelled) return
+
         if (validation.valid) {
           setUser(validation.user)
           setVendor(validation.vendor)
-          setSessionToken('cookie_based') // Placeholder since token is in HTTP-only cookie
+          setSessionToken('cookie_based')
           setError(null)
-          
-          // Start session refresh timer for approved vendors
+          authInitializedRef.current = true
+
           if (validation.vendor?.status === 'approved') {
             startSessionRefreshTimer()
           }
         } else {
-          
-          // Check if there's a Supabase session (fallback for first-time login)
-          const supabase = getSupabase()
-          const { data: { session } } = await supabase.auth.getSession()
-          
-          if (session?.user) {
-            // Don't auto-migrate, let user login again to set cookies properly
-            setUser(null)
-            setVendor(null)
-            setSessionToken(null)
-          } else {
-            setUser(null)
-            setVendor(null)
-            setSessionToken(null)
-          }
+          setUser(null)
+          setVendor(null)
+          setSessionToken(null)
         }
       } catch (err) {
+        if (cancelled) return
         setError(err.message)
         setUser(null)
         setVendor(null)
         setSessionToken(null)
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
     initializeAuth()
 
-    // Listen for auth changes (fallback)
+    return () => {
+      cancelled = true
+    }
+  }, [isClient, pathname, startSessionRefreshTimer])
+
+  // Auth listener + timer cleanup live for the lifetime of AuthProvider
+  useEffect(() => {
+    if (!isClient) return
+
     const supabaseForListener = getSupabase()
-    const { data: { subscription } } = supabaseForListener.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabaseForListener.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_OUT') {
-        // Clear local state - cookies will be cleared by logout API
-        setUser(null)
-        setVendor(null)
-        setSessionToken(null)
-        setError(null)
+        clearAuthState()
       }
     })
 
     return () => {
       subscription.unsubscribe()
+      stopSessionRefreshTimer()
     }
-  }, [isClient, pathname])
+  }, [isClient, clearAuthState, stopSessionRefreshTimer])
 
-  // Cookie-based login function
   const signInWithToken = async (email, password) => {
     try {
       setLoading(true)
       setError(null)
-      
+
       console.log('🔐 Attempting cookie-based login for:', email)
-      
+
       const response = await fetch('/api/auth/vendor-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // Include cookies in request
-        body: JSON.stringify({ email, password })
+        credentials: 'include',
+        body: JSON.stringify({ email, password }),
       })
-      
+
       const data = await response.json()
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Login failed')
       }
-      
+
       if (data.requiresApproval) {
-        // Vendor exists but not approved - still set session for limited access
         setUser(data.user || null)
         setVendor(data.vendor || null)
         setSessionToken('cookie_based')
+        authInitializedRef.current = true
         return { success: true, requiresApproval: true, vendor: data.vendor }
       }
 
       if (data.requiresApplication) {
-        // User exists but no vendor profile - allow login to apply
         setUser(data.user || null)
         setVendor(null)
         setSessionToken(data.sessionToken ? 'cookie_based' : null)
+        authInitializedRef.current = true
         return { success: true, requiresApplication: true }
       }
-      
-      // Successful login - cookies are set by the server
+
       setUser(data.user)
       setVendor(data.vendor)
-      setSessionToken('cookie_based') // Placeholder since token is in HTTP-only cookie
-      
+      setSessionToken('cookie_based')
+      authInitializedRef.current = true
+
       console.log('✅ Cookie-based login successful for:', data.vendor.business_name)
-      
-      // Start session refresh timer for approved vendors
+
       if (data.vendor?.status === 'approved') {
         startSessionRefreshTimer()
       }
-      
+
       return { success: true, user: data.user, vendor: data.vendor }
-      
     } catch (err) {
       console.error('❌ Cookie-based login error:', err)
       setError(err.message)
@@ -163,133 +253,56 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // Refresh session token
-  const refreshSession = async () => {
-    try {
-      const result = await cookieAuthService.refreshSession()
-      
-      if (result.success) {
-        console.log('✅ Session refreshed successfully')
-        return true
-      } else {
-        console.log('❌ Session refresh failed')
-        await signOut()
-        return false
-      }
-    } catch (err) {
-      console.error('❌ Session refresh error:', err)
-      await signOut()
-      return false
-    }
-  }
-
-  // Sign out function
-  const signOut = async () => {
-    try {
-      console.log('🚪 Signing out...')
-      
-      // Call logout API (cookies will be cleared by server)
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include' // Include cookies
-      })
-      
-      // Clear local state
-      setUser(null)
-      setVendor(null)
-      setSessionToken(null)
-      setError(null)
-      
-      console.log('✅ Sign out successful')
-      
-      // Redirect to login
-      router.push('/')
-      
-    } catch (err) {
-      console.error('❌ Sign out error:', err)
-      // Clear state anyway
-      setUser(null)
-      setVendor(null)
-      setSessionToken(null)
-      router.push('/')
-    }
-  }
-
-  // Validate current session (less aggressive)
   const validateCurrentSession = async () => {
     if (!sessionToken) return false
-    
+
     try {
       const validation = await cookieAuthService.validateSessionFromCookies()
-      
+
       if (!validation.valid) {
         console.log('⚠️ Session validation failed, attempting refresh...')
-        
-        // Try to refresh the session
         const refreshResult = await refreshSession()
         if (refreshResult) {
           console.log('✅ Session refreshed successfully')
           return true
         }
-        
         return false
       }
-      
+
       return true
-    } catch (error) {
-      console.error('❌ Session validation error:', error)
-      // Don't force logout on validation errors - could be network issues
-      return true // Assume valid if we can't validate
+    } catch (validationError) {
+      console.error('❌ Session validation error:', validationError)
+      // Network blips shouldn't force logout
+      return true
     }
   }
 
-  // Auto-refresh session periodically (simplified for cookies)
-  const startSessionRefreshTimer = () => {
-    // Refresh session every 45 minutes (tokens typically expire in 1 hour)
-    const refreshInterval = setInterval(async () => {
-      console.log('🔄 Auto-refreshing session...')
-      const success = await refreshSession()
-      if (!success) {
-        clearInterval(refreshInterval)
-      }
-    }, 45 * 60 * 1000) // 45 minutes
-
-    return refreshInterval
-  }
-
-  // Forgot password function
   const forgotPassword = async (email) => {
     const loadingToast = toast.loading('Sending password reset email...')
-    
+
     try {
       setLoading(true)
       setError(null)
-      
+
       console.log('📧 Sending password reset email to:', email)
-      
+
       const supabase = getSupabase()
-      
-      // Use the vendor dashboard's deployed URL with auth-specific reset route
       const vendorDashboardUrl = 'https://vendor-dashboard-production.up.railway.app'
       const resetUrl = `${vendorDashboardUrl}/auth/reset-password`
-      
+
       console.log('🔗 Vendor Dashboard Reset URL:', resetUrl)
-      
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        email,
-        {
-          redirectTo: resetUrl
-        }
-      )
-      
+
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: resetUrl,
+      })
+
       if (resetError) {
         throw new Error(resetError.message)
       }
-      
+
       console.log('✅ Password reset email sent successfully')
       toast.dismiss(loadingToast)
       return { success: true, message: 'Password reset link sent to your email' }
-      
     } catch (err) {
       console.error('❌ Forgot password error:', err)
       toast.dismiss(loadingToast)
@@ -300,24 +313,23 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // Fetch vendor profile (for refreshing after application submission)
-  const fetchVendorProfile = async (userId) => {
+  const fetchVendorProfile = async () => {
     try {
       console.log('🔄 Fetching updated vendor profile...')
-      
+
       const validation = await cookieAuthService.validateSessionFromCookies()
-      
+
       if (validation.valid && validation.vendor) {
         console.log('✅ Updated vendor profile fetched:', validation.vendor.business_name)
         setVendor(validation.vendor)
         return validation.vendor
-      } else {
-        console.log('❌ No vendor profile found during refresh')
-        setVendor(null)
-        return null
       }
-    } catch (error) {
-      console.error('❌ Error fetching vendor profile:', error)
+
+      console.log('❌ No vendor profile found during refresh')
+      setVendor(null)
+      return null
+    } catch (profileError) {
+      console.error('❌ Error fetching vendor profile:', profileError)
       return null
     }
   }
@@ -330,6 +342,7 @@ export function AuthProvider({ children }) {
     sessionToken,
     signInWithToken,
     signOut,
+    handleSessionExpired,
     refreshSession,
     validateCurrentSession,
     fetchVendorProfile,
@@ -338,7 +351,7 @@ export function AuthProvider({ children }) {
     isVendor: !!vendor,
     isApprovedVendor: vendor?.status === 'approved',
     vendorId: vendor?.id,
-    businessName: vendor?.business_name
+    businessName: vendor?.business_name,
   }
 
   return (

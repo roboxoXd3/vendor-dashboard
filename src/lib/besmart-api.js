@@ -61,38 +61,56 @@ async function persistDeviceInfo(sessionId, deviceInfo) {
     .eq('id', sessionId)
 }
 
+// Deduplicate concurrent Supabase JWT refreshes for the same vendor session.
+// Parallel product create / media uploads near JWT expiry used to race refresh
+// tokens (often single-use) and surface intermittent 401 "invalid session".
+const supabaseRefreshLocks = new Map()
+
 /** Refresh Supabase JWT using stored refresh_token; returns fresh access_token */
 async function refreshSupabaseAccessToken(sessionData) {
-  const deviceInfo = parseDeviceInfo(sessionData.device_info)
-  const refreshToken = deviceInfo.supabase_refresh_token
-
-  if (!refreshToken) {
-    return deviceInfo.supabase_access_token?.trim() || null
+  const lockKey = sessionData.id
+  const existing = supabaseRefreshLocks.get(lockKey)
+  if (existing) {
+    return existing
   }
 
-  try {
-    const supabaseClient = getSupabaseClient()
-    const { data, error } = await supabaseClient.auth.refreshSession({
-      refresh_token: refreshToken,
-    })
+  const refreshPromise = (async () => {
+    const deviceInfo = parseDeviceInfo(sessionData.device_info)
+    const refreshToken = deviceInfo.supabase_refresh_token
 
-    if (error || !data?.session?.access_token) {
-      console.error('⚠️ Supabase token refresh failed:', error?.message)
+    if (!refreshToken) {
       return deviceInfo.supabase_access_token?.trim() || null
     }
 
-    const updatedDeviceInfo = {
-      ...deviceInfo,
-      supabase_access_token: data.session.access_token,
-      supabase_refresh_token: data.session.refresh_token,
-    }
+    try {
+      const supabaseClient = getSupabaseClient()
+      const { data, error } = await supabaseClient.auth.refreshSession({
+        refresh_token: refreshToken,
+      })
 
-    await persistDeviceInfo(sessionData.id, updatedDeviceInfo)
-    return data.session.access_token
-  } catch (err) {
-    console.error('⚠️ Supabase token refresh error:', err)
-    return deviceInfo.supabase_access_token?.trim() || null
-  }
+      if (error || !data?.session?.access_token) {
+        console.error('⚠️ Supabase token refresh failed:', error?.message)
+        return deviceInfo.supabase_access_token?.trim() || null
+      }
+
+      const updatedDeviceInfo = {
+        ...deviceInfo,
+        supabase_access_token: data.session.access_token,
+        supabase_refresh_token: data.session.refresh_token,
+      }
+
+      await persistDeviceInfo(sessionData.id, updatedDeviceInfo)
+      return data.session.access_token
+    } catch (err) {
+      console.error('⚠️ Supabase token refresh error:', err)
+      return deviceInfo.supabase_access_token?.trim() || null
+    } finally {
+      supabaseRefreshLocks.delete(lockKey)
+    }
+  })()
+
+  supabaseRefreshLocks.set(lockKey, refreshPromise)
+  return refreshPromise
 }
 
 // Decodes (without verifying — verification happens server-side on the

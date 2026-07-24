@@ -1,172 +1,89 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { getSupabase } from '@/lib/supabase';
-import toast from 'react-hot-toast';
+'use client'
+
+import { useEffect, useRef, useCallback } from 'react'
+import toast from 'react-hot-toast'
+import supportService from '@/services/supportService'
 
 /**
- * Custom hook for managing real-time message subscriptions
- * @param {string} ticketId - The ticket ID to subscribe to
- * @param {function} onMessageReceived - Callback when a new message is received
- * @param {function} onMessageUpdated - Callback when a message is updated
- * @param {function} onMessageDeleted - Callback when a message is deleted
- * @param {function} onError - Callback for handling errors
- * @param {boolean} enabled - Whether the subscription should be active
+ * Poll Django support messages while a ticket is open.
+ * Supabase realtime is not wired to Django tickets, so polling is the reliable path.
  */
 export const useRealtimeMessages = ({
   ticketId,
   onMessageReceived,
-  onMessageUpdated,
-  onMessageDeleted,
   onError,
-  enabled = true
+  enabled = true,
+  intervalMs = 8000,
 }) => {
-  const subscriptionRef = useRef(null);
-  const reconnectTimeoutRef = useRef(null);
-  const reconnectAttemptsRef = useRef(0);
-  const maxReconnectAttempts = 5;
-  const reconnectDelay = 1000; // Start with 1 second
+  const seenIdsRef = useRef(new Set())
+  const pollRef = useRef(null)
+  const initialLoadDoneRef = useRef(false)
 
-  // Clean up subscription
   const cleanup = useCallback(() => {
-    if (subscriptionRef.current) {
-      subscriptionRef.current.unsubscribe();
-      subscriptionRef.current = null;
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
     }
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-  }, []);
+  }, [])
 
-  // Handle connection errors and implement reconnection logic
-  const handleConnectionError = useCallback((error) => {
-    if (onError) {
-      onError(error);
-    }
-
-    // Implement exponential backoff for reconnection
-    if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-      const delay = reconnectDelay * Math.pow(2, reconnectAttemptsRef.current);
-      reconnectAttemptsRef.current++;
-      
-      reconnectTimeoutRef.current = setTimeout(() => {
-        if (ticketId && enabled) {
-          setupSubscription();
-        }
-      }, delay);
-    } else {
-      toast.error('Connection lost. Please refresh the page to reconnect.');
-    }
-  }, [ticketId, enabled, onError]);
-
-  // Setup the realtime subscription
-  const setupSubscription = useCallback(() => {
-    if (!ticketId || !enabled) return;
+  const pollOnce = useCallback(async () => {
+    if (!ticketId || !enabled) return
 
     try {
-      const supabase = getSupabase();
-      
-      // Clean up existing subscription
-      cleanup();
+      const response = await supportService.getTicketMessages(ticketId)
+      const messages = response.messages || []
 
-      subscriptionRef.current = supabase
-        .channel(`support-messages-${ticketId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'support_messages',
-            filter: `ticket_id=eq.${ticketId}`
-          },
-          (payload) => {
-            if (onMessageReceived) {
-              onMessageReceived(payload.new);
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'support_messages',
-            filter: `ticket_id=eq.${ticketId}`
-          },
-          (payload) => {
-            if (onMessageUpdated) {
-              onMessageUpdated(payload.new, payload.old);
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'DELETE',
-            schema: 'public',
-            table: 'support_messages',
-            filter: `ticket_id=eq.${ticketId}`
-          },
-          (payload) => {
-            if (onMessageDeleted) {
-              onMessageDeleted(payload.old);
-            }
-          }
-        )
-        .on('system', {}, (status) => {
-          if (status === 'SUBSCRIBED') {
-            reconnectAttemptsRef.current = 0; // Reset reconnection attempts on successful connection
-          } else if (status === 'CHANNEL_ERROR') {
-            handleConnectionError(new Error('Channel error occurred'));
-          } else if (status === 'TIMED_OUT') {
-            handleConnectionError(new Error('Connection timed out'));
-          }
-        })
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            reconnectAttemptsRef.current = 0;
-          } else if (status === 'CHANNEL_ERROR') {
-            handleConnectionError(new Error('Channel error occurred'));
-          } else if (status === 'TIMED_OUT') {
-            handleConnectionError(new Error('Connection timed out'));
-          }
-        });
+      if (!initialLoadDoneRef.current) {
+        seenIdsRef.current = new Set(messages.map((m) => m.id))
+        initialLoadDoneRef.current = true
+        return
+      }
 
+      for (const message of messages) {
+        if (!seenIdsRef.current.has(message.id)) {
+          seenIdsRef.current.add(message.id)
+          onMessageReceived?.(message)
+        }
+      }
     } catch (error) {
-      handleConnectionError(error);
+      onError?.(error)
     }
-  }, [ticketId, enabled, onMessageReceived, onMessageUpdated, onMessageDeleted, cleanup, handleConnectionError]);
+  }, [ticketId, enabled, onMessageReceived, onError])
 
-  // Setup subscription when ticketId changes or component mounts
+  const setupSubscription = useCallback(() => {
+    cleanup()
+    initialLoadDoneRef.current = false
+    seenIdsRef.current = new Set()
+
+    if (!ticketId || !enabled) return
+
+    pollOnce()
+    pollRef.current = setInterval(pollOnce, intervalMs)
+  }, [ticketId, enabled, intervalMs, pollOnce, cleanup])
+
   useEffect(() => {
     if (ticketId && enabled) {
-      setupSubscription();
+      setupSubscription()
     } else {
-      cleanup();
+      cleanup()
     }
+    return cleanup
+  }, [ticketId, enabled, setupSubscription, cleanup])
 
-    // Cleanup on unmount
-    return cleanup;
-  }, [ticketId, enabled, setupSubscription, cleanup]);
-
-  // Manual reconnection function
   const reconnect = useCallback(() => {
-    reconnectAttemptsRef.current = 0;
-    cleanup();
-    if (ticketId && enabled) {
-      setupSubscription();
-    }
-  }, [ticketId, enabled, setupSubscription, cleanup]);
+    toast.success('Refreshing messages…')
+    setupSubscription()
+  }, [setupSubscription])
 
-  // Check connection status
   const isConnected = useCallback(() => {
-    return subscriptionRef.current && subscriptionRef.current.state === 'joined';
-  }, []);
+    return Boolean(ticketId && enabled && pollRef.current)
+  }, [ticketId, enabled])
 
   return {
     reconnect,
     isConnected,
-    cleanup
-  };
-};
+    cleanup,
+  }
+}
 
-export default useRealtimeMessages;
+export default useRealtimeMessages

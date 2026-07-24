@@ -1,14 +1,16 @@
 import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
 
-// GET /api/analytics/performance - Per-product performance (views/cart/purchases/conversion)
-//
-// Backed by Django's GET /api/vendors/analytics/performance/, which aggregates
-// real ProductAnalyticsEvent rows for the authenticated vendor. Django doesn't
-// return revenue/rating/images/stock, so those are enriched here from the
-// vendor's own-products list. No period/date-range filtering yet (all-time).
-export async function GET() {
+// GET /api/analytics/performance?period=30d
+// Forwards period to Django. Until Django honours period, response is all-time.
+export async function GET(request) {
   try {
-    const { response, error, status } = await besmartRequest('/api/vendors/analytics/performance/')
+    const { searchParams } = new URL(request.url)
+    const period = searchParams.get('period') || '30d'
+    const qs = new URLSearchParams({ period })
+
+    const { response, error, status } = await besmartRequest(
+      `/api/vendors/analytics/performance/?${qs.toString()}`
+    )
 
     if (error) {
       return Response.json({ error }, { status })
@@ -21,10 +23,9 @@ export async function GET() {
     const { data: stats } = await response.json()
 
     if (!stats || stats.length === 0) {
-      return Response.json({ data: [] })
+      return Response.json({ data: [], period })
     }
 
-    // Enrich with fields Django's performance endpoint doesn't provide.
     let productsById = new Map()
     try {
       const productsRes = await besmartRequest('/api/vendors/own-products/?page_size=100')
@@ -33,7 +34,7 @@ export async function GET() {
         productsById = new Map((productsData.results || []).map((p) => [p.id, p]))
       }
     } catch {
-      // Non-critical — performance list still returns without enrichment
+      // non-critical
     }
 
     const performanceData = stats.map((stat) => {
@@ -59,12 +60,9 @@ export async function GET() {
 
     performanceData.sort((a, b) => b.revenue - a.revenue)
 
-    return Response.json({ data: performanceData })
-
+    return Response.json({ data: performanceData, period })
   } catch (error) {
     console.error('❌ Error fetching product performance:', error)
-    return Response.json({
-      error: 'Internal server error'
-    }, { status: 500 })
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

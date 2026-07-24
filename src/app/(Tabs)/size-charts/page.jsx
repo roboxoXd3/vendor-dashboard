@@ -37,7 +37,7 @@ export default function SizeChartsPage() {
 
   const loadSizeCharts = async (categoryList = categories) => {
     try {
-      const response = await fetch('/api/size-charts')
+      const response = await fetch('/api/size-charts', { credentials: 'include' })
       const data = await response.json()
 
       if (data.success) {
@@ -60,7 +60,7 @@ export default function SizeChartsPage() {
 
   const loadCategories = async () => {
     try {
-      const response = await fetch('/api/categories')
+      const response = await fetch('/api/categories', { credentials: 'include' })
       const data = await response.json()
       const categoryList = data.categories || []
       setCategories(categoryList)
@@ -101,7 +101,8 @@ export default function SizeChartsPage() {
     
     try {
       const response = await fetch(`/api/size-charts/${chartId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include',
       })
       
       if (response.ok) {
@@ -135,6 +136,7 @@ export default function SizeChartsPage() {
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       })
 

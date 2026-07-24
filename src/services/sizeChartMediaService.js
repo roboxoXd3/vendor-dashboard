@@ -13,6 +13,7 @@ export const sizeChartMediaService = {
 
     const response = await fetch(`/api/size-charts/${templateId}/upload-image`, {
       method: 'POST',
+      credentials: 'include',
       body: formData,
     })
 

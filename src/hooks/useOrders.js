@@ -47,17 +47,9 @@ export function useUpdateOrderStatus() {
     mutationFn: ({ orderId, status, options = {} }) => 
       ordersService.updateOrderStatus(orderId, status, vendor?.id, options),
     onSuccess: (data, variables) => {
-      // Invalidate orders list to refetch with updated data
-      queryClient.invalidateQueries({
-        queryKey: orderKeys.lists()
-      })
-      
-      // Invalidate order stats
-      queryClient.invalidateQueries({
-        queryKey: orderKeys.stats(vendor?.id)
-      })
-      
-      // Invalidate dashboard stats if they exist
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: orderKeys.stats(vendor?.id) })
+      queryClient.invalidateQueries({ queryKey: orderKeys.detail(variables.orderId) })
       queryClient.invalidateQueries({
         queryKey: ['vendor', 'dashboard-stats', vendor?.id]
       })

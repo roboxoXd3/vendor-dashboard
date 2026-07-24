@@ -106,18 +106,14 @@ export default function SupportPage() {
     return () => clearTimeout(debounceTimer);
   }, [filters.search, filters.status, filters.priority, isAuthenticated, isVendor]);
 
-  // Realtime message handlers
+  // Realtime / poll handlers
   const handleNewMessage = useCallback((newMessage) => {
-    // Add the new message to the current messages list
     setMessages(prevMessages => {
-      // Check if message already exists to avoid duplicates
       const exists = prevMessages.some(msg => msg.id === newMessage.id);
       if (exists) return prevMessages;
-      
       return [...prevMessages, newMessage];
     });
 
-    // Update the tickets list to reflect the new message
     setTickets(prevTickets => 
       prevTickets.map(ticket => 
         ticket.id === activeTicket?.id 
@@ -126,7 +122,6 @@ export default function SupportPage() {
       )
     );
 
-    // Show notification for new admin messages
     if (newMessage.sender_role === 'admin') {
       toast.success('New message from admin!', {
         duration: 3000,
@@ -135,50 +130,24 @@ export default function SupportPage() {
     }
   }, [activeTicket]);
 
-  const handleMessageUpdated = useCallback((updatedMessage, oldMessage) => {
-    setMessages(prevMessages => 
-      prevMessages.map(msg => 
-        msg.id === updatedMessage.id ? updatedMessage : msg
-      )
-    );
-  }, []);
-
-  const handleMessageDeleted = useCallback((deletedMessage) => {
-    setMessages(prevMessages => 
-      prevMessages.filter(msg => msg.id !== deletedMessage.id)
-    );
-  }, []);
-
-  const handleRealtimeError = useCallback((error) => {
+  const handleRealtimeError = useCallback(() => {
     setRealtimeConnected(false);
-    
-    // Show user-friendly error message
-    toast.error('Connection issue. Messages may not update in real-time.', {
-      duration: 5000,
-      icon: '⚠️'
-    });
   }, []);
 
-  // Setup realtime subscription
   const { reconnect: reconnectRealtime, isConnected } = useRealtimeMessages({
     ticketId: activeTicket?.id,
     onMessageReceived: handleNewMessage,
-    onMessageUpdated: handleMessageUpdated,
-    onMessageDeleted: handleMessageDeleted,
     onError: handleRealtimeError,
     enabled: !!activeTicket && isAuthenticated && isVendor
   });
 
-  // Monitor connection status
   useEffect(() => {
     const checkConnection = () => {
-      const connected = isConnected();
-      setRealtimeConnected(connected);
+      setRealtimeConnected(isConnected());
     };
 
     checkConnection();
-    const interval = setInterval(checkConnection, 10000); // Check every 10 seconds (reduced frequency)
-
+    const interval = setInterval(checkConnection, 10000);
     return () => clearInterval(interval);
   }, [isConnected]);
 

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { FaArrowLeft, FaMobile } from 'react-icons/fa'
 
@@ -26,7 +27,8 @@ export default function ProductForm({
   isEdit = false,
   onBack = null 
 }) {
-  const { vendor, loading: authLoading } = useAuth()
+  const router = useRouter()
+  const { vendor, loading: authLoading, isApprovedVendor } = useAuth()
   const [currentStep, setCurrentStep] = useState(1)
   const [showMobilePreview, setShowMobilePreview] = useState(false)
 
@@ -68,6 +70,18 @@ export default function ProductForm({
       updateFormData(initialData)
     }
   }, [initialData, updateFormData])
+
+  // Create/edit pages skip the shell ProtectedRoute — guard auth here
+  useEffect(() => {
+    if (authLoading) return
+    if (!vendor) {
+      router.replace('/')
+      return
+    }
+    if (!isApprovedVendor) {
+      router.replace('/vendor-pending')
+    }
+  }, [authLoading, vendor, isApprovedVendor, router])
 
   const steps = [
     { number: 1, title: 'Basic Info', description: 'Product name, description, and category' },
@@ -156,14 +170,17 @@ export default function ProductForm({
     }
   }
 
-  // Don't let the form render (and risk a vendor.id crash on submit) until
-  // the vendor profile has actually finished loading.
-  if (authLoading || !vendor) {
+  // Don't let the form render until auth is ready; redirect happens above if needed
+  if (authLoading || !vendor || !isApprovedVendor) {
     return (
       <div className="fixed inset-0 bg-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-gray-600 text-sm">Loading your vendor profile…</p>
+          <p className="text-gray-600 text-sm">
+            {!authLoading && !vendor
+              ? 'Redirecting to login…'
+              : 'Loading your vendor profile…'}
+          </p>
         </div>
       </div>
     )

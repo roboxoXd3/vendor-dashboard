@@ -19,8 +19,13 @@ export default function EditProductPage({ params }) {
 
                        // Loading product for edit
 
-        const response = await fetch(`/api/products/${id}`)
+        const response = await fetch(`/api/products/${id}`, { credentials: 'include' })
         const result = await response.json()
+
+        if (response.status === 401 || response.status === 403) {
+          router.replace('/')
+          return
+        }
 
         if (!response.ok || !result.success) {
           throw new Error(result.error || 'Failed to load product')

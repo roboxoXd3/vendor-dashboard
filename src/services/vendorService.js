@@ -1,5 +1,3 @@
-import { getSupabase } from '@/lib/supabase'
-
 export const vendorService = {
   // Get vendor dashboard stats using server-side API
   async getDashboardStats(vendorId, filters = {}) {
@@ -83,49 +81,50 @@ export const vendorService = {
     }
   },
 
-  // Get vendor profile
+  // Get vendor profile (Django via BFF)
   async getVendorProfile(vendorId) {
     try {
-      const supabase = getSupabase()
-      const { data, error } = await supabase
-        .from('vendors')
-        .select('*')
-        .eq('id', vendorId)
-        .single()
+      const response = await fetch('/api/vendor-profile', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      })
 
-      if (error) throw error
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch vendor profile')
+      }
 
-      return { data, error: null }
+      return { data: result.vendor || result.data || result, error: null }
     } catch (error) {
       console.error('❌ Error fetching vendor profile:', error)
       return { data: null, error }
     }
   },
 
-  // Update vendor profile
+  // Update vendor profile (Django via BFF)
   async updateVendorProfile(vendorId, updates) {
     try {
-      const supabase = getSupabase()
-      const { data, error } = await supabase
-        .from('vendors')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', vendorId)
-        .select()
-        .single()
+      const response = await fetch('/api/vendor-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updates),
+      })
 
-      if (error) throw error
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update vendor profile')
+      }
 
-      return { data, error: null }
+      return { data: result.vendor || result.data || result, error: null }
     } catch (error) {
       console.error('Error updating vendor profile:', error)
       return { data: null, error }
     }
   },
 
-  // Get best selling products using performance summary view
+  // Get best selling products (Django analytics/performance via BFF)
   async getBestSellingProducts(vendorId, limit = 5, filters = {}) {
     try {
       if (!vendorId) {
@@ -133,85 +132,31 @@ export const vendorService = {
         return { data: [], error: null }
       }
 
-      const supabase = getSupabase()
-      
-      // Get vendor's product IDs first
-      const { data: vendorProducts, error: productsError } = await supabase
-        .from('products')
-        .select('id, vendor_id')
-        .eq('vendor_id', vendorId)
-        .eq('status', 'active')
+      const params = new URLSearchParams({
+        limit: String(limit),
+        ...filters,
+      })
 
-      if (productsError) throw productsError
+      const response = await fetch(`/api/dashboard/best-sellers?${params}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      })
 
-      if (!vendorProducts || vendorProducts.length === 0) {
-        return { data: [], error: null }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to fetch best selling products')
       }
 
-      const productIds = vendorProducts.map(p => p.id)
-
-      // A vendor can have hundreds of products; a single `.in('id', productIds)`
-      // with all of them at once produces a URL long enough (10-20KB+) to hang
-      // or fail unreliably in real browsers even though curl handles it fine.
-      // Chunk the lookup instead so no single request's ID list gets too large.
-      const CHUNK_SIZE = 100
-      const idChunks = []
-      for (let i = 0; i < productIds.length; i += CHUNK_SIZE) {
-        idChunks.push(productIds.slice(i, i + CHUNK_SIZE))
-      }
-
-      const chunkResults = await Promise.all(
-        idChunks.map(chunk =>
-          supabase
-            .from('product_performance_summary')
-            .select('id, name, orders_count, total_revenue, total_sold')
-            .in('id', chunk)
-        )
-      )
-
-      const summaryError = chunkResults.find(r => r.error)?.error
-      if (summaryError) throw summaryError
-
-      const bestSelling = chunkResults
-        .flatMap(r => r.data || [])
-        .sort((a, b) => (b.orders_count || 0) - (a.orders_count || 0))
-        .slice(0, limit)
-
-      // Only fetch full details for the final top-N picks — this ID list is
-      // always small regardless of catalog size.
-      const topIds = bestSelling.map(p => p.id)
-      const { data: productDetails, error: detailsError } = topIds.length
-        ? await supabase
-            .from('products')
-            .select('id, sku, price, images')
-            .in('id', topIds)
-        : { data: [], error: null }
-
-      if (detailsError) throw detailsError
-
-      // Combine the data
-      const combinedData = bestSelling?.map(product => {
-        const details = productDetails?.find(d => d.id === product.id)
-        return {
-          id: product.id,
-          name: product.name,
-          sku: details?.sku || 'N/A',
-          price: details?.price || 0,
-          images: details?.images || [],
-          orders_count: product.orders_count || 0,
-          total_revenue: product.total_revenue || 0,
-          total_sold: product.total_sold || 0
-        }
-      }) || []
-
-      return { data: combinedData, error: null }
+      const result = await response.json()
+      return { data: result.data || [], error: null }
     } catch (error) {
       console.error('Error fetching best selling products:', error)
       return { data: [], error }
     }
   },
 
-  // Get inventory status
+  // Get inventory status (Django statistics + stock tier scan via BFF)
   async getInventoryStatus(vendorId, filters = {}) {
     try {
       if (!vendorId) {
@@ -219,48 +164,19 @@ export const vendorService = {
         return { data: null, error: null }
       }
 
-      const supabase = getSupabase()
+      const response = await fetch('/api/dashboard/inventory-status', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      })
 
-      // Get total products count
-      const { count: totalProducts } = await supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true })
-        .eq('vendor_id', vendorId)
-        .eq('status', 'active')
-
-      // Get in stock products (stock_quantity > 10)
-      const { count: inStock } = await supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true })
-        .eq('vendor_id', vendorId)
-        .eq('status', 'active')
-        .gt('stock_quantity', 10)
-
-      // Get low stock products (stock_quantity between 1-10)
-      const { count: lowStock } = await supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true })
-        .eq('vendor_id', vendorId)
-        .eq('status', 'active')
-        .gte('stock_quantity', 1)
-        .lte('stock_quantity', 10)
-
-      // Get out of stock products (stock_quantity = 0)
-      const { count: outOfStock } = await supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true })
-        .eq('vendor_id', vendorId)
-        .eq('status', 'active')
-        .eq('stock_quantity', 0)
-
-      const inventoryData = {
-        totalProducts: totalProducts || 0,
-        inStock: inStock || 0,
-        lowStock: lowStock || 0,
-        outOfStock: outOfStock || 0
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to fetch inventory status')
       }
 
-      return { data: inventoryData, error: null }
+      const result = await response.json()
+      return { data: result.data || null, error: null }
     } catch (error) {
       console.error('❌ Error fetching inventory status:', error)
       return { data: null, error }

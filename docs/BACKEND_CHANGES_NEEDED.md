@@ -1,146 +1,68 @@
 # Backend Changes Needed — Vendor Dashboard
 
-**Date:** 2026-07-04
-**For:** Backend developer (BeSmartBackendDjango)
-**Context:** The vendor dashboard has been fully migrated so that **all data
-now comes from Django** (only login/session auth stays on Supabase). Every
-route builds, lints, and returns correctly against the live Django API.
-
-The items below are the **only** things that still need a backend change for
-the dashboard to work 100% correctly. They're ordered by impact. Nothing else
-is required — everything not listed here already works end-to-end.
+**Date:** 2026-07-24  
+**For:** BeSmartBackendDjango  
+**Frontend status:** Ready to go live. Items below improve correctness; they are **not blockers** for shipping the vendor panel.
 
 ---
 
-## 1. Add a customer name to vendor orders  →  *fixes "Unknown Customer" everywhere*
+## Go-live impact (if frontend ships before these fixes)
 
-**Impact:** High — visible on every order.
-**Where the dashboard shows it:** Recent Orders (dashboard), Escrow list.
+| # | Backend item | Breaks live vendor panel? | What vendors see today |
+|---|--------------|---------------------------|------------------------|
+| 1 | `upload_image` string overwrite | **No** | Product create/edit uses `upload-color-image` (works). Legacy `upload-image` BFF also repairs the array after upload. |
+| 2 | Funnel / performance `period` filter | **No** | Analytics still shows real data; period dropdown does not change funnel/performance (always all-time). Sales / views-over-time / metrics period filters already work. |
+| 3 | Inventory `inStock` / `lowStock` on statistics | **No** | Inventory widget works via a product-page scan (slower only for very large catalogs). |
 
-Django's `OrderSerializer` only exposes the customer's `user` id, with no name
-or email. There's no vendor-facing way to resolve who placed an order, so the
-dashboard currently displays **"Unknown Customer"** on every row.
-
-**Change:** add the customer's display name (and email if available) to the
-vendor order responses — either as fields on `OrderSerializer`
-(e.g. `customer_name`, `customer_email`) or a dedicated lookup endpoint,
-scoped so a vendor can only see customers who ordered from them.
-
-Affected endpoints: `GET /api/vendors/orders/`, `GET /api/vendors/orders/recent/`,
-`GET /api/vendors/escrow/`.
+**Bottom line:** You can put the frontend live now. Nothing in this doc will hard-break login, products, orders, payouts, settings, support, or media upload.
 
 ---
 
-## 2. Add missing fields to `ProductListSerializer`  →  *fixes product cards*
+## 1. Fix `upload_image` — keep `images` as a JSON array
 
-**Impact:** High — visible on the main Products page.
+**Impact:** Medium (source-of-truth bug; frontend mitigates)  
+**File:** `vendors/views.py` → `VendorOwnProductViewSet.upload_image`
 
-The product list (`GET /api/vendors/own-products/`) uses `ProductListSerializer`,
-which is missing fields the product cards render:
+**Bug:** `product.images = file_url` saves a string. Field must stay a list of URLs.
 
-- `description` — cards show generic fallback text instead of the real description
-- `approval_status` + `rejection_reason` — the approve/pending/rejected badge and
-  rejection notice never appear
-- `video_url` — the "Video" badge never appears
-- `colors` — color swatches are always empty
-- `subtitle`, `brand`
+**Fix:**
 
-`ProductDetailSerializer` (used for single-product GET) already has all of
-these via `fields = '__all__'` — only the **list** serializer is missing them.
-
-**Change:** add those fields to `ProductListSerializer` (or reuse
-`ProductDetailSerializer` for the `list` action).
-
----
-
-## 3. Add server-side filtering + adjustable page size to 3 list endpoints  →  *fixes performance at scale*
-
-**Impact:** Medium — works today, but gets slow as a vendor's catalog/history grows.
-
-These three list endpoints have **no** `filterset_fields`/`search_fields` and a
-**fixed** `PAGE_SIZE=20` with no `page_size_query_param`:
-
-- `VendorOwnProductViewSet` — needs search (name/SKU/category), category filter,
-  status filter, ordering (name, price)
-- `VendorOrderViewSet` — needs status filter, date range, ordering
-- `SupportTicketViewSet` — needs status filter, priority filter, search
-
-The dashboard needs all of these, so it currently **fetches every page from
-Django and filters/sorts in the Next.js layer**. That works, but a vendor with
-a large catalog triggers many sequential requests on each list load.
-
-**Change:** add `filterset_fields` (or a `get_queryset` query-param filter —
-`VendorProductReviewViewSet` and `VendorProductQAViewSet` already do this well,
-supporting `product_id`/`status`/`rating`/`has_answer`) plus a
-`page_size_query_param` to those three viewsets. Once done, the frontend can be
-switched back to a single filtered request.
+```python
+images = product.images or []
+if isinstance(images, str):
+    images = [images] if images else []
+if file_url not in images:
+    images.append(file_url)
+product.images = images
+product.save(update_fields=['images'])
+return Response({"message": "Image uploaded", "images": images})
+```
 
 ---
 
-## 4. Add a "resubmit rejected application" endpoint  →  *unblocks the last Supabase-dependent flow*
+## 2. Honour `?period=` on funnel + performance
 
-**Impact:** Medium — one flow still can't leave Supabase without this.
+**Impact:** Low–Medium (UX accuracy only)  
+**Endpoints:**
 
-When a vendor's application is rejected, they edit it and resubmit for review,
-which needs to reset `status → 'pending'` and clear
-`rejection_reason`/`admin_notes`. Django correctly marks `status` and
-`verification_status` **read-only** on `/api/vendors/profile/` (a vendor
-shouldn't be able to un-reject themselves via a generic profile update) — but
-that means there's no Django path for the *legitimate* resubmit action, so it's
-the one data flow still running on Supabase.
+- `GET /api/vendors/analytics/funnel/`
+- `GET /api/vendors/analytics/performance/`
 
-**Change:** add a dedicated `POST /api/vendors/resubmit/` (narrower than the
-profile PATCH) that resets `status`/`verification_status` to `pending` and
-clears the rejection fields, for the authenticated vendor only.
+**Expected:** Same `period=7d|30d|90d|1y` behaviour as sales / views-over-time. Filter `ProductAnalyticsEvent` by `created_at`.
+
+Frontend already forwards `period`; Django currently ignores it.
 
 ---
 
-## 5. Build (or confirm dropping) the two analytics endpoints with no backend
+## 3. Optional — inventory stock tiers on statistics
 
-**Impact:** Medium — two analytics widgets still read from Supabase.
+**Impact:** Low (performance nicety)  
+**Endpoint:** `GET /api/vendors/own-products/statistics/`
 
-`analytics/funnel` (product views → cart → checkout → purchased) and
-`analytics/performance` (per-product performance) have **no Django endpoint at
-all**, and need view / add-to-cart / checkout event-tracking data that Django
-doesn't currently capture. They're the only remaining analytics widgets still
-on Supabase.
-
-**Change:** if these are still wanted, add event tracking on the Django side
-and build `GET /api/vendors/analytics/funnel/` and
-`GET /api/vendors/analytics/performance/`. If they're being dropped, let us
-know and we'll remove the widgets.
-
-*(Also note: `VendorAnalyticsMetricsView` still returns a hardcoded
-`conversion_rate: 0.05`. That route turned out to be unused by the dashboard,
-so it's low priority — but if it's ever wired back up, that number is fake.)*
+Add `inStock` (qty > 10) and `lowStock` (qty 1–10) so the dashboard can skip scanning product pages.
 
 ---
 
-## 6. KYC document upload: store documents keyed by type
+## Already handled — do not re-open
 
-**Impact:** Low — works via a workaround, but the workaround is fragile.
-
-`POST /api/vendors/kyc/upload/` stores `verification_documents` as a flat
-**array** (`[{name, url, uploaded_at}]`). The dashboard needs it keyed by
-document type (`{id_proof: {...}, business_license: {...}, address_proof: {...}}`)
-to track which of the 3 required documents are present.
-
-The frontend currently uploads via Django, then immediately re-`PATCH`es
-`verification_documents` back into the object-keyed shape — it works, but it
-briefly writes a shape the model doesn't expect.
-
-**Change:** have `VendorKYCUploadView` accept a `document_type` param and store
-documents keyed by type (instead of appending to an array).
-
----
-
-## Not required — for your awareness only
-
-- **Escrow status filter:** Django's `EscrowTransaction.status` has only
-  `held`/`released`/`refunded` (no `pending`). The dashboard's "Pending" tab is
-  mapped to `held`. Fine as-is unless you want a distinct pending state.
-- **Two orphaned routes** (`/api/storage/upload`, `/api/storage/delete`) are
-  unused dead code in the frontend — no backend equivalent needed; can be
-  deleted from the frontend at some point.
-- **Auth stays on Supabase** by design (login, session, initial vendor
-  application). No backend change wanted here.
+Customer name on orders · ProductListSerializer fields · list filters / page_size · resubmit · KYC `document_type` · funnel/performance endpoints exist · metrics / best-sellers / inventory on Django via frontend · support polling · promotions “coming soon” · Supabase auth by design.

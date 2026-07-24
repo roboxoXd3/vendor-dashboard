@@ -1,5 +1,3 @@
-import { getSupabase } from '@/lib/supabase'
-
 export const productsService = {
   // Get all products for a vendor
   async getVendorProducts(vendorId, options = {}) {
@@ -11,23 +9,24 @@ export const productsService = {
         category = '',
         status = '',
         sortBy = 'created_at',
-        sortOrder = 'desc'
+        sortOrder = 'desc',
       } = options
 
-      // Build query parameters
       const params = new URLSearchParams({
         vendorId,
         page: page.toString(),
         limit: limit.toString(),
         sortBy,
-        sortOrder
+        sortOrder,
       })
 
       if (search) params.append('search', search)
       if (category) params.append('category', category)
       if (status) params.append('status', status)
 
-      const response = await fetch(`/api/products?${params}`)
+      const response = await fetch(`/api/products?${params}`, {
+        credentials: 'include',
+      })
       const result = await response.json()
 
       if (!response.ok) {
@@ -40,9 +39,9 @@ export const productsService = {
           page,
           limit,
           total: 0,
-          totalPages: 0
+          totalPages: 0,
         },
-        error: null
+        error: null,
       }
     } catch (error) {
       console.error('❌ Error fetching vendor products:', error)
@@ -53,11 +52,10 @@ export const productsService = {
   // Get single product (vendorId optional, for vendor-scoped requests)
   async getProduct(productId, vendorId = null) {
     try {
-      console.log('📦 Fetching single product:', productId)
       const url = vendorId
         ? `/api/products/${productId}?vendorId=${vendorId}`
         : `/api/products/${productId}`
-      const response = await fetch(url)
+      const response = await fetch(url, { credentials: 'include' })
       const result = await response.json()
 
       if (!response.ok) {
@@ -74,16 +72,11 @@ export const productsService = {
   // Create new product
   async createProduct(vendorId, productData) {
     try {
-
       const response = await fetch('/api/products', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          vendorId,
-          productData
-        })
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ vendorId, productData }),
       })
 
       const result = await response.json()
@@ -102,13 +95,11 @@ export const productsService = {
   // Update product
   async updateProduct(productId, updates) {
     try {
-
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ updates })
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ updates }),
       })
 
       const result = await response.json()
@@ -127,12 +118,10 @@ export const productsService = {
   // Delete product
   async deleteProduct(productId) {
     try {
-
       const response = await fetch(`/api/products/${productId}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       })
 
       const result = await response.json()
@@ -148,110 +137,101 @@ export const productsService = {
     }
   },
 
-  // Update product stock
+  // Update product stock via Django PATCH …/stock/
   async updateStock(productId, stockQuantity) {
     try {
-      const supabase = getSupabase()
-      const { data, error } = await supabase
-        .from('products')
-        .update({
-          stock_quantity: stockQuantity,
-          in_stock: stockQuantity > 0,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', productId)
-        .select()
-        .single()
+      const response = await fetch(`/api/products/${productId}/stock`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ stock_quantity: stockQuantity }),
+      })
 
-      if (error) throw error
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update stock')
+      }
 
-      return { data, error: null }
+      return { data: result.data || result, error: null }
     } catch (error) {
       console.error('❌ Error updating stock:', error)
       return { data: null, error }
     }
   },
 
-  // Get product categories
+  // Get product categories (Django via BFF)
   async getCategories() {
     try {
-      const supabase = getSupabase()
-      const { data, error } = await supabase
-        .from('categories')
-        .select(`
-          id, 
-          name, 
-          description,
-          subcategories (
-            id,
-            name,
-            description,
-            is_active
-          )
-        `)
-        .eq('is_active', true)
-        .order('name')
+      const response = await fetch('/api/categories', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      })
 
-      if (error) throw error
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch categories')
+      }
 
-      // Transform the data to include subcategories in a more accessible format
-      const categoriesWithSubcategories = data.map(category => ({
-        id: category.id,
-        name: category.name,
-        description: category.description,
-        subcategories: category.subcategories?.filter(sub => sub.is_active) || []
-      }))
-
-      return { data: categoriesWithSubcategories || [], error: null }
+      return { data: result.data || result.categories || [], error: null }
     } catch (error) {
       console.error('❌ Error fetching categories:', error)
       return { data: [], error }
     }
   },
 
-  // Get low stock products
+  // Get low stock products (Django own-products, filtered by threshold)
   async getLowStockProducts(vendorId, threshold = 10) {
     try {
-      const supabase = getSupabase()
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name, stock_quantity, sku')
-        .eq('vendor_id', vendorId)
-        .eq('status', 'active')
-        .lte('stock_quantity', threshold)
-        .order('stock_quantity', { ascending: true })
+      const response = await fetch(
+        `/api/products?vendorId=${vendorId}&status=active&limit=100&sortBy=created_at`,
+        { credentials: 'include' }
+      )
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch products')
+      }
 
-      if (error) throw error
+      const lowStock = (result.data || [])
+        .filter((p) => Number(p.stock_quantity ?? 0) <= threshold)
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          stock_quantity: p.stock_quantity,
+          sku: p.sku,
+        }))
+        .sort((a, b) => Number(a.stock_quantity) - Number(b.stock_quantity))
 
-      return { data: data || [], error: null }
+      return { data: lowStock, error: null }
     } catch (error) {
       console.error('❌ Error fetching low stock products:', error)
       return { data: [], error }
     }
   },
 
-  // Bulk update products
+  // Bulk update products via sequential PUT (no Django bulk-update endpoint)
   async bulkUpdateProducts(productUpdates) {
     try {
-      console.log('📝 Bulk updating products:', productUpdates.length)
-
-      const updates = productUpdates.map(update => ({
-        ...update,
-        updated_at: new Date().toISOString()
-      }))
-
-      const supabase = getSupabase()
-      const { data, error } = await supabase
-        .from('products')
-        .upsert(updates)
-        .select()
-
-      if (error) throw error
-
-      return { data: data || [], error: null }
+      const results = []
+      for (const update of productUpdates) {
+        const { id, ...updates } = update
+        if (!id) continue
+        const response = await fetch(`/api/products/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ updates }),
+        })
+        const result = await response.json().catch(() => ({}))
+        if (!response.ok) {
+          throw new Error(result.error || `Failed to update product ${id}`)
+        }
+        results.push(result.data)
+      }
+      return { data: results, error: null }
     } catch (error) {
       console.error('Error in bulk update:', error)
       return { data: [], error }
     }
-  }
+  },
 }
