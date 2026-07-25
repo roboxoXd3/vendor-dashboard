@@ -1,15 +1,19 @@
 import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
 
 /**
- * GET /api/dashboard/best-sellers?limit=5
- * Uses Django analytics/performance sorted by purchases/revenue.
+ * GET /api/dashboard/best-sellers?limit=5&period=30d
+ * Uses Django analytics/performance (period-aware) sorted by purchases/revenue.
  */
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
     const limit = Math.min(parseInt(searchParams.get('limit')) || 5, 20)
+    const period = searchParams.get('period') || '30d'
+    const qs = new URLSearchParams({ period })
 
-    const { response, error, status } = await besmartRequest('/api/vendors/analytics/performance/')
+    const { response, error, status } = await besmartRequest(
+      `/api/vendors/analytics/performance/?${qs.toString()}`
+    )
     if (error) {
       return Response.json({ error }, { status })
     }
@@ -23,7 +27,6 @@ export async function GET(request) {
       return Response.json({ data: [] })
     }
 
-    // Enrich with images/sku from own-products (first page is enough for top sellers)
     let productsById = new Map()
     try {
       const productsRes = await besmartRequest('/api/vendors/own-products/?page_size=100&ordering=-added_date')

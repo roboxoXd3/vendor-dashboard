@@ -38,6 +38,8 @@ export async function GET() {
       activeProducts: productStats.activeProducts || 0,
       outOfStock: productStats.outOfStock || 0,
       featuredProducts: productStats.featuredProducts || 0,
+      inStock: productStats.inStock || 0,
+      lowStock: productStats.lowStock || 0,
       followerCount
     }
 

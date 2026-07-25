@@ -9,10 +9,8 @@ function normalizeImagesList(images) {
 
 /**
  * POST /api/products/[id]/upload-image
- * Proxies Django upload-image, then repairs `images` if Django saved a string
- * instead of a JSON array (known backend bug).
- *
- * Prefer upload-color-image for new product media — that path is correct.
+ * Proxies Django upload-image (now correctly appends to images[]).
+ * Prefer upload-color-image for new product media in the create/edit wizard.
  */
 export async function POST(request, { params }) {
   try {
@@ -20,18 +18,6 @@ export async function POST(request, { params }) {
 
     if (!isValidProductId(id)) {
       return Response.json({ success: false, error: 'Valid product ID is required' }, { status: 400 })
-    }
-
-    // Capture existing images before Django may overwrite them as a string
-    let existingImages = []
-    try {
-      const beforeRes = await besmartRequest(`/api/vendors/own-products/${id}/`)
-      if (!beforeRes.error && beforeRes.response?.ok) {
-        const before = await beforeRes.response.json()
-        existingImages = normalizeImagesList(before.images)
-      }
-    } catch {
-      // non-critical
     }
 
     const form = await request.formData()
@@ -57,40 +43,17 @@ export async function POST(request, { params }) {
 
     if (!response.ok) {
       return Response.json(
-        { success: false, error: await parseBesmartError(response) },
+        { success: false, error: await parseBesmartError(response, data) },
         { status: response.status }
       )
     }
 
-    const uploadedUrl =
-      (typeof data.images === 'string' && data.images) ||
-      (Array.isArray(data.images) && data.images[data.images.length - 1]) ||
-      data.file_url ||
-      data.url ||
-      null
-
-    let images = normalizeImagesList(data.images)
-    if (images.length <= 1 && existingImages.length > 0) {
-      images = [...existingImages]
-    }
-    if (uploadedUrl && !images.includes(uploadedUrl)) {
-      images.push(uploadedUrl)
-    }
-
-    // Repair Django string overwrite so product.images stays a JSON array
-    try {
-      await besmartRequest(`/api/vendors/own-products/${id}/`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ images }),
-      })
-    } catch (repairError) {
-      console.warn('⚠️ Could not repair product.images array after upload:', repairError)
-    }
+    const images = normalizeImagesList(data.images)
+    const latestUrl = images[images.length - 1] || data.file_url || data.url || null
 
     return Response.json({
       success: true,
-      url: uploadedUrl || images[images.length - 1] || null,
+      url: latestUrl,
       images,
       message: data.message || 'Image uploaded successfully',
     })

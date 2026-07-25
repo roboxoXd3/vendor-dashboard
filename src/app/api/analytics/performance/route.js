@@ -1,7 +1,7 @@
 import { besmartRequest, parseBesmartError } from '@/lib/besmart-api'
 
 // GET /api/analytics/performance?period=30d
-// Forwards period to Django. Until Django honours period, response is all-time.
+// Django filters ProductAnalyticsEvent by period (7d|30d|90d|1y).
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)

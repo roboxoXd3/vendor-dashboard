@@ -156,7 +156,7 @@ export const vendorService = {
     }
   },
 
-  // Get inventory status (Django statistics + stock tier scan via BFF)
+  // Get inventory status (Django own-products/statistics via BFF)
   async getInventoryStatus(vendorId, filters = {}) {
     try {
       if (!vendorId) {
